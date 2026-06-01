@@ -7,6 +7,8 @@ import Header from '@/components/Header'
 const notoSansJP = Noto_Sans_JP({
   subsets: ['latin'],
   weight: ['400', '500', '700'],
+  display: 'swap',
+  preload: false,
 })
 
 export const metadata: Metadata = {

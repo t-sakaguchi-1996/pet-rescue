@@ -3,7 +3,16 @@
 import { Suspense, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
-import PetForm from '@/components/PetForm'
+import dynamic from 'next/dynamic'
+
+const PetForm = dynamic(() => import('@/components/PetForm'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center min-h-[40vh]">
+      <div className="text-gray-400 text-sm">フォームを読み込み中...</div>
+    </div>
+  ),
+})
 
 function NewPostContent() {
   const router = useRouter()
