@@ -17,6 +17,16 @@ import { db } from './firebase'
 import type { Pet, PetSpecies, PetType, PetStatus } from '@pet-rescue/shared'
 
 const PETS_COLLECTION = 'pets'
+const FETCH_TIMEOUT_MS = 8000
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`Firestore timeout after ${ms}ms`)), ms)
+    ),
+  ])
+}
 
 function toPet(id: string, data: Record<string, unknown>): Pet {
   return {
@@ -70,13 +80,13 @@ export async function fetchPets(filter: PetFilter = {}): Promise<Pet[]> {
   if (filter.limitCount) constraints.push(limit(filter.limitCount))
 
   const q = query(collection(db, PETS_COLLECTION), ...constraints)
-  const snapshot = await getDocs(q)
+  const snapshot = await withTimeout(getDocs(q), FETCH_TIMEOUT_MS)
   return snapshot.docs.map((d) => toPet(d.id, d.data()))
 }
 
 export async function fetchPetById(id: string): Promise<Pet | null> {
   const ref = doc(db, PETS_COLLECTION, id)
-  const snap = await getDoc(ref)
+  const snap = await withTimeout(getDoc(ref), FETCH_TIMEOUT_MS)
   if (!snap.exists()) return null
   return toPet(snap.id, snap.data())
 }
