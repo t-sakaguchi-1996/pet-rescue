@@ -19,149 +19,113 @@ export default function Header() {
 
   return (
     <>
-      <header className="bg-white/95 backdrop-blur-sm border-b border-pink-100 sticky top-0 z-50 shadow-soft">
+      <header className="sticky top-0 z-50"
+              style={{ background: 'rgba(255,238,209,0.95)', borderBottom: '1.5px solid #FFD98A', backdropFilter: 'blur(8px)' }}>
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
+
           {/* ロゴ */}
-          <Link
-            href="/"
-            onClick={closeMenu}
-            className="flex items-center gap-1.5 font-black text-lg"
-          >
+          <Link href="/" onClick={closeMenu} className="flex items-center gap-1.5 font-black text-lg">
             <span className="text-2xl">🐾</span>
-            <span className="bg-gradient-to-r from-primary-500 to-peach-400 bg-clip-text text-transparent">
-              ペットレスキュー
-            </span>
+            <span style={{ color: '#C46B00' }}>ペットレスキュー</span>
           </Link>
 
           {/* PC ナビ */}
           <nav className="hidden md:flex items-center gap-5 text-sm font-semibold">
-            <Link href="/" className="text-gray-500 hover:text-primary-500 transition-colors">
-              一覧
-            </Link>
-            <Link href="/map" className="text-gray-500 hover:text-primary-500 transition-colors">
-              地図
-            </Link>
-            <Link href="/posts/new?type=lost" className="text-gray-500 hover:text-primary-500 transition-colors">
-              迷子を報告
-            </Link>
-            <Link href="/posts/new?type=found" className="text-gray-500 hover:text-primary-500 transition-colors">
-              保護を報告
-            </Link>
+            {[
+              { href: '/', label: '一覧' },
+              { href: '/map', label: '地図' },
+              { href: '/posts/new?type=lost', label: '迷子を報告' },
+              { href: '/posts/new?type=found', label: '保護を報告' },
+            ].map((item) => (
+              <Link key={item.href} href={item.href}
+                    className="transition-colors hover:opacity-70"
+                    style={{ color: '#8B5E1A' }}>
+                {item.label}
+              </Link>
+            ))}
           </nav>
 
-          {/* 右側アクション */}
+          {/* 右アクション */}
           <div className="flex items-center gap-2">
             {loading ? null : user ? (
               <>
                 <NotificationBell />
-                <Link
-                  href="/mypage"
-                  onClick={closeMenu}
-                  className="w-8 h-8 rounded-full overflow-hidden bg-primary-100 flex items-center justify-center flex-shrink-0 hover:ring-2 hover:ring-primary-400 transition-all"
-                  aria-label="マイページ"
-                >
+                <Link href="/mypage" onClick={closeMenu}
+                      className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0 transition-all hover:ring-2"
+                      style={{ background: '#FFD98A' }}
+                      aria-label="マイページ">
                   {photoURL ? (
-                    <Image
-                      src={photoURL}
-                      alt={profile?.displayName ?? 'プロフィール'}
-                      width={32}
-                      height={32}
-                      className="object-cover w-full h-full"
-                    />
+                    <Image src={photoURL} alt="プロフィール" width={32} height={32} className="object-cover w-full h-full" />
                   ) : (
-                    <span className="text-sm font-bold text-primary-500">{initial}</span>
+                    <span className="text-sm font-bold" style={{ color: '#5A3A1A' }}>{initial}</span>
                   )}
                 </Link>
-                <Link href="/posts/new" onClick={closeMenu} className="btn-primary text-xs px-4 py-2 hidden sm:flex">
+                <Link href="/posts/new" onClick={closeMenu}
+                      className="hidden sm:inline-flex items-center gap-1 font-bold text-xs px-4 py-2 rounded-full transition-all active:scale-95"
+                      style={{ background: '#FFC96B', color: '#3D2400', boxShadow: '0 3px 10px rgba(255,201,107,0.4)' }}>
                   ＋ 投稿
                 </Link>
               </>
             ) : (
               <>
-                <Link href="/auth/login" className="text-sm text-gray-500 hover:text-primary-500 font-semibold hidden sm:block">
+                <Link href="/auth/login"
+                      className="hidden sm:block text-sm font-semibold transition-colors hover:opacity-70"
+                      style={{ color: '#8B5E1A' }}>
                   ログイン
                 </Link>
-                <Link href="/auth/register" className="btn-primary text-xs px-4 py-2">
+                <Link href="/auth/register"
+                      className="inline-flex items-center font-bold text-xs px-4 py-2 rounded-full transition-all active:scale-95"
+                      style={{ background: '#FFC96B', color: '#3D2400', boxShadow: '0 3px 10px rgba(255,201,107,0.4)' }}>
                   新規登録
                 </Link>
               </>
             )}
 
-            {/* モバイル ハンバーガー */}
-            <button
-              onClick={() => setMenuOpen((v) => !v)}
-              className="md:hidden w-8 h-8 flex flex-col items-center justify-center gap-1.5 ml-1"
-              aria-label="メニュー"
-              aria-expanded={menuOpen}
-            >
-              <span
-                className={`block w-5 h-0.5 bg-gray-500 transition-all duration-200 ${
-                  menuOpen ? 'rotate-45 translate-y-2' : ''
-                }`}
-              />
-              <span
-                className={`block w-5 h-0.5 bg-gray-500 transition-all duration-200 ${
-                  menuOpen ? 'opacity-0' : ''
-                }`}
-              />
-              <span
-                className={`block w-5 h-0.5 bg-gray-500 transition-all duration-200 ${
-                  menuOpen ? '-rotate-45 -translate-y-2' : ''
-                }`}
-              />
+            {/* ハンバーガー */}
+            <button onClick={() => setMenuOpen((v) => !v)}
+                    className="md:hidden w-8 h-8 flex flex-col items-center justify-center gap-[5px] ml-1 rounded-full transition-colors"
+                    style={{ background: menuOpen ? '#FFD98A' : 'transparent' }}
+                    aria-label="メニュー">
+              <span className={`block w-4.5 h-0.5 rounded-full transition-all duration-200 ${menuOpen ? 'rotate-45 translate-y-[7px]' : ''}`}
+                    style={{ background: '#5A3A1A', width: '18px' }} />
+              <span className={`block h-0.5 rounded-full transition-all duration-200 ${menuOpen ? 'opacity-0' : ''}`}
+                    style={{ background: '#5A3A1A', width: '18px' }} />
+              <span className={`block h-0.5 rounded-full transition-all duration-200 ${menuOpen ? '-rotate-45 -translate-y-[7px]' : ''}`}
+                    style={{ background: '#5A3A1A', width: '18px' }} />
             </button>
           </div>
         </div>
 
-        {/* モバイル ドロップダウンメニュー */}
+        {/* モバイルメニュー */}
         {menuOpen && (
-          <div className="md:hidden border-t border-pink-100 bg-white/98 backdrop-blur-sm">
+          <div style={{ borderTop: '1.5px solid #FFD98A', background: 'rgba(255,244,220,0.98)' }}>
             <nav className="px-4 py-3 space-y-0.5">
-              <MobileNavLink href="/" onClick={closeMenu}>🏠 一覧</MobileNavLink>
-              <MobileNavLink href="/map" onClick={closeMenu}>🗺️ 地図で探す</MobileNavLink>
-              <MobileNavLink href="/posts/new?type=lost" onClick={closeMenu}>🔍 迷子を報告する</MobileNavLink>
-              <MobileNavLink href="/posts/new?type=found" onClick={closeMenu}>🤝 保護した子を報告</MobileNavLink>
-              {user && (
-                <MobileNavLink href="/mypage" onClick={closeMenu}>👤 マイページ</MobileNavLink>
-              )}
-              {!user && (
-                <>
-                  <MobileNavLink href="/auth/login" onClick={closeMenu}>🔑 ログイン</MobileNavLink>
-                  <MobileNavLink href="/auth/register" onClick={closeMenu}>✨ 新規登録</MobileNavLink>
-                </>
-              )}
+              {[
+                { href: '/', label: '🏠 一覧' },
+                { href: '/map', label: '🗺️ 地図で探す' },
+                { href: '/posts/new?type=lost', label: '🔍 迷子を報告する' },
+                { href: '/posts/new?type=found', label: '🤝 保護した子を報告' },
+                ...(user ? [{ href: '/mypage', label: '👤 マイページ' }] : [
+                  { href: '/auth/login', label: '🔑 ログイン' },
+                  { href: '/auth/register', label: '✨ 新規登録' },
+                ]),
+              ].map((item) => (
+                <Link key={item.href} href={item.href} onClick={closeMenu}
+                      className="flex items-center gap-2 px-3 py-3 rounded-2xl text-sm font-semibold transition-colors"
+                      style={{ color: '#5A3A1A' }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#FFE0A0' }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}>
+                  {item.label}
+                </Link>
+              ))}
             </nav>
           </div>
         )}
       </header>
 
-      {/* メニューオーバーレイ */}
       {menuOpen && (
-        <div
-          className="md:hidden fixed inset-0 z-40 bg-black/20"
-          onClick={closeMenu}
-        />
+        <div className="md:hidden fixed inset-0 z-40 bg-black/10" onClick={closeMenu} />
       )}
     </>
-  )
-}
-
-function MobileNavLink({
-  href,
-  onClick,
-  children,
-}: {
-  href: string
-  onClick: () => void
-  children: React.ReactNode
-}) {
-  return (
-    <Link
-      href={href}
-      onClick={onClick}
-      className="flex items-center gap-2 px-3 py-3 rounded-2xl text-sm font-semibold text-gray-700 hover:bg-primary-50 hover:text-primary-600 transition-colors"
-    >
-      {children}
-    </Link>
   )
 }

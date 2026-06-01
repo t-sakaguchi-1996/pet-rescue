@@ -16,17 +16,17 @@ interface Props {
 export default function PetCard({ pet, showEditLink }: Props) {
   const router = useRouter()
 
-  const statusClass =
+  const statusStyle =
     pet.status === 'searching'
-      ? 'bg-amber-100 text-amber-600'
+      ? { background: '#FFF3CD', color: '#B07800' }
       : pet.status === 'protected'
-        ? 'bg-emerald-100 text-emerald-600'
-        : 'bg-gray-100 text-gray-400'
+        ? { background: '#DDFBE8', color: '#1A7A3C' }
+        : { background: '#F0F0F0', color: '#888888' }
 
-  const typeGradient =
+  const typeBadge =
     pet.type === 'lost'
-      ? 'from-primary-500 to-primary-400'
-      : 'from-blue-500 to-blue-400'
+      ? { background: '#FFE8C4', color: '#C46B00' }
+      : { background: '#D1E2FF', color: '#2B5FBF' }
 
   return (
     <div
@@ -36,8 +36,7 @@ export default function PetCard({ pet, showEditLink }: Props) {
       onKeyDown={(e) => e.key === 'Enter' && router.push(`/posts/${pet.id}`)}
       className="pet-card group"
     >
-      {/* 画像 */}
-      <div className="relative aspect-square bg-pink-50">
+      <div className="relative aspect-square" style={{ background: '#FFF3DC' }}>
         {pet.images.length > 0 ? (
           <Image
             src={pet.images[0]}
@@ -51,33 +50,31 @@ export default function PetCard({ pet, showEditLink }: Props) {
           </div>
         )}
 
-        {/* タイプバッジ */}
         <div className="absolute top-2 left-2">
-          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full text-white bg-gradient-to-r ${typeGradient} shadow-sm`}>
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                style={typeBadge}>
             {TYPE_LABELS[pet.type]}
           </span>
         </div>
-
-        {/* ステータスバッジ */}
         <div className="absolute top-2 right-2">
-          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${statusClass}`}>
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                style={statusStyle}>
             {STATUS_LABELS[pet.status]}
           </span>
         </div>
       </div>
 
-      {/* 情報 */}
       <div className="p-3">
-        <p className="font-bold text-gray-800 text-sm truncate">
+        <p className="font-bold text-sm truncate" style={{ color: '#3D2400' }}>
           {pet.name || '名前不明'}
-          <span className="text-gray-400 font-normal text-xs ml-1">
+          <span className="font-normal text-xs ml-1" style={{ color: '#B08050' }}>
             ({SPECIES_LABELS[pet.species]})
           </span>
         </p>
-        <p className="text-xs text-gray-400 mt-0.5 truncate">
+        <p className="text-xs mt-0.5 truncate" style={{ color: '#B08050' }}>
           📍 {pet.location.prefecture} {pet.location.city}
         </p>
-        <p className="text-[10px] text-gray-300 mt-1.5">
+        <p className="text-[10px] mt-1.5" style={{ color: '#C8A070' }}>
           {format(new Date(pet.createdAt), 'M/d', { locale: ja })} 投稿
         </p>
 
@@ -85,7 +82,8 @@ export default function PetCard({ pet, showEditLink }: Props) {
           <Link
             href={`/posts/${pet.id}/edit`}
             onClick={(e) => e.stopPropagation()}
-            className="inline-block mt-2 text-xs text-primary-400 hover:text-primary-600 font-semibold hover:underline"
+            className="inline-block mt-2 text-xs font-semibold hover:underline"
+            style={{ color: '#C46B00' }}
           >
             編集する →
           </Link>

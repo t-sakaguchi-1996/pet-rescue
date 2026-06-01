@@ -27,12 +27,12 @@ export default function RootLayout({
         <AuthProvider>
           <Header />
           <main className="min-h-[calc(100vh-56px)]">{children}</main>
-          <footer className="bg-primary-900 text-primary-200 py-8 mt-12">
+          <footer className="py-8 mt-12" style={{ background: '#C46B00' }}>
             <div className="max-w-6xl mx-auto px-4 text-center">
               <p className="text-2xl mb-1">🐾</p>
               <p className="font-black text-white text-base mb-1">ペットレスキュー</p>
-              <p className="text-xs text-primary-300">迷子のペットを探す・保護するためのプラットフォーム</p>
-              <p className="text-xs mt-4 text-primary-500">© 2025 ペットレスキュー</p>
+              <p className="text-xs" style={{ color: '#FFD98A' }}>迷子のペットを探す・保護するためのプラットフォーム</p>
+              <p className="text-xs mt-4" style={{ color: '#E8A93A' }}>© 2025 ペットレスキュー</p>
             </div>
           </footer>
         </AuthProvider>

@@ -4,92 +4,98 @@
 
 @layer base {
   :root {
-    --color-primary: #e8547a;
-    --color-primary-light: #fff0f5;
-    --color-peach: #ff9a62;
-    --color-cream: #fff6f8;
-    --color-border: #f5d0df;
+    --cream:  #FFEED1;
+    --yellow: #FFC96B;
+    --blue:   #D1E2FF;
+    --white:  #FFFFFF;
+    --brown:  #5A3A1A;
   }
 
   body {
-    background-color: var(--color-cream);
-    color: #3d2935;
+    background-color: #FFEED1;
+    color: #3D2400;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI',
       'Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'Yu Gothic UI',
       'Yu Gothic', 'Meiryo', sans-serif;
   }
 
-  * {
-    -webkit-tap-highlight-color: transparent;
-  }
+  * { -webkit-tap-highlight-color: transparent; }
 }
 
 @layer components {
   /* ── ボタン ── */
   .btn-primary {
     @apply inline-flex items-center justify-center gap-1.5
-           bg-gradient-to-r from-primary-500 to-primary-400
-           hover:from-primary-600 hover:to-primary-500
-           text-white font-semibold px-5 py-2.5 rounded-full
-           transition-all duration-200 shadow-soft
+           font-bold px-5 py-2.5 rounded-full
+           transition-all duration-150 active:scale-95
            disabled:opacity-50 disabled:cursor-not-allowed
-           active:scale-95;
+           select-none cursor-pointer;
+    background-color: #FFC96B;
+    color: #3D2400;
+    box-shadow: 0 4px 14px rgba(255,201,107,0.5);
+  }
+  .btn-primary:hover {
+    background-color: #E8A93A;
+    box-shadow: 0 6px 20px rgba(255,201,107,0.6);
   }
 
   .btn-secondary {
     @apply inline-flex items-center justify-center gap-1.5
-           bg-white hover:bg-primary-50
-           text-primary-600 font-semibold px-5 py-2.5 rounded-full
-           border border-primary-200 transition-all duration-200
-           active:scale-95;
+           font-semibold px-5 py-2.5 rounded-full
+           border transition-all duration-150 active:scale-95
+           select-none cursor-pointer;
+    background-color: #FFFFFF;
+    color: #5A3A1A;
+    border-color: #FFC96B;
+  }
+  .btn-secondary:hover {
+    background-color: #FFF8EC;
   }
 
   /* ── フォーム ── */
   .input-field {
-    @apply w-full border border-pink-200 rounded-2xl px-4 py-3
-           focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-transparent
-           text-gray-800 bg-white placeholder-pink-200
+    @apply w-full rounded-2xl px-4 py-3
+           focus:outline-none focus:ring-2
+           text-gray-800 bg-white
            transition-all duration-150;
+    border: 1.5px solid #FFD98A;
+    --tw-ring-color: #FFC96B;
   }
+  .input-field::placeholder { color: #C8A87A; }
 
-  .select-field {
-    @apply input-field appearance-none cursor-pointer;
-  }
+  .select-field { @apply input-field appearance-none cursor-pointer; }
 
   .label {
-    @apply block text-sm font-semibold text-primary-700 mb-1.5;
+    @apply block text-sm font-semibold mb-1.5;
+    color: #6B4200;
   }
 
   /* ── バッジ ── */
   .pet-badge-lost {
-    @apply bg-primary-100 text-primary-600 text-xs font-bold px-2.5 py-0.5 rounded-full;
+    @apply text-xs font-bold px-2.5 py-0.5 rounded-full;
+    background-color: #FFE8C4;
+    color: #C46B00;
   }
-
   .pet-badge-found {
-    @apply bg-blue-100 text-blue-600 text-xs font-bold px-2.5 py-0.5 rounded-full;
+    @apply text-xs font-bold px-2.5 py-0.5 rounded-full;
+    background-color: #D1E2FF;
+    color: #2B5FBF;
   }
 
-  .status-searching {
-    @apply bg-amber-100 text-amber-700;
-  }
-
-  .status-protected {
-    @apply bg-emerald-100 text-emerald-700;
-  }
-
-  .status-resolved {
-    @apply bg-gray-100 text-gray-500;
-  }
+  .status-searching { background-color: #FFF3CD; color: #B07800; }
+  .status-protected { background-color: #DDFBE8; color: #1A7A3C; }
+  .status-resolved  { background-color: #F0F0F0; color: #888888; }
 
   /* ── カード ── */
   .pet-card {
-    @apply bg-white rounded-3xl shadow-card border border-pink-100
-           hover:shadow-card-hover hover:-translate-y-0.5
-           transition-all duration-200 overflow-hidden cursor-pointer;
+    @apply rounded-3xl overflow-hidden cursor-pointer
+           transition-all duration-200;
+    background-color: #FFFFFF;
+    border: 1.5px solid #FFE0A0;
+    box-shadow: 0 2px 10px rgba(90,58,26,0.07);
   }
-
-  /* ── セクションタイトル ── */
-  .section-title {
-    @apply text-lg font-bold text-gray-800 flex items-center gap-2;
+  .pet-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 28px rgba(90,58,26,0.13);
   }
 }
