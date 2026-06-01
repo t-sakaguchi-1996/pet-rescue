@@ -21,6 +21,12 @@ import type {
 
 const PETS = 'pets'
 
+function stripUndefined(obj: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, v]) => v !== undefined)
+  )
+}
+
 function toPet(id: string, data: Record<string, unknown>): Pet {
   const lostDate = data.lostDate as Timestamp | string
   const createdAt = data.createdAt as Timestamp | string
@@ -78,12 +84,15 @@ export async function createPet(
   data: Omit<Pet, 'id' | 'createdAt' | 'updatedAt'>
 ): Promise<string> {
   const now = Timestamp.now()
-  const ref = await addDoc(collection(db, PETS), {
-    ...data,
-    lostDate: Timestamp.fromDate(new Date(data.lostDate)),
-    createdAt: now,
-    updatedAt: now,
-  })
+  const ref = await addDoc(
+    collection(db, PETS),
+    stripUndefined({
+      ...data,
+      lostDate: Timestamp.fromDate(new Date(data.lostDate)),
+      createdAt: now,
+      updatedAt: now,
+    })
+  )
   return ref.id
 }
 

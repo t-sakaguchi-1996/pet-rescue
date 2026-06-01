@@ -19,6 +19,12 @@ import type { Pet, PetSpecies, PetType, PetStatus } from '@pet-rescue/shared'
 const PETS_COLLECTION = 'pets'
 const FETCH_TIMEOUT_MS = 8000
 
+function stripUndefined(obj: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, v]) => v !== undefined)
+  )
+}
+
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
     promise,
@@ -95,12 +101,13 @@ export async function createPet(
   data: Omit<Pet, 'id' | 'createdAt' | 'updatedAt'>
 ): Promise<string> {
   const now = Timestamp.now()
-  const ref = await addDoc(collection(db, PETS_COLLECTION), {
+  const docData = stripUndefined({
     ...data,
     lostDate: Timestamp.fromDate(new Date(data.lostDate)),
     createdAt: now,
     updatedAt: now,
   })
+  const ref = await addDoc(collection(db, PETS_COLLECTION), docData)
   return ref.id
 }
 
@@ -109,7 +116,7 @@ export async function updatePet(
   data: Partial<Omit<Pet, 'id' | 'createdAt'>>
 ): Promise<void> {
   const ref = doc(db, PETS_COLLECTION, id)
-  await updateDoc(ref, { ...data, updatedAt: Timestamp.now() })
+  await updateDoc(ref, stripUndefined({ ...data, updatedAt: Timestamp.now() }))
 }
 
 export async function deletePet(id: string): Promise<void> {
