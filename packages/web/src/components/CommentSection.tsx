@@ -229,6 +229,7 @@ function CommentItem({
                     src={url}
                     alt={`添付画像 ${i + 1}`}
                     fill
+                    sizes="96px"
                     className="object-cover hover:opacity-90 transition-opacity"
                   />
                 </a>
@@ -383,7 +384,7 @@ function CommentForm({
               key={i}
               className="relative w-20 h-20 rounded-lg overflow-hidden"
             >
-              <Image src={src} alt="" fill className="object-cover" />
+              <Image src={src} alt="" fill sizes="80px" className="object-cover" />
               <button
                 type="button"
                 onClick={() => removeFile(i)}

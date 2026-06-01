@@ -412,7 +412,7 @@ function FormInner({ userId, ownerDisplayName, defaultType = 'lost', pet }: Prop
                 key={`existing-${i}`}
                 className="relative w-20 h-20 rounded-lg overflow-hidden"
               >
-                <Image src={url} alt="" fill className="object-cover" />
+                <Image src={url} alt="" fill sizes="80px" className="object-cover" />
                 <button
                   type="button"
                   onClick={() => removeExistingImage(i)}
@@ -427,7 +427,7 @@ function FormInner({ userId, ownerDisplayName, defaultType = 'lost', pet }: Prop
                 key={`new-${i}`}
                 className="relative w-20 h-20 rounded-lg overflow-hidden"
               >
-                <Image src={src} alt="" fill className="object-cover" />
+                <Image src={src} alt="" fill sizes="80px" className="object-cover" />
                 <button
                   type="button"
                   onClick={() => removeNewImage(i)}

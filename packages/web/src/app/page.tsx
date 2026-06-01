@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import Image from 'next/image'
 import PetCard from '@/components/PetCard'
 import SearchFilter from '@/components/SearchFilter'
@@ -14,6 +14,8 @@ function HomeContent() {
   const [pets, setPets] = useState<Pet[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const paramsKey = searchParams.toString()
+  const fetchRef = useRef(paramsKey)
 
   const params = {
     type:       searchParams.get('type')       ?? undefined,
@@ -22,7 +24,7 @@ function HomeContent() {
     status:     searchParams.get('status')     ?? undefined,
   }
 
-  useEffect(() => {
+  const loadPets = () => {
     setLoading(true)
     setError(null)
     fetchPets({
@@ -35,8 +37,24 @@ function HomeContent() {
       .then(setPets)
       .catch((err: Error) => setError(err.message ?? 'データの取得に失敗しました'))
       .finally(() => setLoading(false))
+  }
+
+  // 検索パラメータ変更時に再取得
+  useEffect(() => {
+    fetchRef.current = paramsKey
+    loadPets()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams.toString()])
+  }, [paramsKey])
+
+  // タブ復帰・ページ表示時に再取得（投稿編集後に戻っても最新を表示）
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') loadPets()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paramsKey])
 
   const setFilter = (key: string, value: string) => {
     const p = new URLSearchParams(searchParams.toString())
@@ -51,7 +69,6 @@ function HomeContent() {
       <div className="rounded-3xl overflow-hidden mb-6"
            style={{ background: 'linear-gradient(160deg, #FFC96B 0%, #FFEED1 55%, #D1E2FF 100%)' }}>
 
-        {/* テキストエリア：中央揃え */}
         <div className="px-6 pt-8 pb-7 sm:px-12 sm:pt-10 sm:pb-8 text-center">
           <span className="inline-block text-xs font-bold px-3 py-1 rounded-full mb-4"
                 style={{ background: 'rgba(255,255,255,0.65)', color: '#7A4500' }}>
@@ -69,12 +86,11 @@ function HomeContent() {
           </p>
         </div>
 
-        {/* 3枚の正方形画像 横並び */}
         <div className="grid grid-cols-3">
           {[
-            { src: '/images/pet-shiba.jpg',         alt: '柴犬' },
-            { src: '/images/pet-hero.jpg',           alt: 'ペット' },
-            { src: '/images/pet-scottish-fold.jpg',  alt: 'スコティッシュフォールド' },
+            { src: '/images/pet-shiba.jpg',        alt: '柴犬' },
+            { src: '/images/pet-scottish-fold.jpg', alt: 'スコティッシュフォールド' },
+            { src: '/images/pet-hero.jpg',          alt: 'ペット' },
           ].map((img, i) => (
             <div key={i} className="relative aspect-square"
                  style={{ borderLeft: i > 0 ? '2px solid rgba(255,255,255,0.6)' : 'none' }}>
@@ -82,8 +98,9 @@ function HomeContent() {
                 src={img.src}
                 alt={img.alt}
                 fill
-                className="object-cover"
+                sizes="33vw"
                 priority={i === 0}
+                className="object-cover"
               />
             </div>
           ))}
@@ -176,8 +193,8 @@ function HomeContent() {
               {pets.length}件の情報が見つかりました
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-              {pets.map((pet) => (
-                <PetCard key={pet.id} pet={pet} />
+              {pets.map((pet, index) => (
+                <PetCard key={pet.id} pet={pet} priority={index < 2} />
               ))}
             </div>
           </>

@@ -11,9 +11,10 @@ import { ja } from 'date-fns/locale'
 interface Props {
   pet: Pet
   showEditLink?: boolean
+  priority?: boolean
 }
 
-export default function PetCard({ pet, showEditLink }: Props) {
+export default function PetCard({ pet, showEditLink, priority = false }: Props) {
   const router = useRouter()
 
   const statusStyle =
@@ -43,6 +44,8 @@ export default function PetCard({ pet, showEditLink }: Props) {
             src={pet.images[0]}
             alt={pet.name || 'ペット'}
             fill
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            priority={priority}
             className="object-cover group-hover:scale-105 transition-transform duration-300"
           />
         ) : (

@@ -49,6 +49,8 @@ export default async function PetDetailPage({
               src={pet.images[0]}
               alt={pet.name || 'ペット'}
               fill
+              sizes="(max-width: 896px) 100vw, 896px"
+              priority
               className="object-cover"
             />
           ) : (
@@ -78,7 +80,7 @@ export default async function PetDetailPage({
                 key={i}
                 className="relative w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden"
               >
-                <Image src={img} alt="" fill className="object-cover" />
+                <Image src={img} alt="" fill sizes="80px" className="object-cover" />
               </div>
             ))}
           </div>
