@@ -20,6 +20,7 @@ const DEFAULT_CENTER = { lat: 35.6812362, lng: 139.7671248 }
 
 interface Props {
   userId: string
+  ownerDisplayName?: string
   defaultType?: 'lost' | 'found'
   pet?: Pet
 }
@@ -51,7 +52,7 @@ interface FormData {
   status: Pet['status']
 }
 
-function FormInner({ userId, defaultType = 'lost', pet }: Props) {
+function FormInner({ userId, ownerDisplayName, defaultType = 'lost', pet }: Props) {
   const router = useRouter()
   const isEdit = Boolean(pet)
   const map = useMap('pet-form-map')
@@ -236,6 +237,7 @@ function FormInner({ userId, defaultType = 'lost', pet }: Props) {
           lostDate: form.lostDate,
           status: 'searching',
           userId,
+          ownerDisplayName: ownerDisplayName ?? undefined,
           contactEmail: form.contactEmail,
           contactPhone: form.contactPhone,
           reward: form.reward || undefined,

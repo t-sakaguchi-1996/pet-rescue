@@ -73,7 +73,7 @@ export default function EditPostPage() {
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold text-gray-900 mb-6">投稿を編集する</h1>
-      <PetForm userId={user.uid} pet={pet} />
+      <PetForm userId={user.uid} ownerDisplayName={user.displayName ?? user.email ?? undefined} pet={pet} />
     </div>
   )
 }

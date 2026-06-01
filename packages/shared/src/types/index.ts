@@ -26,6 +26,7 @@ export interface Pet {
   lostDate: string
   status: PetStatus
   userId: string
+  ownerDisplayName?: string
   contactEmail: string
   contactPhone: string
   reward?: string

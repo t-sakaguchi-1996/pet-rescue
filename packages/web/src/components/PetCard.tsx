@@ -18,15 +18,15 @@ export default function PetCard({ pet, showEditLink }: Props) {
 
   const statusStyle =
     pet.status === 'searching'
-      ? { background: '#FFF3CD', color: '#B07800' }
+      ? { background: '#FFF3CD', color: '#B07800', border: '1.5px solid #FFD54F' }
       : pet.status === 'protected'
-        ? { background: '#DDFBE8', color: '#1A7A3C' }
-        : { background: '#F0F0F0', color: '#888888' }
+        ? { background: '#DDFBE8', color: '#1A7A3C', border: '1.5px solid #6DD99A' }
+        : { background: '#F0F0F0', color: '#888888', border: '1.5px solid #D0D0D0' }
 
-  const typeBadge =
+  const typeBadgeStyle =
     pet.type === 'lost'
-      ? { background: '#FFE8C4', color: '#C46B00' }
-      : { background: '#D1E2FF', color: '#2B5FBF' }
+      ? { background: '#FF6B35', color: '#FFFFFF', border: 'none' }
+      : { background: '#2B5FBF', color: '#FFFFFF', border: 'none' }
 
   return (
     <div
@@ -36,6 +36,7 @@ export default function PetCard({ pet, showEditLink }: Props) {
       onKeyDown={(e) => e.key === 'Enter' && router.push(`/posts/${pet.id}`)}
       className="pet-card group"
     >
+      {/* 画像 */}
       <div className="relative aspect-square" style={{ background: '#FFF3DC' }}>
         {pet.images.length > 0 ? (
           <Image
@@ -50,33 +51,45 @@ export default function PetCard({ pet, showEditLink }: Props) {
           </div>
         )}
 
-        <div className="absolute top-2 left-2">
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                style={typeBadge}>
+        {/* 種別バッジ（大きめ・目立つ） */}
+        <div className="absolute top-0 left-0 right-0 flex items-start justify-between p-2">
+          <span
+            className="text-xs font-black px-2.5 py-1 rounded-full shadow-sm"
+            style={typeBadgeStyle}
+          >
             {TYPE_LABELS[pet.type]}
           </span>
-        </div>
-        <div className="absolute top-2 right-2">
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                style={statusStyle}>
+          <span
+            className="text-xs font-bold px-2 py-0.5 rounded-full shadow-sm"
+            style={statusStyle}
+          >
             {STATUS_LABELS[pet.status]}
           </span>
         </div>
       </div>
 
+      {/* 情報 */}
       <div className="p-3">
-        <p className="font-bold text-sm truncate" style={{ color: '#3D2400' }}>
+        <p className="font-black text-sm leading-tight truncate" style={{ color: '#3D2400' }}>
           {pet.name || '名前不明'}
-          <span className="font-normal text-xs ml-1" style={{ color: '#B08050' }}>
-            ({SPECIES_LABELS[pet.species]})
-          </span>
         </p>
-        <p className="text-xs mt-0.5 truncate" style={{ color: '#B08050' }}>
+        <p className="text-xs mt-0.5" style={{ color: '#B08050' }}>
+          {SPECIES_LABELS[pet.species]}{pet.breed ? ` / ${pet.breed}` : ''}
+        </p>
+        <p className="text-xs mt-1 truncate" style={{ color: '#C8A070' }}>
           📍 {pet.location.prefecture} {pet.location.city}
         </p>
-        <p className="text-[10px] mt-1.5" style={{ color: '#C8A070' }}>
-          {format(new Date(pet.createdAt), 'M/d', { locale: ja })} 投稿
-        </p>
+
+        {/* オーナー情報 */}
+        <div className="flex items-center gap-1 mt-1.5">
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
+                style={{ background: '#FFF0D0', color: '#8B5E1A' }}>
+            👤 {pet.ownerDisplayName ?? '投稿者'}
+          </span>
+          <span className="text-[10px] ml-auto" style={{ color: '#C8A070' }}>
+            {format(new Date(pet.createdAt), 'M/d', { locale: ja })}
+          </span>
+        </div>
 
         {showEditLink && (
           <Link

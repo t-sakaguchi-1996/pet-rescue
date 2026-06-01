@@ -25,8 +25,8 @@ export default function CommentSection({ petId, petOwnerId, petName }: Props) {
   // ID of the comment we clicked "返信" on (top-level or reply)
   const [replyingToId, setReplyingToId] = useState<string | null>(null)
 
-  // profile is used only to keep the import; avatar display uses initials only
-  void profile
+  // 自分のコメントは常に最新の画像を表示
+  const currentUserPhotoURL = profile?.photoURL ?? user?.photoURL ?? undefined
 
   useEffect(() => {
     return subscribeComments(petId, setComments)
@@ -79,6 +79,7 @@ export default function CommentSection({ petId, petOwnerId, petName }: Props) {
               <CommentItem
                 comment={comment}
                 currentUserId={user?.uid}
+                currentUserPhotoURL={currentUserPhotoURL}
                 petId={petId}
                 isReplyActive={replyingToId === comment.id}
                 onReply={() => toggleReply(comment.id)}
@@ -91,6 +92,7 @@ export default function CommentSection({ petId, petOwnerId, petName }: Props) {
                       key={reply.id}
                       comment={reply}
                       currentUserId={user?.uid}
+                      currentUserPhotoURL={currentUserPhotoURL}
                       petId={petId}
                       isReplyActive={replyingToId === reply.id}
                       onReply={() => toggleReply(reply.id)}
@@ -144,12 +146,14 @@ export default function CommentSection({ petId, petOwnerId, petName }: Props) {
 function CommentItem({
   comment,
   currentUserId,
+  currentUserPhotoURL,
   petId,
   onReply,
   isReplyActive,
 }: {
   comment: Comment
   currentUserId?: string
+  currentUserPhotoURL?: string
   petId: string
   onReply: () => void
   isReplyActive: boolean
@@ -157,6 +161,12 @@ function CommentItem({
   const [deleting, setDeleting] = useState(false)
   const isOwn = currentUserId === comment.userId
   const canReply = Boolean(currentUserId)
+
+  // 自分のコメント → 最新画像。他のユーザー → 保存済み画像。なければイニシャル。
+  const photoURL = isOwn
+    ? (currentUserPhotoURL ?? comment.userPhotoURL)
+    : comment.userPhotoURL
+  const avatarLetter = comment.userDisplayName.charAt(0) || '?'
 
   const handleDelete = async () => {
     if (!confirm('このコメントを削除しますか？')) return
@@ -168,14 +178,15 @@ function CommentItem({
     }
   }
 
-  // アバターは常にイニシャル表示（保存済み photoURL は誰が見るかで変わるため使わない）
-  const avatarLetter = comment.userDisplayName.charAt(0) || '?'
-
   return (
     <div className="flex gap-3">
-      <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold"
+      <div className="w-8 h-8 rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center text-sm font-bold"
            style={{ background: '#FFE0A0', color: '#7A4500' }}>
-        {avatarLetter}
+        {photoURL ? (
+          <Image src={photoURL} alt={comment.userDisplayName} width={32} height={32} className="object-cover w-full h-full" />
+        ) : (
+          avatarLetter
+        )}
       </div>
 
       <div className="flex-1 min-w-0">

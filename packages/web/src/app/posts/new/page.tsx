@@ -39,7 +39,7 @@ function NewPostContent() {
       <h1 className="text-2xl font-bold text-gray-900 mb-6">
         {defaultType === 'lost' ? '迷子ペットを報告する' : '保護したペットを報告する'}
       </h1>
-      <PetForm userId={user.uid} defaultType={defaultType} />
+      <PetForm userId={user.uid} ownerDisplayName={user.displayName ?? user.email ?? undefined} defaultType={defaultType} />
     </div>
   )
 }
