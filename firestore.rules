@@ -1,6 +1,7 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
     // ペット情報: 読み取りは全員、書き込みは認証済みユーザーのみ
     match /pets/{petId} {
       allow read: if true;
@@ -8,12 +9,33 @@ service cloud.firestore {
         && request.resource.data.userId == request.auth.uid;
       allow update, delete: if request.auth != null
         && resource.data.userId == request.auth.uid;
+
+      // コメント: 読み取りは全員、作成は認証済み、削除は本人のみ
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if request.auth != null
+          && request.resource.data.userId == request.auth.uid;
+        allow update: if request.auth != null
+          && resource.data.userId == request.auth.uid;
+        allow delete: if request.auth != null
+          && resource.data.userId == request.auth.uid;
+      }
     }
 
     // ユーザー情報: 本人のみ読み書き可能
     match /users/{userId} {
       allow read, write: if request.auth != null
         && request.auth.uid == userId;
+    }
+
+    // アプリ内通知: 受信者本人のみ読み取り可能、認証済みユーザーは作成可能
+    match /notifications/{notificationId} {
+      allow read: if request.auth != null
+        && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null
+        && resource.data.userId == request.auth.uid;
+      allow delete: if false;
     }
   }
 }

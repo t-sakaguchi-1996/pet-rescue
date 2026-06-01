@@ -47,6 +47,31 @@ export interface User {
   createdAt: string
 }
 
+export interface Comment {
+  id: string
+  petId: string
+  userId: string
+  userDisplayName: string
+  userPhotoURL?: string
+  text: string
+  imageUrls: string[]
+  parentId?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AppNotification {
+  id: string
+  userId: string
+  type: 'comment' | 'reply'
+  petId: string
+  petName: string
+  fromUserId: string
+  fromUserDisplayName: string
+  isRead: boolean
+  createdAt: string
+}
+
 export const SPECIES_LABELS: Record<PetSpecies, string> = {
   dog: '犬',
   cat: '猫',

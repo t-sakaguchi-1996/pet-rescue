@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
+import NotificationBell from '@/components/NotificationBell'
 
 export default function Header() {
   const { user, loading } = useAuth()
@@ -29,6 +30,7 @@ export default function Header() {
         <div className="flex items-center gap-3">
           {loading ? null : user ? (
             <>
+              <NotificationBell />
               <Link
                 href="/mypage"
                 className="text-sm text-gray-600 hover:text-gray-900 font-medium hidden sm:block"

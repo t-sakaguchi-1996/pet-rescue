@@ -10,6 +10,8 @@ import {
 } from '@pet-rescue/shared'
 import { format } from 'date-fns'
 import { ja } from 'date-fns/locale'
+import PetContactInfo from '@/components/PetContactInfo'
+import CommentSection from '@/components/CommentSection'
 
 export default async function PetDetailPage({
   params,
@@ -117,11 +119,7 @@ export default async function PetDetailPage({
                   <InfoRow label="詳しい場所" value={pet.location.address} />
                 )}
                 {pet.reward && (
-                  <InfoRow
-                    label="お礼"
-                    value={pet.reward}
-                    highlight
-                  />
+                  <InfoRow label="お礼" value={pet.reward} highlight />
                 )}
               </dl>
             </div>
@@ -139,30 +137,11 @@ export default async function PetDetailPage({
                 </div>
               )}
 
-              <div className="bg-gray-50 rounded-xl p-5">
-                <h2 className="font-semibold text-gray-800 mb-3">
-                  連絡先情報
-                </h2>
-                <p className="text-xs text-gray-500 mb-3">
-                  情報をお持ちの方はご連絡ください
-                </p>
-                {pet.contactEmail && (
-                  <a
-                    href={`mailto:${pet.contactEmail}`}
-                    className="flex items-center gap-2 text-red-500 hover:text-red-600 font-medium mb-2"
-                  >
-                    📧 {pet.contactEmail}
-                  </a>
-                )}
-                {pet.contactPhone && (
-                  <a
-                    href={`tel:${pet.contactPhone}`}
-                    className="flex items-center gap-2 text-red-500 hover:text-red-600 font-medium"
-                  >
-                    📞 {pet.contactPhone}
-                  </a>
-                )}
-              </div>
+              <PetContactInfo
+                petOwnerId={pet.userId}
+                contactEmail={pet.contactEmail}
+                contactPhone={pet.contactPhone}
+              />
 
               <p className="text-xs text-gray-400 mt-4">
                 投稿日:{' '}
@@ -172,6 +151,13 @@ export default async function PetDetailPage({
               </p>
             </div>
           </div>
+
+          {/* コメントセクション */}
+          <CommentSection
+            petId={pet.id}
+            petOwnerId={pet.userId}
+            petName={pet.name || '名前不明'}
+          />
         </div>
       </div>
     </div>
