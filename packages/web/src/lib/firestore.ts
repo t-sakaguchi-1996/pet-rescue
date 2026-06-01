@@ -53,6 +53,7 @@ function toPet(id: string, data: Record<string, unknown>): Pet {
         : (data.lostDate as string),
     status: data.status as Pet['status'],
     userId: (data.userId as string) ?? '',
+    ownerDisplayName: data.ownerDisplayName as string | undefined,
     contactEmail: (data.contactEmail as string) ?? '',
     contactPhone: (data.contactPhone as string) ?? '',
     reward: data.reward as string | undefined,
@@ -88,6 +89,33 @@ export async function fetchPets(filter: PetFilter = {}): Promise<Pet[]> {
   const q = query(collection(db, PETS_COLLECTION), ...constraints)
   const snapshot = await withTimeout(getDocs(q), FETCH_TIMEOUT_MS)
   return snapshot.docs.map((d) => toPet(d.id, d.data()))
+}
+
+/**
+ * userId の配列を渡すと users コレクションから displayName を一括取得する。
+ * 既存投稿に ownerDisplayName が未保存のときの補完に使う。
+ */
+export async function fetchOwnerNames(
+  userIds: string[]
+): Promise<Map<string, string>> {
+  const unique = [...new Set(userIds)]
+  const results = await Promise.all(
+    unique.map(async (uid) => {
+      try {
+        const snap = await getDoc(doc(db, 'users', uid))
+        if (snap.exists()) {
+          const name = snap.data().displayName as string | undefined
+          return [uid, name ?? ''] as const
+        }
+      } catch { /* ignore */ }
+      return [uid, ''] as const
+    })
+  )
+  const map = new Map<string, string>()
+  results.forEach(([uid, name]) => {
+    if (name) map.set(uid, name)
+  })
+  return map
 }
 
 export async function fetchPetById(id: string): Promise<Pet | null> {

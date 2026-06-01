@@ -43,11 +43,19 @@ export default function MyPage() {
 
   useEffect(() => {
     if (user) {
+      const ownName = profile?.displayName ?? user.displayName ?? undefined
       fetchUserPets(user.uid)
-        .then(setPets)
+        .then((fetched) =>
+          setPets(
+            fetched.map((p) => ({
+              ...p,
+              ownerDisplayName: p.ownerDisplayName ?? ownName,
+            }))
+          )
+        )
         .finally(() => setPetsLoading(false))
     }
-  }, [user])
+  }, [user, profile])
 
   useEffect(() => {
     setDisplayName(profile?.displayName ?? user?.displayName ?? '')

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, Suspense } from 'react'
 import Image from 'next/image'
 import PetCard from '@/components/PetCard'
 import SearchFilter from '@/components/SearchFilter'
-import { fetchPets } from '@/lib/firestore'
+import { fetchPets, fetchOwnerNames } from '@/lib/firestore'
 import type { Pet } from '@pet-rescue/shared'
 import { useSearchParams, useRouter } from 'next/navigation'
 
@@ -34,7 +34,22 @@ function HomeContent() {
       status:     (params.status as 'searching' | 'protected' | 'resolved') ?? 'searching',
       limitCount: 50,
     })
-      .then(setPets)
+      .then(async (fetched) => {
+        // ownerDisplayName が未保存の既存投稿は users コレクションから補完
+        const needsName = fetched.filter((p) => !p.ownerDisplayName)
+        if (needsName.length === 0) {
+          setPets(fetched)
+          return
+        }
+        const ids = [...new Set(needsName.map((p) => p.userId))]
+        const names = await fetchOwnerNames(ids)
+        setPets(
+          fetched.map((p) => ({
+            ...p,
+            ownerDisplayName: p.ownerDisplayName ?? names.get(p.userId),
+          }))
+        )
+      })
       .catch((err: Error) => setError(err.message ?? 'データの取得に失敗しました'))
       .finally(() => setLoading(false))
   }
@@ -66,8 +81,7 @@ function HomeContent() {
     <div className="max-w-6xl mx-auto px-3 sm:px-4 py-5 sm:py-8">
 
       {/* ═══ ヒーロー ═══ */}
-      <div className="rounded-3xl overflow-hidden mb-6"
-           style={{ background: 'linear-gradient(160deg, #FFC96B 0%, #FFEED1 55%, #D1E2FF 100%)' }}>
+      <div className="overflow-hidden mb-6">
 
         <div className="px-6 pt-8 pb-7 sm:px-12 sm:pt-10 sm:pb-8 text-center">
           <span className="inline-block text-xs font-bold px-3 py-1 rounded-full mb-4"
