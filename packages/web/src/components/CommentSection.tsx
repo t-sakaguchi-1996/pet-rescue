@@ -20,10 +20,13 @@ interface Props {
 }
 
 export default function CommentSection({ petId, petOwnerId, petName }: Props) {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const [comments, setComments] = useState<Comment[]>([])
   // ID of the comment we clicked "返信" on (top-level or reply)
   const [replyingToId, setReplyingToId] = useState<string | null>(null)
+
+  // Always use the latest photo from auth context for the current user
+  const currentUserPhotoURL = profile?.photoURL ?? user?.photoURL ?? undefined
 
   useEffect(() => {
     return subscribeComments(petId, setComments)
@@ -76,6 +79,7 @@ export default function CommentSection({ petId, petOwnerId, petName }: Props) {
               <CommentItem
                 comment={comment}
                 currentUserId={user?.uid}
+                currentUserPhotoURL={currentUserPhotoURL}
                 petId={petId}
                 isReplyActive={replyingToId === comment.id}
                 onReply={() => toggleReply(comment.id)}
@@ -88,6 +92,7 @@ export default function CommentSection({ petId, petOwnerId, petName }: Props) {
                       key={reply.id}
                       comment={reply}
                       currentUserId={user?.uid}
+                      currentUserPhotoURL={currentUserPhotoURL}
                       petId={petId}
                       isReplyActive={replyingToId === reply.id}
                       onReply={() => toggleReply(reply.id)}
@@ -141,12 +146,14 @@ export default function CommentSection({ petId, petOwnerId, petName }: Props) {
 function CommentItem({
   comment,
   currentUserId,
+  currentUserPhotoURL,
   petId,
   onReply,
   isReplyActive,
 }: {
   comment: Comment
   currentUserId?: string
+  currentUserPhotoURL?: string
   petId: string
   onReply: () => void
   isReplyActive: boolean
@@ -154,6 +161,11 @@ function CommentItem({
   const [deleting, setDeleting] = useState(false)
   const isOwn = currentUserId === comment.userId
   const canReply = Boolean(currentUserId)
+
+  // Use current user's latest photo for own comments; stored photo for others
+  const displayPhotoURL = isOwn
+    ? (currentUserPhotoURL ?? comment.userPhotoURL)
+    : comment.userPhotoURL
 
   const handleDelete = async () => {
     if (!confirm('このコメントを削除しますか？')) return
@@ -168,9 +180,9 @@ function CommentItem({
   return (
     <div className="flex gap-3">
       <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0 text-sm font-bold text-red-500 overflow-hidden">
-        {comment.userPhotoURL ? (
+        {displayPhotoURL ? (
           <Image
-            src={comment.userPhotoURL}
+            src={displayPhotoURL}
             alt={comment.userDisplayName}
             width={32}
             height={32}
