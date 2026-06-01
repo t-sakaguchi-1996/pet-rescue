@@ -13,6 +13,9 @@ import {
   createUserWithEmailAndPassword,
   signOut,
   updateProfile,
+  reauthenticateWithCredential,
+  verifyBeforeUpdateEmail,
+  EmailAuthProvider,
   type User as FirebaseUser,
 } from 'firebase/auth'
 import { doc, setDoc, getDoc, updateDoc, Timestamp } from 'firebase/firestore'
@@ -24,13 +27,11 @@ interface AuthContextValue {
   profile: User | null
   loading: boolean
   login: (email: string, password: string) => Promise<void>
-  register: (
-    email: string,
-    password: string,
-    displayName: string
-  ) => Promise<void>
+  register: (email: string, password: string, displayName: string) => Promise<void>
   logout: () => Promise<void>
   updateUserProfile: (displayName: string) => Promise<void>
+  updateUserPhotoURL: (photoURL: string) => Promise<void>
+  updateUserEmail: (newEmail: string, currentPassword: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -100,8 +101,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile((prev) => (prev ? { ...prev, displayName } : null))
   }
 
+  const updateUserPhotoURL = async (photoURL: string) => {
+    if (!auth.currentUser) throw new Error('Not authenticated')
+    await updateProfile(auth.currentUser, { photoURL })
+    await updateDoc(doc(db, 'users', auth.currentUser.uid), { photoURL })
+    setProfile((prev) => (prev ? { ...prev, photoURL } : null))
+  }
+
+  const updateUserEmail = async (
+    newEmail: string,
+    currentPassword: string
+  ) => {
+    const currentUser = auth.currentUser
+    if (!currentUser || !currentUser.email) throw new Error('Not authenticated')
+    const credential = EmailAuthProvider.credential(
+      currentUser.email,
+      currentPassword
+    )
+    await reauthenticateWithCredential(currentUser, credential)
+    await verifyBeforeUpdateEmail(currentUser, newEmail)
+  }
+
   return (
-    <AuthContext.Provider value={{ user, profile, loading, login, register, logout, updateUserProfile }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        profile,
+        loading,
+        login,
+        register,
+        logout,
+        updateUserProfile,
+        updateUserPhotoURL,
+        updateUserEmail,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   )

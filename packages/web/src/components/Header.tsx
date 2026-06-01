@@ -1,11 +1,20 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useAuth } from '@/contexts/AuthContext'
 import NotificationBell from '@/components/NotificationBell'
 
 export default function Header() {
-  const { user, loading } = useAuth()
+  const { user, profile, loading } = useAuth()
+
+  const photoURL = profile?.photoURL ?? user?.photoURL
+  const initial = (
+    profile?.displayName ??
+    user?.displayName ??
+    user?.email ??
+    'U'
+  ).charAt(0).toUpperCase()
 
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
@@ -33,9 +42,22 @@ export default function Header() {
               <NotificationBell />
               <Link
                 href="/mypage"
-                className="text-sm text-gray-600 hover:text-gray-900 font-medium hidden sm:block"
+                className="w-8 h-8 rounded-full overflow-hidden bg-red-100 flex items-center justify-center flex-shrink-0 hover:ring-2 hover:ring-red-400 transition-all"
+                aria-label="マイページ"
               >
-                マイページ
+                {photoURL ? (
+                  <Image
+                    src={photoURL}
+                    alt={profile?.displayName ?? 'プロフィール'}
+                    width={32}
+                    height={32}
+                    className="object-cover w-full h-full"
+                  />
+                ) : (
+                  <span className="text-sm font-bold text-red-500">
+                    {initial}
+                  </span>
+                )}
               </Link>
               <Link href="/posts/new" className="btn-primary text-sm">
                 投稿する
