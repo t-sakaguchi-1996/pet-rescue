@@ -22,9 +22,12 @@ service cloud.firestore {
       }
     }
 
-    // ユーザー情報: 本人のみ読み書き可能
+    // ユーザー情報:
+    //   読み取り: 誰でも可（displayName/photoURL はカード等で公開表示に使用）
+    //   書き込み: 本人のみ
     match /users/{userId} {
-      allow read, write: if request.auth != null
+      allow read: if true;
+      allow write: if request.auth != null
         && request.auth.uid == userId;
     }
 
