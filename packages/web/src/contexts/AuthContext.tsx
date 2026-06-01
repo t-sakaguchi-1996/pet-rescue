@@ -106,6 +106,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await updateProfile(auth.currentUser, { photoURL })
     await updateDoc(doc(db, 'users', auth.currentUser.uid), { photoURL })
     setProfile((prev) => (prev ? { ...prev, photoURL } : null))
+    // user は Firebase Auth オブジェクトの参照で自動再描画されないため手動で更新
+    setUser({ ...auth.currentUser } as typeof auth.currentUser)
   }
 
   const updateUserEmail = async (

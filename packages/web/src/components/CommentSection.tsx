@@ -273,7 +273,7 @@ function CommentForm({
   onCancel?: () => void
   compact?: boolean
 }) {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const [text, setText] = useState('')
   const [files, setFiles] = useState<File[]>([])
   const [previews, setPreviews] = useState<string[]>([])
@@ -321,8 +321,9 @@ function CommentForm({
         petOwnerId,
         petName,
         userId: user.uid,
-        userDisplayName: user.displayName ?? user.email ?? '匿名',
-        userPhotoURL: user.photoURL ?? undefined,
+        userDisplayName: profile?.displayName ?? user.displayName ?? user.email ?? '匿名',
+        // profile.photoURL は setProfile() で明示的に更新されるため user.photoURL より常に最新
+        userPhotoURL: profile?.photoURL ?? user.photoURL ?? undefined,
         text: text.trim(),
         imageUrls,
         parentId,
