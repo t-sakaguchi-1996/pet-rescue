@@ -22,7 +22,8 @@ interface Props {
 export default function CommentSection({ petId, petOwnerId, petName }: Props) {
   const { user } = useAuth()
   const [comments, setComments] = useState<Comment[]>([])
-  const [replyingTo, setReplyingTo] = useState<string | null>(null)
+  // ID of the comment we clicked "返信" on (top-level or reply)
+  const [replyingToId, setReplyingToId] = useState<string | null>(null)
 
   useEffect(() => {
     return subscribeComments(petId, setComments)
@@ -30,6 +31,25 @@ export default function CommentSection({ petId, petOwnerId, petName }: Props) {
 
   const topLevel = comments.filter((c) => !c.parentId)
   const repliesFor = (id: string) => comments.filter((c) => c.parentId === id)
+
+  // Since threading is flat (all replies use the top-level comment's ID as parentId),
+  // we resolve the thread root to know where to render the reply form.
+  const getThreadId = (commentId: string): string => {
+    const c = comments.find((x) => x.id === commentId)
+    if (!c || !c.parentId) return commentId
+    return c.parentId
+  }
+
+  const threadId = replyingToId ? getThreadId(replyingToId) : null
+  const replyTarget = replyingToId
+    ? comments.find((c) => c.id === replyingToId)
+    : null
+  // Show @mention label only when replying to a reply (replyTarget has parentId)
+  const mentionName = replyTarget?.parentId ? replyTarget.userDisplayName : undefined
+
+  const toggleReply = (commentId: string) => {
+    setReplyingToId((prev) => (prev === commentId ? null : commentId))
+  }
 
   return (
     <section className="mt-8 border-t pt-8">
@@ -47,42 +67,51 @@ export default function CommentSection({ petId, petOwnerId, petName }: Props) {
       )}
 
       <div className="space-y-5 mb-8">
-        {topLevel.map((comment) => (
-          <div key={comment.id}>
-            <CommentItem
-              comment={comment}
-              currentUserId={user?.uid}
-              petId={petId}
-              onReply={() =>
-                setReplyingTo(replyingTo === comment.id ? null : comment.id)
-              }
-              showReplyButton
-            />
+        {topLevel.map((comment) => {
+          const replies = repliesFor(comment.id)
+          const isFormHere = threadId === comment.id
 
-            <div className="ml-10 mt-3 space-y-3">
-              {repliesFor(comment.id).map((reply) => (
-                <CommentItem
-                  key={reply.id}
-                  comment={reply}
-                  currentUserId={user?.uid}
-                  petId={petId}
-                />
-              ))}
-              {replyingTo === comment.id && user && (
-                <CommentForm
-                  petId={petId}
-                  petOwnerId={petOwnerId}
-                  petName={petName}
-                  parentId={comment.id}
-                  parentUserId={comment.userId}
-                  onSubmit={() => setReplyingTo(null)}
-                  onCancel={() => setReplyingTo(null)}
-                  compact
-                />
+          return (
+            <div key={comment.id}>
+              <CommentItem
+                comment={comment}
+                currentUserId={user?.uid}
+                petId={petId}
+                isReplyActive={replyingToId === comment.id}
+                onReply={() => toggleReply(comment.id)}
+              />
+
+              {(replies.length > 0 || isFormHere) && (
+                <div className="ml-10 mt-3 space-y-3">
+                  {replies.map((reply) => (
+                    <CommentItem
+                      key={reply.id}
+                      comment={reply}
+                      currentUserId={user?.uid}
+                      petId={petId}
+                      isReplyActive={replyingToId === reply.id}
+                      onReply={() => toggleReply(reply.id)}
+                    />
+                  ))}
+
+                  {isFormHere && user && (
+                    <CommentForm
+                      petId={petId}
+                      petOwnerId={petOwnerId}
+                      petName={petName}
+                      parentId={comment.id}
+                      parentUserId={replyTarget?.userId}
+                      mentionName={mentionName}
+                      onSubmit={() => setReplyingToId(null)}
+                      onCancel={() => setReplyingToId(null)}
+                      compact
+                    />
+                  )}
+                </div>
               )}
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       {user ? (
@@ -114,16 +143,17 @@ function CommentItem({
   currentUserId,
   petId,
   onReply,
-  showReplyButton,
+  isReplyActive,
 }: {
   comment: Comment
   currentUserId?: string
   petId: string
-  onReply?: () => void
-  showReplyButton?: boolean
+  onReply: () => void
+  isReplyActive: boolean
 }) {
   const [deleting, setDeleting] = useState(false)
   const isOwn = currentUserId === comment.userId
+  const canReply = Boolean(currentUserId)
 
   const handleDelete = async () => {
     if (!confirm('このコメントを削除しますか？')) return
@@ -137,21 +167,21 @@ function CommentItem({
 
   return (
     <div className="flex gap-3">
-      <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0 text-sm font-bold text-red-500">
+      <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0 text-sm font-bold text-red-500 overflow-hidden">
         {comment.userPhotoURL ? (
           <Image
             src={comment.userPhotoURL}
             alt={comment.userDisplayName}
             width={32}
             height={32}
-            className="rounded-full object-cover"
+            className="object-cover"
           />
         ) : (
           comment.userDisplayName.charAt(0)
         )}
       </div>
 
-      <div className="flex-1">
+      <div className="flex-1 min-w-0">
         <div className="bg-gray-50 rounded-xl px-4 py-3">
           <div className="flex items-center gap-2 mb-1">
             <span className="text-sm font-semibold text-gray-800">
@@ -187,12 +217,16 @@ function CommentItem({
         </div>
 
         <div className="flex items-center gap-3 mt-1 ml-1">
-          {showReplyButton && onReply && (
+          {canReply && (
             <button
               onClick={onReply}
-              className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+              className={`text-xs transition-colors ${
+                isReplyActive
+                  ? 'text-red-500 font-medium'
+                  : 'text-gray-400 hover:text-gray-600'
+              }`}
             >
-              返信
+              {isReplyActive ? '返信をキャンセル' : '返信'}
             </button>
           )}
           {isOwn && (
@@ -216,6 +250,7 @@ function CommentForm({
   petName,
   parentId,
   parentUserId,
+  mentionName,
   onSubmit,
   onCancel,
   compact,
@@ -225,6 +260,7 @@ function CommentForm({
   petName: string
   parentId?: string
   parentUserId?: string
+  mentionName?: string
   onSubmit?: () => void
   onCancel?: () => void
   compact?: boolean
@@ -236,15 +272,26 @@ function CommentForm({
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  // Focus textarea when reply form opens
+  useEffect(() => {
+    if (compact) {
+      textareaRef.current?.focus()
+    }
+  }, [compact])
 
   const handleFiles = (selected: FileList | null) => {
     if (!selected) return
-    const newFiles = Array.from(selected).slice(0, 3 - files.length)
-    setFiles((prev) => [...prev, ...newFiles].slice(0, 3))
-    newFiles.forEach((f) => {
+    const remaining = 3 - files.length
+    const toAdd = Array.from(selected).slice(0, remaining)
+    setFiles((prev) => [...prev, ...toAdd].slice(0, 3))
+    toAdd.forEach((f) => {
       const reader = new FileReader()
       reader.onload = (e) =>
-        setPreviews((prev) => [...prev, e.target?.result as string].slice(0, 3))
+        setPreviews((prev) =>
+          [...prev, e.target?.result as string].slice(0, 3)
+        )
       reader.readAsDataURL(f)
     })
   }
@@ -286,12 +333,22 @@ function CommentForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className={compact ? '' : ''}>
+    <form onSubmit={handleSubmit}>
+      {mentionName && (
+        <p className="text-xs text-gray-500 mb-1.5">
+          <span className="font-semibold text-red-500">@{mentionName}</span>{' '}
+          に返信
+        </p>
+      )}
+
       <textarea
+        ref={textareaRef}
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder={
-          parentId ? '返信を入力...' : '情報をお持ちの場合はコメントしてください...'
+          parentId
+            ? '返信を入力...'
+            : '情報をお持ちの場合はコメントしてください...'
         }
         rows={compact ? 2 : 3}
         className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-red-300"
@@ -300,7 +357,10 @@ function CommentForm({
       {previews.length > 0 && (
         <div className="flex flex-wrap gap-2 mt-2">
           {previews.map((src, i) => (
-            <div key={i} className="relative w-20 h-20 rounded-lg overflow-hidden">
+            <div
+              key={i}
+              className="relative w-20 h-20 rounded-lg overflow-hidden"
+            >
               <Image src={src} alt="" fill className="object-cover" />
               <button
                 type="button"
@@ -366,7 +426,11 @@ function CommentForm({
           disabled={submitting || (!text.trim() && files.length === 0)}
           className="btn-primary text-xs px-4 py-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {submitting ? '送信中...' : parentId ? '返信する' : 'コメントする'}
+          {submitting
+            ? '送信中...'
+            : parentId
+              ? '返信する'
+              : 'コメントする'}
         </button>
       </div>
     </form>
