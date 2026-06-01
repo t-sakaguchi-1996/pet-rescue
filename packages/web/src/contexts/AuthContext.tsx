@@ -15,7 +15,7 @@ import {
   updateProfile,
   type User as FirebaseUser,
 } from 'firebase/auth'
-import { doc, setDoc, getDoc, Timestamp } from 'firebase/firestore'
+import { doc, setDoc, getDoc, updateDoc, Timestamp } from 'firebase/firestore'
 import { auth, db } from '@/lib/firebase'
 import type { User } from '@pet-rescue/shared'
 
@@ -30,6 +30,7 @@ interface AuthContextValue {
     displayName: string
   ) => Promise<void>
   logout: () => Promise<void>
+  updateUserProfile: (displayName: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -92,8 +93,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await signOut(auth)
   }
 
+  const updateUserProfile = async (displayName: string) => {
+    if (!auth.currentUser) throw new Error('Not authenticated')
+    await updateProfile(auth.currentUser, { displayName })
+    await updateDoc(doc(db, 'users', auth.currentUser.uid), { displayName })
+    setProfile((prev) => (prev ? { ...prev, displayName } : null))
+  }
+
   return (
-    <AuthContext.Provider value={{ user, profile, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, profile, loading, login, register, logout, updateUserProfile }}>
       {children}
     </AuthContext.Provider>
   )
