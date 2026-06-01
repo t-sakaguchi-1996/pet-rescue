@@ -18,19 +18,18 @@ import { createPet } from '../lib/firestore'
 import { uploadPetImages } from '../lib/storage'
 import type { Pet } from '../../../shared/src/types'
 
-// react-native-maps は Expo Go では利用不可
 const isExpoGo = Constants.appOwnership === 'expo'
 
-let MapView: React.ComponentType<any> | null = null
-let Marker: React.ComponentType<any> | null = null
+let NativeMapView: React.ComponentType<any> | null = null
+let NativeMarker: React.ComponentType<any> | null = null
 
 if (!isExpoGo) {
   try {
     const maps = require('react-native-maps')
-    MapView = maps.default
-    Marker = maps.Marker
+    NativeMapView = maps.default
+    NativeMarker = maps.Marker
   } catch {
-    // native module not available
+    // native module unavailable
   }
 }
 
@@ -43,10 +42,7 @@ export default function PostForm({ userId }: Props) {
   const [submitting, setSubmitting] = useState(false)
   const [images, setImages] = useState<string[]>([])
   const [isLost, setIsLost] = useState(true)
-  const [pinLocation, setPinLocation] = useState<{
-    latitude: number
-    longitude: number
-  } | null>(null)
+  const [pinLocation, setPinLocation] = useState<{ latitude: number; longitude: number } | null>(null)
   const [mapRegion, setMapRegion] = useState({
     latitude: 35.6812362,
     longitude: 139.7671248,
@@ -101,7 +97,7 @@ export default function PostForm({ userId }: Props) {
     const { latitude, longitude } = loc.coords
     setPinLocation({ latitude, longitude })
     setMapRegion((r) => ({ ...r, latitude, longitude }))
-    Alert.alert('位置設定', `現在地を設定しました\n(${latitude.toFixed(4)}, ${longitude.toFixed(4)})`)
+    Alert.alert('位置設定完了', `現在地を設定しました`)
   }
 
   const handleSubmit = async () => {
@@ -113,13 +109,11 @@ export default function PostForm({ userId }: Props) {
       Alert.alert('場所未設定', '「現在地を使う」ボタンで場所を設定してください')
       return
     }
-
     setSubmitting(true)
     try {
       const imageUrls = images.length > 0
         ? await uploadPetImages(userId, images)
         : []
-
       await createPet({
         type: isLost ? 'lost' : 'found',
         species: form.species,
@@ -144,16 +138,18 @@ export default function PostForm({ userId }: Props) {
         contactPhone: form.contactPhone,
         reward: form.reward || undefined,
       })
-
       Alert.alert('投稿完了', '投稿しました', [
         { text: 'OK', onPress: () => router.replace('/(tabs)') },
       ])
-    } catch (err) {
+    } catch {
       Alert.alert('エラー', '投稿に失敗しました。もう一度お試しください')
     } finally {
       setSubmitting(false)
     }
   }
+
+  const MapViewComp = NativeMapView
+  const MarkerComp = NativeMarker
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -176,7 +172,6 @@ export default function PostForm({ userId }: Props) {
       {/* 基本情報 */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>基本情報</Text>
-
         <Text style={styles.label}>動物種</Text>
         <View style={styles.chipRow}>
           {(['dog', 'cat', 'rabbit', 'bird', 'other'] as Pet['species'][]).map((s) => {
@@ -194,7 +189,6 @@ export default function PostForm({ userId }: Props) {
             )
           })}
         </View>
-
         <Field label="名前" value={form.name} onChange={(v) => set('name', v)} placeholder="例: チョコ" />
         <Field label="品種" value={form.breed} onChange={(v) => set('breed', v)} placeholder="例: トイプードル" />
         <Field label="毛色 *" value={form.color} onChange={(v) => set('color', v)} placeholder="例: 茶色と白" />
@@ -206,7 +200,6 @@ export default function PostForm({ userId }: Props) {
           placeholder="YYYY-MM-DD"
           keyboardType="numbers-and-punctuation"
         />
-
         <Text style={styles.label}>特徴・説明 *</Text>
         <TextInput
           style={styles.textarea}
@@ -244,32 +237,29 @@ export default function PostForm({ userId }: Props) {
           <Text style={styles.locationBtnText}>📍 現在地を使う</Text>
         </TouchableOpacity>
 
-        {/* 位置設定状態 */}
         <View style={styles.locationStatus}>
           {pinLocation ? (
-            <Text style={styles.locationSet}>
-              ✓ 位置設定済み ({pinLocation.latitude.toFixed(4)}, {pinLocation.longitude.toFixed(4)})
-            </Text>
+            <Text style={styles.locationSet}>✓ 位置設定済み</Text>
           ) : (
-            <Text style={styles.locationUnset}>
-              ⚠ 「現在地を使う」ボタンで場所を設定してください（必須）
-            </Text>
+            <Text style={styles.locationUnset}>⚠ 「現在地を使う」ボタンで場所を設定してください（必須）</Text>
           )}
         </View>
 
-        {/* ネイティブビルドのみ地図を表示 */}
-        {!isExpoGo && MapView && (
+        {/* ネイティブビルドのみ地図表示 */}
+        {!isExpoGo && MapViewComp && (
           <>
             <Text style={styles.mapHint}>または地図をタップして場所を指定</Text>
             <View style={styles.mapWrapper}>
-              <MapView
+              <MapViewComp
                 style={styles.map}
                 region={mapRegion}
                 onRegionChangeComplete={setMapRegion}
                 onPress={(e: any) => setPinLocation(e.nativeEvent.coordinate)}
               >
-                {pinLocation && <Marker! coordinate={pinLocation} />}
-              </MapView>
+                {MarkerComp && pinLocation && (
+                  <MarkerComp coordinate={pinLocation} />
+                )}
+              </MapViewComp>
             </View>
           </>
         )}
@@ -288,9 +278,7 @@ export default function PostForm({ userId }: Props) {
         onPress={handleSubmit}
         disabled={submitting}
       >
-        <Text style={styles.submitBtnText}>
-          {submitting ? '投稿中...' : '投稿する'}
-        </Text>
+        <Text style={styles.submitBtnText}>{submitting ? '投稿中...' : '投稿する'}</Text>
       </TouchableOpacity>
 
       <View style={{ height: 40 }} />
@@ -299,11 +287,7 @@ export default function PostForm({ userId }: Props) {
 }
 
 function Field({
-  label,
-  value,
-  onChange,
-  placeholder,
-  keyboardType,
+  label, value, onChange, placeholder, keyboardType,
 }: {
   label: string
   value: string
@@ -350,81 +334,49 @@ const styles = StyleSheet.create({
   label: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6, marginTop: 12 },
   chipRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    backgroundColor: '#f3f4f6',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
+    backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e5e7eb',
   },
   chipActive: { backgroundColor: '#fee2e2', borderColor: '#ef4444' },
   chipText: { fontSize: 13, color: '#6b7280' },
   chipTextActive: { color: '#ef4444', fontWeight: '600' },
   fieldWrapper: {},
   input: {
-    backgroundColor: '#f9fafb',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 8,
-    padding: 10,
-    fontSize: 14,
-    color: '#111827',
+    backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb',
+    borderRadius: 8, padding: 10, fontSize: 14, color: '#111827',
   },
   textarea: {
-    backgroundColor: '#f9fafb',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 8,
-    padding: 10,
-    fontSize: 14,
-    color: '#111827',
-    height: 96,
-    textAlignVertical: 'top',
+    backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb',
+    borderRadius: 8, padding: 10, fontSize: 14, color: '#111827',
+    height: 96, textAlignVertical: 'top',
   },
   photoBtn: {
-    borderWidth: 2,
-    borderColor: '#e5e7eb',
-    borderStyle: 'dashed',
-    borderRadius: 10,
-    padding: 16,
-    alignItems: 'center',
+    borderWidth: 2, borderColor: '#e5e7eb', borderStyle: 'dashed',
+    borderRadius: 10, padding: 16, alignItems: 'center',
   },
   photoBtnText: { color: '#6b7280', fontWeight: '600' },
   imageRow: { marginTop: 8 },
   thumbnail: { width: 72, height: 72, borderRadius: 8, marginRight: 8 },
   locationBtn: {
-    backgroundColor: '#f3f4f6',
-    borderRadius: 8,
-    padding: 10,
-    alignItems: 'center',
-    marginTop: 8,
+    backgroundColor: '#f3f4f6', borderRadius: 8, padding: 10,
+    alignItems: 'center', marginTop: 8,
   },
   locationBtnText: { color: '#374151', fontWeight: '600' },
   locationStatus: {
-    marginTop: 10,
-    padding: 10,
-    backgroundColor: '#f9fafb',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
+    marginTop: 10, padding: 10, backgroundColor: '#f9fafb',
+    borderRadius: 8, borderWidth: 1, borderColor: '#e5e7eb',
   },
   locationSet: { fontSize: 12, color: '#10b981', fontWeight: '600' },
   locationUnset: { fontSize: 12, color: '#f59e0b', fontWeight: '600' },
   mapHint: { fontSize: 13, color: '#6b7280', marginTop: 10, marginBottom: 6 },
   mapWrapper: {
-    height: 220,
-    borderRadius: 10,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
+    height: 220, borderRadius: 10, overflow: 'hidden',
+    borderWidth: 1, borderColor: '#e5e7eb',
   },
   map: { flex: 1 },
   submitBtn: {
-    backgroundColor: '#ef4444',
-    margin: 16,
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
+    backgroundColor: '#ef4444', margin: 16, borderRadius: 12,
+    padding: 16, alignItems: 'center',
   },
   submitBtnDisabled: { opacity: 0.6 },
   submitBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },

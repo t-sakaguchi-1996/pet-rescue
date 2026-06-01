@@ -7,21 +7,21 @@ import { fetchPets } from '../../src/lib/firestore'
 import type { Pet } from '../../../shared/src/types'
 import { TYPE_LABELS, SPECIES_LABELS } from '../../../shared/src/types'
 
-// react-native-maps は Expo Go では利用不可 → 実機ビルド時のみ使用
 const isExpoGo = Constants.appOwnership === 'expo'
 
-let MapView: React.ComponentType<any> | null = null
-let Marker: React.ComponentType<any> | null = null
-let Callout: React.ComponentType<any> | null = null
+// react-native-maps は Expo Go 非対応のため条件付きロード
+let NativeMapView: React.ComponentType<any> | null = null
+let NativeMarker: React.ComponentType<any> | null = null
+let NativeCallout: React.ComponentType<any> | null = null
 
 if (!isExpoGo) {
   try {
     const maps = require('react-native-maps')
-    MapView = maps.default
-    Marker = maps.Marker
-    Callout = maps.Callout
+    NativeMapView = maps.default
+    NativeMarker = maps.Marker
+    NativeCallout = maps.Callout
   } catch {
-    // native module not available
+    // native module unavailable
   }
 }
 
@@ -53,8 +53,8 @@ export default function MapScreen() {
     }
   }, [])
 
-  // Expo Go フォールバック：カード一覧で代替表示
-  if (isExpoGo || !MapView) {
+  // Expo Go：カード一覧で代替表示
+  if (isExpoGo || !NativeMapView) {
     return (
       <View style={styles.container}>
         <View style={styles.banner}>
@@ -107,22 +107,26 @@ export default function MapScreen() {
   }
 
   // ネイティブビルド：地図表示
+  const MapViewComp = NativeMapView
+  const MarkerComp = NativeMarker
+  const CalloutComp = NativeCallout
+
   return (
     <View style={styles.container}>
-      <MapView
+      <MapViewComp
         style={styles.map}
         region={region}
         onRegionChangeComplete={setRegion}
         showsUserLocation
         showsMyLocationButton
       >
-        {pets.map((pet) => (
-          <Marker!
+        {MarkerComp && CalloutComp && pets.map((pet) => (
+          <MarkerComp
             key={pet.id}
             coordinate={{ latitude: pet.location.lat, longitude: pet.location.lng }}
             pinColor={pet.type === 'lost' ? '#ef4444' : '#3b82f6'}
           >
-            <Callout! onPress={() => router.push(`/pet/${pet.id}`)}>
+            <CalloutComp onPress={() => router.push(`/pet/${pet.id}`)}>
               <View style={styles.callout}>
                 {pet.images[0] && (
                   <Image source={{ uri: pet.images[0] }} style={styles.calloutImage} />
@@ -139,10 +143,11 @@ export default function MapScreen() {
                   <Text style={styles.calloutAction}>タップして詳細</Text>
                 </View>
               </View>
-            </Callout!>
-          </Marker!>
+            </CalloutComp>
+          </MarkerComp>
         ))}
-      </MapView>
+      </MapViewComp>
+
       <View style={styles.legend}>
         <View style={styles.legendItem}>
           <View style={[styles.dot, { backgroundColor: '#ef4444' }]} />
