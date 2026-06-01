@@ -45,15 +45,42 @@ export default function NotificationBell() {
 
   useEffect(() => {
     if (!user) return
-    const q = query(
+
+    const fullQuery = query(
       collection(db, 'notifications'),
       where('userId', '==', user.uid),
       orderBy('createdAt', 'desc'),
       limit(30)
     )
-    return onSnapshot(q, (snap) => {
-      setNotifications(snap.docs.map((d) => toNotif(d.id, d.data())))
-    })
+    const fallbackQuery = query(
+      collection(db, 'notifications'),
+      where('userId', '==', user.uid),
+      limit(30)
+    )
+
+    let unsubscribe = onSnapshot(
+      fullQuery,
+      (snap) => {
+        setNotifications(snap.docs.map((d) => toNotif(d.id, d.data())))
+      },
+      (err) => {
+        if (err.code === 'failed-precondition') {
+          // Index still building — fall back to unordered query and sort client-side
+          unsubscribe = onSnapshot(fallbackQuery, (snap) => {
+            const sorted = snap.docs
+              .map((d) => toNotif(d.id, d.data()))
+              .sort(
+                (a, b) =>
+                  new Date(b.createdAt).getTime() -
+                  new Date(a.createdAt).getTime()
+              )
+            setNotifications(sorted)
+          })
+        }
+      }
+    )
+
+    return () => unsubscribe()
   }, [user])
 
   useEffect(() => {

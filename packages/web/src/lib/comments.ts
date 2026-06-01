@@ -44,13 +44,32 @@ export function subscribeComments(
   petId: string,
   callback: (comments: Comment[]) => void
 ): Unsubscribe {
-  const q = query(
+  const orderedQ = query(
     collection(db, PETS, petId, COMMENTS),
     orderBy('createdAt', 'asc')
   )
-  return onSnapshot(q, (snap) => {
-    callback(snap.docs.map((d) => toComment(d.id, d.data())))
-  })
+  const fallbackQ = query(collection(db, PETS, petId, COMMENTS))
+
+  let unsubscribe = onSnapshot(
+    orderedQ,
+    (snap) => callback(snap.docs.map((d) => toComment(d.id, d.data()))),
+    (err) => {
+      if (err.code === 'failed-precondition') {
+        unsubscribe = onSnapshot(fallbackQ, (snap) => {
+          const sorted = snap.docs
+            .map((d) => toComment(d.id, d.data()))
+            .sort(
+              (a, b) =>
+                new Date(a.createdAt).getTime() -
+                new Date(b.createdAt).getTime()
+            )
+          callback(sorted)
+        })
+      }
+    }
+  )
+
+  return () => unsubscribe()
 }
 
 export async function uploadCommentImage(file: File): Promise<string> {
