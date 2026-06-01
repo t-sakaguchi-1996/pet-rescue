@@ -25,8 +25,8 @@ export default function CommentSection({ petId, petOwnerId, petName }: Props) {
   // ID of the comment we clicked "返信" on (top-level or reply)
   const [replyingToId, setReplyingToId] = useState<string | null>(null)
 
-  // Always use the latest photo from auth context for the current user
-  const currentUserPhotoURL = profile?.photoURL ?? user?.photoURL ?? undefined
+  // profile is used only to keep the import; avatar display uses initials only
+  void profile
 
   useEffect(() => {
     return subscribeComments(petId, setComments)
@@ -79,7 +79,6 @@ export default function CommentSection({ petId, petOwnerId, petName }: Props) {
               <CommentItem
                 comment={comment}
                 currentUserId={user?.uid}
-                currentUserPhotoURL={currentUserPhotoURL}
                 petId={petId}
                 isReplyActive={replyingToId === comment.id}
                 onReply={() => toggleReply(comment.id)}
@@ -92,7 +91,6 @@ export default function CommentSection({ petId, petOwnerId, petName }: Props) {
                       key={reply.id}
                       comment={reply}
                       currentUserId={user?.uid}
-                      currentUserPhotoURL={currentUserPhotoURL}
                       petId={petId}
                       isReplyActive={replyingToId === reply.id}
                       onReply={() => toggleReply(reply.id)}
@@ -146,14 +144,12 @@ export default function CommentSection({ petId, petOwnerId, petName }: Props) {
 function CommentItem({
   comment,
   currentUserId,
-  currentUserPhotoURL,
   petId,
   onReply,
   isReplyActive,
 }: {
   comment: Comment
   currentUserId?: string
-  currentUserPhotoURL?: string
   petId: string
   onReply: () => void
   isReplyActive: boolean
@@ -161,11 +157,6 @@ function CommentItem({
   const [deleting, setDeleting] = useState(false)
   const isOwn = currentUserId === comment.userId
   const canReply = Boolean(currentUserId)
-
-  // Use current user's latest photo for own comments; stored photo for others
-  const displayPhotoURL = isOwn
-    ? (currentUserPhotoURL ?? comment.userPhotoURL)
-    : comment.userPhotoURL
 
   const handleDelete = async () => {
     if (!confirm('このコメントを削除しますか？')) return
@@ -177,33 +168,27 @@ function CommentItem({
     }
   }
 
+  // アバターは常にイニシャル表示（保存済み photoURL は誰が見るかで変わるため使わない）
+  const avatarLetter = comment.userDisplayName.charAt(0) || '?'
+
   return (
     <div className="flex gap-3">
-      <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0 text-sm font-bold text-red-500 overflow-hidden">
-        {displayPhotoURL ? (
-          <Image
-            src={displayPhotoURL}
-            alt={comment.userDisplayName}
-            width={32}
-            height={32}
-            className="object-cover"
-          />
-        ) : (
-          comment.userDisplayName.charAt(0)
-        )}
+      <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold"
+           style={{ background: '#FFE0A0', color: '#7A4500' }}>
+        {avatarLetter}
       </div>
 
       <div className="flex-1 min-w-0">
-        <div className="bg-gray-50 rounded-xl px-4 py-3">
+        <div className="rounded-2xl px-4 py-3" style={{ background: '#FFFAF0', border: '1.5px solid #FFE8B0' }}>
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-sm font-semibold text-gray-800">
+            <span className="text-sm font-bold" style={{ color: '#5A3A1A' }}>
               {comment.userDisplayName}
             </span>
-            <span className="text-xs text-gray-400">
+            <span className="text-xs" style={{ color: '#C8A070' }}>
               {format(new Date(comment.createdAt), 'M/d H:mm', { locale: ja })}
             </span>
           </div>
-          <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">
+          <p className="text-sm whitespace-pre-line leading-relaxed" style={{ color: '#3D2400' }}>
             {comment.text}
           </p>
           {comment.imageUrls.length > 0 && (
