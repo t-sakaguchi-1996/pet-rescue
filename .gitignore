@@ -1,0 +1,30 @@
+node_modules/
+.env
+.env.local
+.env*.local
+*.env
+
+# Next.js
+packages/web/.next/
+packages/web/out/
+
+# Expo
+packages/mobile/.expo/
+packages/mobile/dist/
+packages/mobile/web-build/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Build
+packages/*/dist/
+packages/*/build/

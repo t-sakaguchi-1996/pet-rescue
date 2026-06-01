@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-primary: 239 68 68;
+  }
+
+  body {
+    @apply bg-gray-50 text-gray-900;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-red-500 hover:bg-red-600 text-white font-semibold px-6 py-2.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply bg-white hover:bg-gray-50 text-gray-700 font-semibold px-6 py-2.5 rounded-lg border border-gray-300 transition-colors;
+  }
+
+  .input-field {
+    @apply w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent text-gray-900 bg-white;
+  }
+
+  .select-field {
+    @apply input-field appearance-none cursor-pointer;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-gray-700 mb-1;
+  }
+
+  .pet-badge-lost {
+    @apply bg-red-100 text-red-700 text-xs font-bold px-2 py-0.5 rounded-full;
+  }
+
+  .pet-badge-found {
+    @apply bg-blue-100 text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full;
+  }
+
+  .status-searching {
+    @apply bg-yellow-100 text-yellow-700;
+  }
+
+  .status-protected {
+    @apply bg-green-100 text-green-700;
+  }
+
+  .status-resolved {
+    @apply bg-gray-100 text-gray-600;
+  }
+}

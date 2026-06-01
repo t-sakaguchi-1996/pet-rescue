@@ -1,0 +1,13 @@
+{
+  "name": "pet-rescue",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "web": "npm run dev --workspace=packages/web",
+    "mobile": "npm run start --workspace=packages/mobile",
+    "build:web": "npm run build --workspace=packages/web"
+  }
+}
