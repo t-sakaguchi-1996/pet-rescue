@@ -53,8 +53,11 @@ npm run mobile
 ```powershell
 # packages/mobile ディレクトリから実行
 cd packages/mobile
-npx expo start
+npx expo start --offline
 ```
+
+> `--offline` フラグは Expo CLI の起動時ネットワーク確認（`api.expo.dev` への接続）をスキップします。
+> ネットワーク環境が問題ない場合は `npx expo start` でも起動できます。
 
 - ターミナルに QR コードが表示される
 - スマートフォンの **Expo Go** アプリで QR コードを読み取る
