@@ -10,6 +10,8 @@ import {
   deleteComment,
   subscribeComments,
   uploadCommentImage,
+  fetchUserProfiles,
+  type UserProfile,
 } from '@/lib/comments'
 import type { Comment } from '@pet-rescue/shared'
 
@@ -22,15 +24,22 @@ interface Props {
 export default function CommentSection({ petId, petOwnerId, petName }: Props) {
   const { user, profile } = useAuth()
   const [comments, setComments] = useState<Comment[]>([])
-  // ID of the comment we clicked "返信" on (top-level or reply)
   const [replyingToId, setReplyingToId] = useState<string | null>(null)
+  const [userProfiles, setUserProfiles] = useState<Map<string, UserProfile>>(new Map())
 
-  // 自分のコメントは常に最新の画像を表示
+  // 自分のコメントは AuthContext の最新画像を優先
   const currentUserPhotoURL = profile?.photoURL ?? user?.photoURL ?? undefined
 
   useEffect(() => {
     return subscribeComments(petId, setComments)
   }, [petId])
+
+  // コメントが更新されるたびに投稿者のプロフィールを一括取得
+  useEffect(() => {
+    if (comments.length === 0) return
+    const ids = [...new Set(comments.map((c) => c.userId))]
+    fetchUserProfiles(ids).then(setUserProfiles)
+  }, [comments])
 
   const topLevel = comments.filter((c) => !c.parentId)
   const repliesFor = (id: string) => comments.filter((c) => c.parentId === id)
@@ -80,6 +89,7 @@ export default function CommentSection({ petId, petOwnerId, petName }: Props) {
                 comment={comment}
                 currentUserId={user?.uid}
                 currentUserPhotoURL={currentUserPhotoURL}
+                userProfiles={userProfiles}
                 petId={petId}
                 isReplyActive={replyingToId === comment.id}
                 onReply={() => toggleReply(comment.id)}
@@ -93,6 +103,7 @@ export default function CommentSection({ petId, petOwnerId, petName }: Props) {
                       comment={reply}
                       currentUserId={user?.uid}
                       currentUserPhotoURL={currentUserPhotoURL}
+                      userProfiles={userProfiles}
                       petId={petId}
                       isReplyActive={replyingToId === reply.id}
                       onReply={() => toggleReply(reply.id)}
@@ -147,6 +158,7 @@ function CommentItem({
   comment,
   currentUserId,
   currentUserPhotoURL,
+  userProfiles,
   petId,
   onReply,
   isReplyActive,
@@ -154,6 +166,7 @@ function CommentItem({
   comment: Comment
   currentUserId?: string
   currentUserPhotoURL?: string
+  userProfiles: Map<string, UserProfile>
   petId: string
   onReply: () => void
   isReplyActive: boolean
@@ -162,10 +175,10 @@ function CommentItem({
   const isOwn = currentUserId === comment.userId
   const canReply = Boolean(currentUserId)
 
-  // 自分のコメント → 最新画像。他のユーザー → 保存済み画像。なければイニシャル。
+  // 優先順位: 自分→AuthContext最新 / 他者→Firestoreから取得した最新 / フォールバック→イニシャル
   const photoURL = isOwn
-    ? (currentUserPhotoURL ?? comment.userPhotoURL)
-    : comment.userPhotoURL
+    ? currentUserPhotoURL
+    : (userProfiles.get(comment.userId)?.photoURL ?? comment.userPhotoURL)
   const avatarLetter = comment.userDisplayName.charAt(0) || '?'
 
   const handleDelete = async () => {

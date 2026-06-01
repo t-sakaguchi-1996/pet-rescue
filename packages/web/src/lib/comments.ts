@@ -1,6 +1,7 @@
 import {
   collection,
   doc,
+  getDoc,
   addDoc,
   deleteDoc,
   onSnapshot,
@@ -144,4 +145,36 @@ export async function deleteComment(
   commentId: string
 ): Promise<void> {
   await deleteDoc(doc(db, PETS, petId, COMMENTS, commentId))
+}
+
+export interface UserProfile {
+  photoURL?: string
+  displayName: string
+}
+
+/** 複数ユーザーの最新プロフィールを Firestore から一括取得 */
+export async function fetchUserProfiles(
+  userIds: string[]
+): Promise<Map<string, UserProfile>> {
+  const unique = [...new Set(userIds)]
+  const results = await Promise.all(
+    unique.map(async (uid) => {
+      try {
+        const snap = await getDoc(doc(db, 'users', uid))
+        if (snap.exists()) {
+          const d = snap.data()
+          return [uid, {
+            photoURL:    (d.photoURL    as string | undefined) ?? undefined,
+            displayName: (d.displayName as string)             ?? '',
+          }] as const
+        }
+      } catch { /* ignore */ }
+      return [uid, null] as const
+    })
+  )
+  const map = new Map<string, UserProfile>()
+  results.forEach(([uid, profile]) => {
+    if (profile) map.set(uid, profile)
+  })
+  return map
 }
