@@ -20,6 +20,16 @@ import type {
 } from '../../../shared/src/types'
 
 const PETS = 'pets'
+const FETCH_TIMEOUT_MS = 10000
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`Firestore timeout after ${ms}ms`)), ms)
+    ),
+  ])
+}
 
 function stripUndefined(obj: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(
@@ -70,12 +80,12 @@ export async function fetchPets(filter: PetFilter = {}): Promise<Pet[]> {
   if (filter.prefecture) constraints.push(where('location.prefecture', '==', filter.prefecture))
   if (filter.limitCount) constraints.push(limit(filter.limitCount))
 
-  const snap = await getDocs(query(collection(db, PETS), ...constraints))
+  const snap = await withTimeout(getDocs(query(collection(db, PETS), ...constraints)), FETCH_TIMEOUT_MS)
   return snap.docs.map((d) => toPet(d.id, d.data()))
 }
 
 export async function fetchPetById(id: string): Promise<Pet | null> {
-  const snap = await getDoc(doc(db, PETS, id))
+  const snap = await withTimeout(getDoc(doc(db, PETS, id)), FETCH_TIMEOUT_MS)
   if (!snap.exists()) return null
   return toPet(snap.id, snap.data())
 }
@@ -97,12 +107,15 @@ export async function createPet(
 }
 
 export async function fetchUserPets(userId: string): Promise<Pet[]> {
-  const snap = await getDocs(
-    query(
-      collection(db, PETS),
-      where('userId', '==', userId),
-      orderBy('createdAt', 'desc')
-    )
+  const snap = await withTimeout(
+    getDocs(
+      query(
+        collection(db, PETS),
+        where('userId', '==', userId),
+        orderBy('createdAt', 'desc')
+      )
+    ),
+    FETCH_TIMEOUT_MS
   )
   return snap.docs.map((d) => toPet(d.id, d.data()))
 }

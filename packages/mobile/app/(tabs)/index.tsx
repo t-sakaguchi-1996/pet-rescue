@@ -6,7 +6,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   RefreshControl,
-  TextInput,
 } from 'react-native'
 import { useRouter } from 'expo-router'
 import { fetchPets } from '../../src/lib/firestore'
@@ -18,22 +17,33 @@ export default function HomeScreen() {
   const [pets, setPets] = useState<Pet[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState('')
   const [speciesFilter, setSpeciesFilter] = useState<string>('')
   const [typeFilter, setTypeFilter] = useState<string>('')
 
   const load = useCallback(async () => {
-    const data = await fetchPets({
-      status: 'searching',
-      species: speciesFilter as Pet['species'] || undefined,
-      type: typeFilter as Pet['type'] || undefined,
-      limitCount: 50,
-    })
-    setPets(data)
-    setLoading(false)
-    setRefreshing(false)
+    setError('')
+    try {
+      const data = await fetchPets({
+        status: 'searching',
+        species: (speciesFilter as Pet['species']) || undefined,
+        type: (typeFilter as Pet['type']) || undefined,
+        limitCount: 50,
+      })
+      setPets(data)
+    } catch (e) {
+      console.error('fetchPets error:', e)
+      setError('データの取得に失敗しました。\nネットワーク接続を確認してください。')
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
   }, [speciesFilter, typeFilter])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    setLoading(true)
+    load()
+  }, [load])
 
   const onRefresh = () => {
     setRefreshing(true)
@@ -73,6 +83,14 @@ export default function HomeScreen() {
       {loading ? (
         <View style={styles.center}>
           <Text style={styles.loadingText}>読み込み中...</Text>
+        </View>
+      ) : error ? (
+        <View style={styles.center}>
+          <Text style={styles.errorEmoji}>⚠️</Text>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity style={styles.retryBtn} onPress={() => { setLoading(true); load() }}>
+            <Text style={styles.retryText}>再読み込み</Text>
+          </TouchableOpacity>
         </View>
       ) : pets.length === 0 ? (
         <View style={styles.center}>
@@ -123,16 +141,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e5e7eb',
   },
-  filterChipActive: {
-    backgroundColor: '#fee2e2',
-    borderColor: '#ef4444',
-  },
+  filterChipActive: { backgroundColor: '#fee2e2', borderColor: '#ef4444' },
   filterText: { fontSize: 12, color: '#6b7280', fontWeight: '500' },
   filterTextActive: { color: '#ef4444' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   loadingText: { color: '#9ca3af' },
   emptyEmoji: { fontSize: 48, marginBottom: 12 },
   emptyText: { color: '#9ca3af', fontSize: 15 },
+  errorEmoji: { fontSize: 40, marginBottom: 12 },
+  errorText: { color: '#6b7280', fontSize: 14, textAlign: 'center', lineHeight: 22, marginBottom: 16 },
+  retryBtn: {
+    backgroundColor: '#ef4444',
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  retryText: { color: '#fff', fontWeight: 'bold', fontSize: 14 },
   list: { padding: 12 },
   row: { gap: 10, marginBottom: 10 },
 })

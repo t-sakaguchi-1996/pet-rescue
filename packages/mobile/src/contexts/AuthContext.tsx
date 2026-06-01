@@ -1,3 +1,5 @@
+'use client'
+
 import {
   createContext,
   useContext,
@@ -20,11 +22,7 @@ interface AuthContextValue {
   user: FirebaseUser | null
   loading: boolean
   login: (email: string, password: string) => Promise<void>
-  register: (
-    email: string,
-    password: string,
-    displayName: string
-  ) => Promise<void>
+  register: (email: string, password: string, displayName: string) => Promise<void>
   logout: () => Promise<void>
 }
 
@@ -35,11 +33,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u)
+    // Firebase Auth の応答がない場合のフォールバック（8秒）
+    const timeout = setTimeout(() => {
       setLoading(false)
-    })
-    return unsubscribe
+    }, 8000)
+
+    let unsubscribe = () => {}
+    try {
+      unsubscribe = onAuthStateChanged(auth, (u) => {
+        clearTimeout(timeout)
+        setUser(u)
+        setLoading(false)
+      })
+    } catch (e) {
+      clearTimeout(timeout)
+      setLoading(false)
+      console.error('onAuthStateChanged error:', e)
+    }
+
+    return () => {
+      unsubscribe()
+      clearTimeout(timeout)
+    }
   }, [])
 
   const login = async (email: string, password: string) => {
