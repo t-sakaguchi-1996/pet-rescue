@@ -8,6 +8,10 @@
   "scripts": {
     "web": "npm run dev --workspace=packages/web",
     "mobile": "npm run start --workspace=packages/mobile",
-    "build:web": "npm run build --workspace=packages/web"
+    "mobile:android": "npm run android --workspace=packages/mobile",
+    "mobile:ios": "npm run ios --workspace=packages/mobile",
+    "build:web": "npm run build --workspace=packages/web",
+    "build:mobile:android": "npm run build:android --workspace=packages/mobile",
+    "build:mobile:ios": "npm run build:ios --workspace=packages/mobile"
   }
 }

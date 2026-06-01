@@ -1,4 +1,11 @@
+import { Text } from 'react-native'
 import { Tabs } from 'expo-router'
+
+function TabIcon({ emoji, active }: { emoji: string; active: boolean }) {
+  return (
+    <Text style={{ fontSize: 22, opacity: active ? 1 : 0.45 }}>{emoji}</Text>
+  )
+}
 
 export default function TabLayout() {
   return (
@@ -10,6 +17,7 @@ export default function TabLayout() {
           borderTopWidth: 1,
           borderTopColor: '#f3f4f6',
           paddingBottom: 4,
+          height: 58,
         },
         headerStyle: { backgroundColor: '#ffffff' },
         headerTintColor: '#111827',
@@ -21,8 +29,10 @@ export default function TabLayout() {
         options={{
           title: '一覧',
           tabBarLabel: '一覧',
-          tabBarIcon: ({ color }) => <TabIcon emoji="🏠" color={color} />,
-          headerTitle: 'ペット救助',
+          tabBarIcon: ({ focused }) => (
+            <TabIcon emoji="🏠" active={focused} />
+          ),
+          headerTitle: '🐾 ペット救助',
         }}
       />
       <Tabs.Screen
@@ -30,7 +40,9 @@ export default function TabLayout() {
         options={{
           title: '地図',
           tabBarLabel: '地図',
-          tabBarIcon: ({ color }) => <TabIcon emoji="🗺️" color={color} />,
+          tabBarIcon: ({ focused }) => (
+            <TabIcon emoji="🗺️" active={focused} />
+          ),
         }}
       />
       <Tabs.Screen
@@ -38,7 +50,9 @@ export default function TabLayout() {
         options={{
           title: '投稿',
           tabBarLabel: '投稿',
-          tabBarIcon: ({ color }) => <TabIcon emoji="➕" color={color} />,
+          tabBarIcon: ({ focused }) => (
+            <TabIcon emoji="➕" active={focused} />
+          ),
         }}
       />
       <Tabs.Screen
@@ -46,14 +60,11 @@ export default function TabLayout() {
         options={{
           title: 'マイページ',
           tabBarLabel: 'マイ',
-          tabBarIcon: ({ color }) => <TabIcon emoji="👤" color={color} />,
+          tabBarIcon: ({ focused }) => (
+            <TabIcon emoji="👤" active={focused} />
+          ),
         }}
       />
     </Tabs>
   )
-}
-
-function TabIcon({ emoji, color }: { emoji: string; color: string }) {
-  const { Text } = require('react-native')
-  return <Text style={{ fontSize: 22, opacity: color === '#ef4444' ? 1 : 0.5 }}>{emoji}</Text>
 }

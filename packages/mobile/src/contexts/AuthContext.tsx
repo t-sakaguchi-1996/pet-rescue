@@ -5,13 +5,19 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import auth, {
-  type FirebaseAuthTypes,
-} from '@react-native-firebase/auth'
-import firestore from '@react-native-firebase/firestore'
+import {
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+  updateProfile,
+  type User as FirebaseUser,
+} from 'firebase/auth'
+import { doc, setDoc, Timestamp } from 'firebase/firestore'
+import { auth, db } from '../lib/firebase'
 
 interface AuthContextValue {
-  user: FirebaseAuthTypes.User | null
+  user: FirebaseUser | null
   loading: boolean
   login: (email: string, password: string) => Promise<void>
   register: (
@@ -25,11 +31,11 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<FirebaseAuthTypes.User | null>(null)
+  const [user, setUser] = useState<FirebaseUser | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const unsubscribe = auth().onAuthStateChanged((u) => {
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
       setUser(u)
       setLoading(false)
     })
@@ -37,7 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const login = async (email: string, password: string) => {
-    await auth().signInWithEmailAndPassword(email, password)
+    await signInWithEmailAndPassword(auth, email, password)
   }
 
   const register = async (
@@ -45,19 +51,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password: string,
     displayName: string
   ) => {
-    const cred = await auth().createUserWithEmailAndPassword(email, password)
-    await cred.user.updateProfile({ displayName })
-    await firestore().collection('users').doc(cred.user.uid).set({
+    const cred = await createUserWithEmailAndPassword(auth, email, password)
+    await updateProfile(cred.user, { displayName })
+    await setDoc(doc(db, 'users', cred.user.uid), {
       email,
       displayName,
       fcmTokens: [],
+      expoPushTokens: [],
       notificationRadius: 10,
-      createdAt: firestore.Timestamp.now(),
+      createdAt: Timestamp.now(),
     })
   }
 
   const logout = async () => {
-    await auth().signOut()
+    await signOut(auth)
   }
 
   return (

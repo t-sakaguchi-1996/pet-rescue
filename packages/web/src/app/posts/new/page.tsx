@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect } from 'react'
+import { Suspense, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import PetForm from '@/components/PetForm'
 
-export default function NewPostPage() {
+function NewPostContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user, loading } = useAuth()
@@ -32,5 +32,19 @@ export default function NewPostPage() {
       </h1>
       <PetForm userId={user.uid} defaultType={defaultType} />
     </div>
+  )
+}
+
+export default function NewPostPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-gray-400 text-sm">読み込み中...</div>
+        </div>
+      }
+    >
+      <NewPostContent />
+    </Suspense>
   )
 }

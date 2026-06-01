@@ -12,6 +12,7 @@ import { useAuth } from '../../src/contexts/AuthContext'
 import { fetchUserPets } from '../../src/lib/firestore'
 import PetCard from '../../src/components/PetCard'
 import { requestNotificationPermission } from '../../src/lib/notifications'
+import * as Device from 'expo-device'
 import type { Pet } from '../../../shared/src/types'
 
 export default function ProfileScreen() {
