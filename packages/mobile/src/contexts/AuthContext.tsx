@@ -1,5 +1,3 @@
-'use client'
-
 import {
   createContext,
   useContext,
@@ -15,11 +13,17 @@ import {
   updateProfile,
   type User as FirebaseUser,
 } from 'firebase/auth'
-import { doc, setDoc, Timestamp } from 'firebase/firestore'
+import { doc, setDoc, getDoc, Timestamp } from 'firebase/firestore'
 import { auth, db } from '../lib/firebase'
+
+interface UserProfile {
+  displayName: string
+  photoURL?: string
+}
 
 interface AuthContextValue {
   user: FirebaseUser | null
+  profile: UserProfile | null
   loading: boolean
   login: (email: string, password: string) => Promise<void>
   register: (email: string, password: string, displayName: string) => Promise<void>
@@ -30,19 +34,45 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<FirebaseUser | null>(null)
+  const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Firebase Auth の応答がない場合のフォールバック（8秒）
-    const timeout = setTimeout(() => {
-      setLoading(false)
-    }, 8000)
+    // Firebase Auth 応答がない場合の 8秒フォールバック
+    const timeout = setTimeout(() => setLoading(false), 8000)
 
-    let unsubscribe = () => {}
+    let unsub = () => {}
     try {
-      unsubscribe = onAuthStateChanged(auth, (u) => {
+      unsub = onAuthStateChanged(auth, async (u) => {
         clearTimeout(timeout)
         setUser(u)
+
+        if (u) {
+          // Firestore から最新プロフィールを取得（photoURL 同期のため）
+          try {
+            const snap = await getDoc(doc(db, 'users', u.uid))
+            if (snap.exists()) {
+              const data = snap.data()
+              setProfile({
+                displayName: (data.displayName as string) ?? u.displayName ?? '',
+                photoURL: (data.photoURL as string | undefined) ?? u.photoURL ?? undefined,
+              })
+            } else {
+              setProfile({
+                displayName: u.displayName ?? '',
+                photoURL: u.photoURL ?? undefined,
+              })
+            }
+          } catch {
+            setProfile({
+              displayName: u.displayName ?? '',
+              photoURL: u.photoURL ?? undefined,
+            })
+          }
+        } else {
+          setProfile(null)
+        }
+
         setLoading(false)
       })
     } catch (e) {
@@ -52,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     return () => {
-      unsubscribe()
+      unsub()
       clearTimeout(timeout)
     }
   }, [])
@@ -61,11 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await signInWithEmailAndPassword(auth, email, password)
   }
 
-  const register = async (
-    email: string,
-    password: string,
-    displayName: string
-  ) => {
+  const register = async (email: string, password: string, displayName: string) => {
     const cred = await createUserWithEmailAndPassword(auth, email, password)
     await updateProfile(cred.user, { displayName })
     await setDoc(doc(db, 'users', cred.user.uid), {
@@ -83,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, profile, loading, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   )

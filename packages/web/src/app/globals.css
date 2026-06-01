@@ -4,28 +4,52 @@
 
 @layer base {
   :root {
-    --color-primary: 239 68 68;
+    --color-primary: #e8547a;
+    --color-primary-light: #fff0f5;
+    --color-peach: #ff9a62;
+    --color-cream: #fff6f8;
+    --color-border: #f5d0df;
   }
 
   body {
-    @apply bg-gray-50 text-gray-900;
+    background-color: var(--color-cream);
+    color: #3d2935;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI',
       'Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'Yu Gothic UI',
       'Yu Gothic', 'Meiryo', sans-serif;
   }
+
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
 }
 
 @layer components {
+  /* ── ボタン ── */
   .btn-primary {
-    @apply bg-red-500 hover:bg-red-600 text-white font-semibold px-6 py-2.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center gap-1.5
+           bg-gradient-to-r from-primary-500 to-primary-400
+           hover:from-primary-600 hover:to-primary-500
+           text-white font-semibold px-5 py-2.5 rounded-full
+           transition-all duration-200 shadow-soft
+           disabled:opacity-50 disabled:cursor-not-allowed
+           active:scale-95;
   }
 
   .btn-secondary {
-    @apply bg-white hover:bg-gray-50 text-gray-700 font-semibold px-6 py-2.5 rounded-lg border border-gray-300 transition-colors;
+    @apply inline-flex items-center justify-center gap-1.5
+           bg-white hover:bg-primary-50
+           text-primary-600 font-semibold px-5 py-2.5 rounded-full
+           border border-primary-200 transition-all duration-200
+           active:scale-95;
   }
 
+  /* ── フォーム ── */
   .input-field {
-    @apply w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent text-gray-900 bg-white;
+    @apply w-full border border-pink-200 rounded-2xl px-4 py-3
+           focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-transparent
+           text-gray-800 bg-white placeholder-pink-200
+           transition-all duration-150;
   }
 
   .select-field {
@@ -33,26 +57,39 @@
   }
 
   .label {
-    @apply block text-sm font-medium text-gray-700 mb-1;
+    @apply block text-sm font-semibold text-primary-700 mb-1.5;
   }
 
+  /* ── バッジ ── */
   .pet-badge-lost {
-    @apply bg-red-100 text-red-700 text-xs font-bold px-2 py-0.5 rounded-full;
+    @apply bg-primary-100 text-primary-600 text-xs font-bold px-2.5 py-0.5 rounded-full;
   }
 
   .pet-badge-found {
-    @apply bg-blue-100 text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full;
+    @apply bg-blue-100 text-blue-600 text-xs font-bold px-2.5 py-0.5 rounded-full;
   }
 
   .status-searching {
-    @apply bg-yellow-100 text-yellow-700;
+    @apply bg-amber-100 text-amber-700;
   }
 
   .status-protected {
-    @apply bg-green-100 text-green-700;
+    @apply bg-emerald-100 text-emerald-700;
   }
 
   .status-resolved {
-    @apply bg-gray-100 text-gray-600;
+    @apply bg-gray-100 text-gray-500;
+  }
+
+  /* ── カード ── */
+  .pet-card {
+    @apply bg-white rounded-3xl shadow-card border border-pink-100
+           hover:shadow-card-hover hover:-translate-y-0.5
+           transition-all duration-200 overflow-hidden cursor-pointer;
+  }
+
+  /* ── セクションタイトル ── */
+  .section-title {
+    @apply text-lg font-bold text-gray-800 flex items-center gap-2;
   }
 }

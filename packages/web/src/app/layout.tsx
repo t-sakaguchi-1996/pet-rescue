@@ -4,12 +4,12 @@ import { AuthProvider } from '@/contexts/AuthContext'
 import Header from '@/components/Header'
 
 export const metadata: Metadata = {
-  title: 'ペット救助 - 迷子のペットを探す・保護する',
+  title: 'ペットレスキュー - 迷子のペットを探す・保護する',
   description:
     '迷子のペット情報を掲載・検索できるサービス。犬・猫・その他のペットの迷子情報を地図で確認できます。',
   keywords: '迷子ペット, 迷子犬, 迷子猫, ペット捜索, 保護犬, 保護猫',
   openGraph: {
-    title: 'ペット救助 - 迷子のペットを探す・保護する',
+    title: 'ペットレスキュー - 迷子のペットを探す・保護する',
     description: '迷子のペット情報を掲載・検索できるサービス',
     type: 'website',
     locale: 'ja_JP',
@@ -26,12 +26,13 @@ export default function RootLayout({
       <body>
         <AuthProvider>
           <Header />
-          <main className="min-h-[calc(100vh-64px)]">{children}</main>
-          <footer className="bg-gray-800 text-gray-300 py-8 mt-12">
+          <main className="min-h-[calc(100vh-56px)]">{children}</main>
+          <footer className="bg-primary-900 text-primary-200 py-8 mt-12">
             <div className="max-w-6xl mx-auto px-4 text-center">
-              <p className="font-bold text-white text-lg mb-1">ペット救助</p>
-              <p className="text-sm">迷子のペットを探す・保護するためのプラットフォーム</p>
-              <p className="text-xs mt-4 text-gray-500">© 2025 ペット救助</p>
+              <p className="text-2xl mb-1">🐾</p>
+              <p className="font-black text-white text-base mb-1">ペットレスキュー</p>
+              <p className="text-xs text-primary-300">迷子のペットを探す・保護するためのプラットフォーム</p>
+              <p className="text-xs mt-4 text-primary-500">© 2025 ペットレスキュー</p>
             </div>
           </footer>
         </AuthProvider>

@@ -45,153 +45,123 @@ export default function NotificationBell() {
 
   useEffect(() => {
     if (!user) return
-
-    const fullQuery = query(
+    const fullQ = query(
       collection(db, 'notifications'),
       where('userId', '==', user.uid),
       orderBy('createdAt', 'desc'),
       limit(30)
     )
-    const fallbackQuery = query(
+    const fallbackQ = query(
       collection(db, 'notifications'),
       where('userId', '==', user.uid),
       limit(30)
     )
-
-    let unsubscribe = onSnapshot(
-      fullQuery,
-      (snap) => {
-        setNotifications(snap.docs.map((d) => toNotif(d.id, d.data())))
-      },
+    let unsub = onSnapshot(
+      fullQ,
+      (snap) => setNotifications(snap.docs.map((d) => toNotif(d.id, d.data()))),
       (err) => {
         if (err.code === 'failed-precondition') {
-          // Index still building — fall back to unordered query and sort client-side
-          unsubscribe = onSnapshot(fallbackQuery, (snap) => {
-            const sorted = snap.docs
-              .map((d) => toNotif(d.id, d.data()))
-              .sort(
-                (a, b) =>
-                  new Date(b.createdAt).getTime() -
-                  new Date(a.createdAt).getTime()
-              )
-            setNotifications(sorted)
+          unsub = onSnapshot(fallbackQ, (snap) => {
+            setNotifications(
+              snap.docs
+                .map((d) => toNotif(d.id, d.data()))
+                .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            )
           })
         }
       }
     )
-
-    return () => unsubscribe()
+    return () => unsub()
   }, [user])
 
   useEffect(() => {
-    function handleClick(e: MouseEvent) {
+    const handle = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setOpen(false)
       }
     }
-    if (open) document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
+    if (open) document.addEventListener('mousedown', handle)
+    return () => document.removeEventListener('mousedown', handle)
   }, [open])
 
   if (!user) return null
 
   const unread = notifications.filter((n) => !n.isRead).length
 
-  const handleOpen = async () => {
-    setOpen((v) => !v)
-  }
-
   const handleClick = async (n: AppNotification) => {
     setOpen(false)
-    if (!n.isRead) {
-      await updateDoc(doc(db, 'notifications', n.id), { isRead: true })
-    }
+    if (!n.isRead) await updateDoc(doc(db, 'notifications', n.id), { isRead: true })
   }
 
   const markAllRead = async () => {
-    const promises = notifications
-      .filter((n) => !n.isRead)
-      .map((n) => updateDoc(doc(db, 'notifications', n.id), { isRead: true }))
-    await Promise.all(promises)
+    await Promise.all(
+      notifications.filter((n) => !n.isRead).map((n) =>
+        updateDoc(doc(db, 'notifications', n.id), { isRead: true })
+      )
+    )
   }
 
   return (
     <div ref={containerRef} className="relative">
       <button
-        onClick={handleOpen}
-        className="relative p-2 text-gray-500 hover:text-gray-700 transition-colors"
+        onClick={() => setOpen((v) => !v)}
+        className="relative p-2 text-gray-400 hover:text-primary-500 transition-colors rounded-full hover:bg-primary-50"
         aria-label={`通知${unread > 0 ? `（未読${unread}件）` : ''}`}
       >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+          fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
           <path d="M13.73 21a2 2 0 0 1-3.46 0" />
         </svg>
         {unread > 0 && (
-          <span className="absolute top-0.5 right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-0.5">
+          <span className="absolute top-1 right-1 bg-primary-500 text-white text-[9px] font-bold rounded-full min-w-[14px] h-3.5 flex items-center justify-center px-0.5 leading-none">
             {unread > 99 ? '99+' : unread}
           </span>
         )}
       </button>
 
       {open && (
-        <div className="absolute right-0 top-11 w-80 bg-white rounded-xl shadow-xl border border-gray-200 z-50 overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b">
-            <span className="font-semibold text-sm text-gray-800">通知</span>
+        /* モバイルで画面幅を超えないよう right-0 + max-w で制御 */
+        <div className="absolute right-0 top-11 w-[min(320px,calc(100vw-2rem))] bg-white rounded-3xl shadow-[0_8px_40px_rgba(232,84,122,0.15)] border border-pink-100 z-50 overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-pink-50">
+            <span className="font-bold text-sm text-gray-800">🔔 通知</span>
             {unread > 0 && (
-              <button
-                onClick={markAllRead}
-                className="text-xs text-red-500 hover:text-red-600"
-              >
+              <button onClick={markAllRead} className="text-xs text-primary-500 hover:text-primary-600 font-semibold">
                 すべて既読
               </button>
             )}
           </div>
 
-          <div className="max-h-80 overflow-y-auto">
+          <div className="max-h-72 overflow-y-auto overscroll-contain">
             {notifications.length === 0 ? (
-              <p className="p-6 text-sm text-gray-400 text-center">
-                通知はありません
-              </p>
+              <div className="py-8 text-center">
+                <p className="text-2xl mb-1">🔕</p>
+                <p className="text-sm text-gray-400">通知はありません</p>
+              </div>
             ) : (
               notifications.map((n) => (
                 <Link
                   key={n.id}
                   href={`/posts/${n.petId}`}
                   onClick={() => handleClick(n)}
-                  className={`flex items-start gap-3 px-4 py-3 border-b hover:bg-gray-50 transition-colors ${
-                    !n.isRead ? 'bg-red-50' : ''
+                  className={`flex items-start gap-3 px-4 py-3 border-b border-pink-50 hover:bg-primary-50 transition-colors ${
+                    !n.isRead ? 'bg-primary-50/60' : ''
                   }`}
                 >
-                  <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0 text-sm font-bold text-red-500">
+                  <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0 text-sm font-bold text-primary-500">
                     {n.fromUserDisplayName.charAt(0)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-800 leading-snug">
-                      <span className="font-medium">{n.fromUserDisplayName}</span>
-                      {n.type === 'comment'
-                        ? 'さんがコメントしました'
-                        : 'さんが返信しました'}
+                    <p className="text-xs text-gray-700 leading-snug">
+                      <span className="font-semibold">{n.fromUserDisplayName}</span>
+                      {n.type === 'comment' ? 'さんがコメント' : 'さんが返信'}
                     </p>
-                    <p className="text-xs text-gray-500 truncate mt-0.5">
-                      {n.petName}
-                    </p>
-                    <p className="text-xs text-gray-400 mt-0.5">
+                    <p className="text-xs text-gray-400 truncate mt-0.5">{n.petName}</p>
+                    <p className="text-[10px] text-gray-300 mt-0.5">
                       {format(new Date(n.createdAt), 'M/d H:mm', { locale: ja })}
                     </p>
                   </div>
-                  {!n.isRead && (
-                    <div className="w-2 h-2 bg-red-500 rounded-full flex-shrink-0 mt-1.5" />
-                  )}
+                  {!n.isRead && <div className="w-2 h-2 bg-primary-500 rounded-full flex-shrink-0 mt-1" />}
                 </Link>
               ))
             )}
