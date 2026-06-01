@@ -10,6 +10,18 @@ const nextConfig: NextConfig = {
     ],
   },
   transpilePackages: ['@pet-rescue/shared'],
+  experimental: {
+    optimizePackageImports: [
+      'firebase',
+      'firebase/app',
+      'firebase/auth',
+      'firebase/firestore',
+      'firebase/storage',
+      'firebase/messaging',
+      '@vis.gl/react-google-maps',
+      'date-fns',
+    ],
+  },
 }
 
 export default nextConfig

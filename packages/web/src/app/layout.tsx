@@ -1,15 +1,7 @@
 import type { Metadata } from 'next'
-import { Noto_Sans_JP } from 'next/font/google'
 import './globals.css'
 import { AuthProvider } from '@/contexts/AuthContext'
 import Header from '@/components/Header'
-
-const notoSansJP = Noto_Sans_JP({
-  subsets: ['latin'],
-  weight: ['400', '500', '700'],
-  display: 'swap',
-  preload: false,
-})
 
 export const metadata: Metadata = {
   title: 'ペット救助 - 迷子のペットを探す・保護する',
@@ -31,7 +23,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ja">
-      <body className={notoSansJP.className}>
+      <body>
         <AuthProvider>
           <Header />
           <main className="min-h-[calc(100vh-64px)]">{children}</main>

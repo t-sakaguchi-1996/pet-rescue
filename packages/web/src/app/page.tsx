@@ -33,9 +33,9 @@ function HomeContent() {
       limitCount: 50,
     })
       .then(setPets)
-      .catch((err) => {
-        console.error(err)
-        setError('データの取得に失敗しました。Firebaseの設定を確認してください。')
+      .catch((err: Error) => {
+        console.error('Firestore error:', err)
+        setError(err.message ?? 'データの取得に失敗しました')
       })
       .finally(() => setLoading(false))
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -95,9 +95,9 @@ function HomeContent() {
         ) : error ? (
           <div className="text-center py-16">
             <div className="text-5xl mb-4">⚠️</div>
-            <p className="text-gray-500">{error}</p>
-            <p className="text-sm text-gray-400 mt-2">
-              .env.local の FIREBASE_APP_ID を設定してください
+            <p className="text-gray-600 font-medium mb-2">Firestoreに接続できません</p>
+            <p className="text-sm text-red-500 bg-red-50 rounded-lg px-4 py-2 inline-block max-w-lg break-all">
+              {error}
             </p>
           </div>
         ) : pets.length === 0 ? (
