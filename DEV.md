@@ -113,5 +113,22 @@ EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=
 EXPO_PUBLIC_FIREBASE_PROJECT_ID=
 EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=
 EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
-EXPO_PUBLIC_FIREBASE_APP_ID=
+EXPO_PUBLIC_FIREBASE_APP_ID=   # ← Web App ID を使用すること（Android App IDではない）
+EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=
 ```
+
+> **注意**: `EXPO_PUBLIC_FIREBASE_APP_ID` には Firebase コンソールの **ウェブアプリ** の App ID（`1:xxx:web:xxx` 形式）を設定してください。
+> Android App ID（`1:xxx:android:xxx` 形式）を設定すると Firebase JS SDK が正常に動作しません。
+> Webアプリの App ID は Webの `.env.local` の `NEXT_PUBLIC_FIREBASE_APP_ID` と同じ値を使います。
+
+---
+
+## Expo Go 制限事項
+
+以下の機能は **Expo Go では動作しません**。EAS Build（実機ビルド）が必要です：
+
+| 機能 | 理由 |
+|------|------|
+| 地図表示（map.tsx） | `react-native-maps` はネイティブモジュールのため |
+| 投稿フォームの地図ピン | 同上。現在地ボタンは使用可能 |
+| プッシュ通知（FCM） | ネイティブビルドが必要 |

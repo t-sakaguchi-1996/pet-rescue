@@ -1,7 +1,7 @@
 import type { ExpoConfig } from 'expo/config'
 
 const config: ExpoConfig = {
-  name: 'ペット救助',
+  name: 'ペットレスキュー',
   slug: 'pet-rescue',
   version: '1.0.0',
   orientation: 'portrait',
@@ -72,9 +72,6 @@ const config: ExpoConfig = {
     firebaseStorageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
     firebaseMessagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
     firebaseAppId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
-    eas: {
-      projectId: 'YOUR_EAS_PROJECT_ID',
-    },
   },
 }
 

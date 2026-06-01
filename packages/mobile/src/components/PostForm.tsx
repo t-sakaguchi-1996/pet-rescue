@@ -12,12 +12,27 @@ import {
 } from 'react-native'
 import * as ImagePicker from 'expo-image-picker'
 import * as Location from 'expo-location'
-import MapView, { Marker } from 'react-native-maps'
+import Constants from 'expo-constants'
 import { useRouter } from 'expo-router'
 import { createPet } from '../lib/firestore'
 import { uploadPetImages } from '../lib/storage'
 import type { Pet } from '../../../shared/src/types'
-import { PREFECTURES } from '../../../shared/src/types'
+
+// react-native-maps は Expo Go では利用不可
+const isExpoGo = Constants.appOwnership === 'expo'
+
+let MapView: React.ComponentType<any> | null = null
+let Marker: React.ComponentType<any> | null = null
+
+if (!isExpoGo) {
+  try {
+    const maps = require('react-native-maps')
+    MapView = maps.default
+    Marker = maps.Marker
+  } catch {
+    // native module not available
+  }
+}
 
 interface Props {
   userId: string
@@ -86,6 +101,7 @@ export default function PostForm({ userId }: Props) {
     const { latitude, longitude } = loc.coords
     setPinLocation({ latitude, longitude })
     setMapRegion((r) => ({ ...r, latitude, longitude }))
+    Alert.alert('位置設定', `現在地を設定しました\n(${latitude.toFixed(4)}, ${longitude.toFixed(4)})`)
   }
 
   const handleSubmit = async () => {
@@ -94,7 +110,7 @@ export default function PostForm({ userId }: Props) {
       return
     }
     if (!pinLocation) {
-      Alert.alert('場所未設定', '地図をタップして場所を指定してください')
+      Alert.alert('場所未設定', '「現在地を使う」ボタンで場所を設定してください')
       return
     }
 
@@ -163,30 +179,20 @@ export default function PostForm({ userId }: Props) {
 
         <Text style={styles.label}>動物種</Text>
         <View style={styles.chipRow}>
-          {(['dog', 'cat', 'rabbit', 'bird', 'other'] as Pet['species'][]).map(
-            (s) => {
-              const labels = { dog: '犬', cat: '猫', rabbit: 'うさぎ', bird: '鳥', other: 'その他' }
-              return (
-                <TouchableOpacity
-                  key={s}
-                  style={[
-                    styles.chip,
-                    form.species === s && styles.chipActive,
-                  ]}
-                  onPress={() => set('species', s)}
-                >
-                  <Text
-                    style={[
-                      styles.chipText,
-                      form.species === s && styles.chipTextActive,
-                    ]}
-                  >
-                    {labels[s]}
-                  </Text>
-                </TouchableOpacity>
-              )
-            }
-          )}
+          {(['dog', 'cat', 'rabbit', 'bird', 'other'] as Pet['species'][]).map((s) => {
+            const labels = { dog: '犬', cat: '猫', rabbit: 'うさぎ', bird: '鳥', other: 'その他' }
+            return (
+              <TouchableOpacity
+                key={s}
+                style={[styles.chip, form.species === s && styles.chipActive]}
+                onPress={() => set('species', s)}
+              >
+                <Text style={[styles.chipText, form.species === s && styles.chipTextActive]}>
+                  {labels[s]}
+                </Text>
+              </TouchableOpacity>
+            )
+          })}
         </View>
 
         <Field label="名前" value={form.name} onChange={(v) => set('name', v)} placeholder="例: チョコ" />
@@ -238,25 +244,35 @@ export default function PostForm({ userId }: Props) {
           <Text style={styles.locationBtnText}>📍 現在地を使う</Text>
         </TouchableOpacity>
 
-        <Text style={styles.mapHint}>
-          地図をタップして場所を指定{' '}
-          {pinLocation
-            ? <Text style={styles.mapHintOk}>✓ 設定済み</Text>
-            : <Text style={styles.mapHintRequired}>（必須）</Text>
-          }
-        </Text>
-        <View style={styles.mapWrapper}>
-          <MapView
-            style={styles.map}
-            region={mapRegion}
-            onRegionChangeComplete={setMapRegion}
-            onPress={(e) =>
-              setPinLocation(e.nativeEvent.coordinate)
-            }
-          >
-            {pinLocation && <Marker coordinate={pinLocation} />}
-          </MapView>
+        {/* 位置設定状態 */}
+        <View style={styles.locationStatus}>
+          {pinLocation ? (
+            <Text style={styles.locationSet}>
+              ✓ 位置設定済み ({pinLocation.latitude.toFixed(4)}, {pinLocation.longitude.toFixed(4)})
+            </Text>
+          ) : (
+            <Text style={styles.locationUnset}>
+              ⚠ 「現在地を使う」ボタンで場所を設定してください（必須）
+            </Text>
+          )}
         </View>
+
+        {/* ネイティブビルドのみ地図を表示 */}
+        {!isExpoGo && MapView && (
+          <>
+            <Text style={styles.mapHint}>または地図をタップして場所を指定</Text>
+            <View style={styles.mapWrapper}>
+              <MapView
+                style={styles.map}
+                region={mapRegion}
+                onRegionChangeComplete={setMapRegion}
+                onPress={(e: any) => setPinLocation(e.nativeEvent.coordinate)}
+              >
+                {pinLocation && <Marker! coordinate={pinLocation} />}
+              </MapView>
+            </View>
+          </>
+        )}
       </View>
 
       {/* 連絡先 */}
@@ -321,12 +337,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderColor: '#f3f4f6',
   },
-  sectionTitle: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#374151',
-    marginBottom: 12,
-  },
+  sectionTitle: { fontSize: 15, fontWeight: 'bold', color: '#374151', marginBottom: 12 },
   toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -336,13 +347,7 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   toggleLabel: { fontSize: 15, fontWeight: '600', color: '#374151' },
-  label: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 6,
-    marginTop: 12,
-  },
+  label: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6, marginTop: 12 },
   chipRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   chip: {
     paddingHorizontal: 12,
@@ -386,12 +391,7 @@ const styles = StyleSheet.create({
   },
   photoBtnText: { color: '#6b7280', fontWeight: '600' },
   imageRow: { marginTop: 8 },
-  thumbnail: {
-    width: 72,
-    height: 72,
-    borderRadius: 8,
-    marginRight: 8,
-  },
+  thumbnail: { width: 72, height: 72, borderRadius: 8, marginRight: 8 },
   locationBtn: {
     backgroundColor: '#f3f4f6',
     borderRadius: 8,
@@ -400,9 +400,17 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   locationBtnText: { color: '#374151', fontWeight: '600' },
+  locationStatus: {
+    marginTop: 10,
+    padding: 10,
+    backgroundColor: '#f9fafb',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  locationSet: { fontSize: 12, color: '#10b981', fontWeight: '600' },
+  locationUnset: { fontSize: 12, color: '#f59e0b', fontWeight: '600' },
   mapHint: { fontSize: 13, color: '#6b7280', marginTop: 10, marginBottom: 6 },
-  mapHintOk: { color: '#10b981', fontWeight: '600' },
-  mapHintRequired: { color: '#ef4444', fontWeight: '600' },
   mapWrapper: {
     height: 220,
     borderRadius: 10,
