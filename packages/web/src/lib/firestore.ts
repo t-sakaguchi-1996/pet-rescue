@@ -57,6 +57,9 @@ function toPet(id: string, data: Record<string, unknown>): Pet {
     contactEmail: (data.contactEmail as string) ?? '',
     contactPhone: (data.contactPhone as string) ?? '',
     reward: data.reward as string | undefined,
+    bestInfoId: data.bestInfoId as string | undefined,
+    bestInfoType: data.bestInfoType as 'comment' | 'sighting' | undefined,
+    bestInfoPointGranted: Boolean(data.bestInfoPointGranted),
     createdAt:
       data.createdAt instanceof Timestamp
         ? data.createdAt.toDate().toISOString()

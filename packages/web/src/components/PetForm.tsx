@@ -62,6 +62,7 @@ function FormInner({ userId, ownerDisplayName, defaultType = 'lost', pet }: Prop
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [gettingLocation, setGettingLocation] = useState(false)
   const [existingImages, setExistingImages] = useState<string[]>(
     pet?.images ?? []
   )
@@ -143,6 +144,51 @@ function FormInner({ userId, ownerDisplayName, defaultType = 'lost', pet }: Prop
   const handleAddressBlur = () => {
     const query = `${form.prefecture}${form.city}${form.address}`
     if (form.address || form.city) void geocodeAddress(query)
+  }
+
+  const handleGetCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      alert('この端末では現在位置の取得に対応していません')
+      return
+    }
+    setGettingLocation(true)
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords
+        const newPos = { lat: latitude, lng: longitude }
+        setPinLocation(newPos)
+        map?.panTo(newPos)
+        map?.setZoom(15)
+        // リバースジオコーディングで住所を補完
+        if (geocoder) {
+          try {
+            const result = await geocoder.geocode({ location: newPos })
+            if (result.results[0]) {
+              const comps = result.results[0].address_components
+              const prefecture = comps.find((c: google.maps.GeocoderAddressComponent) =>
+                c.types.includes('administrative_area_level_1'))?.long_name ?? ''
+              const city =
+                comps.find((c: google.maps.GeocoderAddressComponent) =>
+                  c.types.includes('locality'))?.long_name ??
+                comps.find((c: google.maps.GeocoderAddressComponent) =>
+                  c.types.includes('administrative_area_level_2'))?.long_name ?? ''
+              setForm((prev) => ({
+                ...prev,
+                prefecture: prefecture || prev.prefecture,
+                city: city || prev.city,
+                address: result.results[0].formatted_address || prev.address,
+              }))
+            }
+          } catch { /* ignore */ }
+        }
+        setGettingLocation(false)
+      },
+      () => {
+        alert('現在位置の取得に失敗しました。手動で入力してください。')
+        setGettingLocation(false)
+      },
+      { timeout: 10000 }
+    )
   }
 
   const handleNewImages = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -517,11 +563,22 @@ function FormInner({ userId, ownerDisplayName, defaultType = 'lost', pet }: Prop
               <span className="text-green-600 font-medium">✓ 設定済み</span>
             )}
           </p>
-          {geocoding && (
-            <span className="text-xs text-gray-400 animate-pulse">
-              住所を検索中...
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            {geocoding && (
+              <span className="text-xs text-gray-400 animate-pulse">
+                住所を検索中...
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={handleGetCurrentLocation}
+              disabled={gettingLocation || !geocoder}
+              className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg font-semibold transition-all disabled:opacity-50"
+              style={{ background: '#FFF3DC', color: '#7A4500', border: '1px solid #FFD98A' }}
+            >
+              📍 {gettingLocation ? '取得中...' : '現在位置'}
+            </button>
+          </div>
         </div>
 
         <div className="h-64 rounded-xl overflow-hidden border border-gray-200">
@@ -547,6 +604,14 @@ function FormInner({ userId, ownerDisplayName, defaultType = 'lost', pet }: Prop
       <div className="bg-white rounded-xl shadow-sm p-5">
         <h2 className="font-semibold text-gray-800 mb-4">連絡先情報</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {ownerDisplayName && (
+            <div className="sm:col-span-2">
+              <label className="label">投稿者名</label>
+              <p className="input-field bg-gray-50 text-gray-700 cursor-default select-none">
+                {ownerDisplayName}
+              </p>
+            </div>
+          )}
           <div>
             <label className="label">メールアドレス *</label>
             <input

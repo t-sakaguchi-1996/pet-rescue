@@ -10,13 +10,24 @@ service cloud.firestore {
       allow update, delete: if request.auth != null
         && resource.data.userId == request.auth.uid;
 
-      // コメント: 読み取りは全員、作成は認証済み、削除は本人のみ
+      // コメント: 読み取りは全員
+      // 作成: ログイン済みは自分のUID / 未ログインはguestEmail+temporaryIdが必須
+      // 更新: コメント本人 OR ペット投稿者（最有力情報の選択）OR 未ログイン投稿をユーザーに紐づける場合
+      // 削除: コメント本人のみ
       match /comments/{commentId} {
         allow read: if true;
-        allow create: if request.auth != null
-          && request.resource.data.userId == request.auth.uid;
+        allow create: if
+          (request.auth != null && request.resource.data.userId == request.auth.uid)
+          || (request.auth == null
+              && request.resource.data.userId == null
+              && request.resource.data.guestEmail is string
+              && request.resource.data.guestEmail.size() > 0
+              && request.resource.data.temporaryId is string);
         allow update: if request.auth != null
-          && resource.data.userId == request.auth.uid;
+          && (resource.data.userId == request.auth.uid
+              || get(/databases/$(database)/documents/pets/$(petId)).data.userId == request.auth.uid
+              || (resource.data.userId == null
+                  && request.resource.data.userId == request.auth.uid));
         allow delete: if request.auth != null
           && resource.data.userId == request.auth.uid;
       }
@@ -24,11 +35,15 @@ service cloud.firestore {
 
     // ユーザー情報:
     //   読み取り: 誰でも可（displayName/photoURL はカード等で公開表示に使用）
-    //   書き込み: 本人のみ
+    //   作成・削除: 本人のみ
+    //   更新: 本人は全フィールド可 / 他の認証済みユーザーは points フィールドのみ可（ポイント付与のため）
     match /users/{userId} {
       allow read: if true;
-      allow write: if request.auth != null
+      allow create, delete: if request.auth != null
         && request.auth.uid == userId;
+      allow update: if request.auth != null
+        && (request.auth.uid == userId
+            || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['points']));
     }
 
     // アプリ内通知: 受信者本人のみ読み取り可能、認証済みユーザーは作成可能
@@ -39,6 +54,39 @@ service cloud.firestore {
       allow update: if request.auth != null
         && resource.data.userId == request.auth.uid;
       allow delete: if false;
+    }
+
+    // 目撃投稿:
+    //   読み取り: 全員
+    //   作成: ログイン済みは自分のUID / 未ログインはguestEmail+temporaryIdが必須
+    //   更新: 本人 OR 未ログイン投稿を自分のアカウントに紐づける場合
+    //         OR 認証済みユーザーが isBestInfo/bestInfoPointGranted のみ変更（迷子投稿者が最有力情報に選ぶ）
+    //   削除: 本人のみ
+    match /sightings/{sightingId} {
+      allow read: if true;
+      allow create: if
+        (request.auth != null && request.resource.data.userId == request.auth.uid)
+        || (request.auth == null
+            && request.resource.data.userId == null
+            && request.resource.data.guestEmail is string
+            && request.resource.data.guestEmail.size() > 0
+            && request.resource.data.temporaryId is string);
+      allow update: if request.auth != null
+        && (resource.data.userId == request.auth.uid
+            || (resource.data.userId == null
+                && request.resource.data.userId == request.auth.uid)
+            || request.resource.data.diff(resource.data).affectedKeys()
+                .hasOnly(['isBestInfo', 'bestInfoPointGranted', 'updatedAt']));
+      allow delete: if request.auth != null
+        && resource.data.userId == request.auth.uid;
+    }
+
+    // ポイント履歴: 本人のみ読み取り、認証済みユーザーが作成、変更・削除不可
+    match /point_transactions/{txId} {
+      allow read: if request.auth != null
+        && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null;
+      allow update, delete: if false;
     }
   }
 }

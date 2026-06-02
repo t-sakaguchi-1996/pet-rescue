@@ -30,6 +30,9 @@ export interface Pet {
   contactEmail: string
   contactPhone: string
   reward?: string
+  bestInfoId?: string
+  bestInfoType?: 'comment' | 'sighting'
+  bestInfoPointGranted?: boolean
   createdAt: string
   updatedAt: string
 }
@@ -45,30 +48,75 @@ export interface User {
     lat: number
     lng: number
   }
+  points?: number
   createdAt: string
 }
 
 export interface Comment {
   id: string
   petId: string
-  userId: string
+  userId?: string
+  guestEmail?: string
+  temporaryId?: string
   userDisplayName: string
   userPhotoURL?: string
   text: string
   imageUrls: string[]
   parentId?: string
+  isBestInfo?: boolean
+  bestInfoPointGranted?: boolean
   createdAt: string
   updatedAt: string
+}
+
+export interface SightingLocation {
+  address: string
+  city: string
+  prefecture: string
+  lat?: number
+  lng?: number
+}
+
+export interface Sighting {
+  id: string
+  species?: PetSpecies
+  title: string
+  photos: string[]
+  location: SightingLocation
+  description?: string
+  userId?: string
+  guestEmail?: string
+  temporaryId?: string
+  posterName: string
+  pointGranted: boolean
+  emailVerified: boolean
+  isBestInfo?: boolean
+  bestInfoPointGranted?: boolean
+  bestInfoPetId?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface PointTransaction {
+  id: string
+  userId: string
+  type: 'sighting' | 'best_comment' | 'best_sighting'
+  amount: number
+  referenceId: string
+  date: string
+  createdAt: string
 }
 
 export interface AppNotification {
   id: string
   userId: string
-  type: 'comment' | 'reply'
+  type: 'comment' | 'reply' | 'sighting_nearby' | 'found_nearby' | 'best_info_selected' | 'points_granted'
   petId: string
   petName: string
-  fromUserId: string
-  fromUserDisplayName: string
+  fromUserId?: string
+  fromUserDisplayName?: string
+  sightingId?: string
+  amount?: number
   isRead: boolean
   createdAt: string
 }

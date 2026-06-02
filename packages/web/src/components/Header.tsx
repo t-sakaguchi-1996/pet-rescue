@@ -14,6 +14,7 @@ export default function Header() {
   const initial = (
     profile?.displayName ?? user?.displayName ?? user?.email ?? 'U'
   ).charAt(0).toUpperCase()
+  const points = profile?.points ?? 0
 
   const closeMenu = () => setMenuOpen(false)
 
@@ -26,7 +27,7 @@ export default function Header() {
           {/* ロゴ */}
           <Link href="/" onClick={closeMenu} className="flex items-center gap-1.5 font-black text-lg">
             <span className="text-2xl">🐾</span>
-            <span style={{ color: '#C46B00' }}>ペットレスキュー</span>
+            <span style={{ color: '#C46B00' }}>ANIMAL MyGO</span>
           </Link>
 
           {/* PC ナビ */}
@@ -34,6 +35,7 @@ export default function Header() {
             {[
               { href: '/', label: '一覧' },
               { href: '/map', label: '地図' },
+              { href: '/sightings', label: '👁️ 目撃情報' },
               { href: '/posts/new?type=lost', label: '迷子を報告' },
               { href: '/posts/new?type=found', label: '保護を報告' },
             ].map((item) => (
@@ -49,6 +51,13 @@ export default function Header() {
           <div className="flex items-center gap-2">
             {loading ? null : user ? (
               <>
+                {/* ポイント表示 */}
+                <Link href="/mypage"
+                      className="hidden sm:flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full"
+                      style={{ background: '#FFF3DC', color: '#C46B00', border: '1px solid #FFD98A' }}>
+                  <span>⭐</span>
+                  <span>{points.toLocaleString()}pt</span>
+                </Link>
                 <NotificationBell />
                 <Link href="/mypage" onClick={closeMenu}
                       className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0 transition-all hover:ring-2"
@@ -60,10 +69,10 @@ export default function Header() {
                     <span className="text-sm font-bold" style={{ color: '#5A3A1A' }}>{initial}</span>
                   )}
                 </Link>
-                <Link href="/posts/new" onClick={closeMenu}
+                <Link href="/sightings/new" onClick={closeMenu}
                       className="hidden sm:inline-flex items-center gap-1 font-bold text-xs px-4 py-2 rounded-full transition-all active:scale-95"
                       style={{ background: '#FFC96B', color: '#3D2400', boxShadow: '0 3px 10px rgba(255,201,107,0.4)' }}>
-                  ＋ 投稿
+                  👁️ 目撃情報を投稿
                 </Link>
               </>
             ) : (
@@ -103,9 +112,11 @@ export default function Header() {
               {[
                 { href: '/', label: '🏠 一覧' },
                 { href: '/map', label: '🗺️ 地図で探す' },
+                { href: '/sightings', label: '👁️ 目撃情報一覧' },
+                { href: '/sightings/new', label: '👁️ 目撃情報を投稿（ポイント獲得）' },
                 { href: '/posts/new?type=lost', label: '🔍 迷子を報告する' },
                 { href: '/posts/new?type=found', label: '🤝 保護した子を報告' },
-                ...(user ? [{ href: '/mypage', label: '👤 マイページ' }] : [
+                ...(user ? [{ href: '/mypage', label: `👤 マイページ（${points}pt）` }] : [
                   { href: '/auth/login', label: '🔑 ログイン' },
                   { href: '/auth/register', label: '✨ 新規登録' },
                 ]),

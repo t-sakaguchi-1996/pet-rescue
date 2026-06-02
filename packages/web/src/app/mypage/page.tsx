@@ -7,14 +7,17 @@ import Image from 'next/image'
 import { useAuth } from '@/contexts/AuthContext'
 import { fetchUserPets, deletePet } from '@/lib/firestore'
 import { uploadAvatarImage } from '@/lib/storage'
+import { getPointTransactions } from '@/lib/points'
 import PetCard from '@/components/PetCard'
-import type { Pet } from '@pet-rescue/shared'
+import type { Pet, PointTransaction } from '@pet-rescue/shared'
 
 export default function MyPage() {
   const router = useRouter()
   const { user, profile, loading, logout, updateUserProfile, updateUserPhotoURL, updateUserEmail } = useAuth()
   const [pets, setPets] = useState<Pet[]>([])
   const [petsLoading, setPetsLoading] = useState(true)
+  const [pointTransactions, setPointTransactions] = useState<PointTransaction[]>([])
+  const [showPointHistory, setShowPointHistory] = useState(false)
 
   // Profile edit
   const [editingProfile, setEditingProfile] = useState(false)
@@ -54,6 +57,10 @@ export default function MyPage() {
           )
         )
         .finally(() => setPetsLoading(false))
+
+      getPointTransactions(user.uid)
+        .then(setPointTransactions)
+        .catch(() => {})
     }
   }, [user, profile])
 
@@ -66,7 +73,6 @@ export default function MyPage() {
     router.push('/')
   }
 
-  // Avatar
   const handleAvatarSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -97,7 +103,6 @@ export default function MyPage() {
     setAvatarFile(null)
   }
 
-  // Display name
   const handleSaveProfile = async () => {
     if (!displayName.trim()) return
     setSavingProfile(true)
@@ -114,7 +119,6 @@ export default function MyPage() {
     }
   }
 
-  // Email
   const handleEmailChange = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newEmail.trim() || !currentPassword) return
@@ -142,7 +146,6 @@ export default function MyPage() {
     }
   }
 
-  // Posts
   const handleDeletePet = async (petId: string) => {
     if (!confirm('この投稿を削除しますか？この操作は取り消せません。')) return
     try {
@@ -165,9 +168,72 @@ export default function MyPage() {
   const currentInitial = (
     profile?.displayName ?? user.displayName ?? user.email ?? 'U'
   ).charAt(0).toUpperCase()
+  const totalPoints = profile?.points ?? 0
+
+  const pointTypeLabel = (type: string) =>
+    type === 'sighting' ? '目撃情報投稿' : '最有力情報'
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
+      {/* ポイントカード */}
+      <div className="rounded-2xl p-5 mb-6"
+           style={{ background: 'linear-gradient(135deg, #FFF3DC, #FFECC0)', border: '1.5px solid #FFD98A' }}>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-bold mb-1" style={{ color: '#7A4500' }}>保有ポイント</p>
+            <p className="text-4xl font-black" style={{ color: '#C46B00' }}>
+              {totalPoints.toLocaleString()}
+              <span className="text-xl ml-1">pt</span>
+            </p>
+          </div>
+          <div className="text-5xl">⭐</div>
+        </div>
+        <div className="mt-3 flex gap-3 text-xs" style={{ color: '#8B5E1A' }}>
+          <span>👁️ 目撃情報 +2pt/件</span>
+          <span>💬 最有力情報 +100pt</span>
+        </div>
+        <button
+          onClick={() => setShowPointHistory((v) => !v)}
+          className="mt-3 text-xs underline"
+          style={{ color: '#A06830' }}
+        >
+          {showPointHistory ? 'ポイント履歴を閉じる' : 'ポイント履歴を見る'}
+        </button>
+
+        {showPointHistory && (
+          <div className="mt-3 space-y-1.5 max-h-48 overflow-y-auto">
+            {pointTransactions.length === 0 ? (
+              <p className="text-xs" style={{ color: '#B08050' }}>ポイント履歴はまだありません</p>
+            ) : (
+              pointTransactions.map((tx) => (
+                <div key={tx.id} className="flex items-center justify-between bg-white/60 rounded-xl px-3 py-1.5">
+                  <span className="text-xs" style={{ color: '#5A3A1A' }}>
+                    {pointTypeLabel(tx.type)}
+                  </span>
+                  <span className="text-xs font-bold" style={{ color: '#C46B00' }}>
+                    +{tx.amount}pt
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* 目撃情報投稿バナー */}
+      <Link href="/sightings/new"
+            className="flex items-center gap-3 mb-6 p-4 rounded-2xl transition-all active:scale-[0.99]"
+            style={{ background: 'white', border: '1.5px dashed #FFD98A' }}>
+        <div className="text-3xl flex-shrink-0">👁️</div>
+        <div className="flex-1">
+          <p className="text-sm font-bold" style={{ color: '#7A4500' }}>
+            目撃情報を投稿してポイントを稼ごう
+          </p>
+          <p className="text-xs" style={{ color: '#B08050' }}>投稿するたびに +2pt（1日最大10pt）</p>
+        </div>
+        <span className="font-black text-sm flex-shrink-0" style={{ color: '#C46B00' }}>→</span>
+      </Link>
+
       {/* プロフィールカード */}
       <div className="bg-white rounded-2xl shadow-sm p-6 mb-8">
         <div className="flex items-start gap-5">
@@ -178,63 +244,34 @@ export default function MyPage() {
               onClick={() => avatarInputRef.current?.click()}
             >
               {currentPhotoURL ? (
-                <Image
-                  src={currentPhotoURL}
-                  alt="プロフィール画像"
-                  width={80}
-                  height={80}
-                  className="object-cover w-full h-full"
-                />
+                <Image src={currentPhotoURL} alt="プロフィール画像" width={80} height={80}
+                       className="object-cover w-full h-full" />
               ) : (
-                <span className="text-3xl font-bold text-red-400">
-                  {currentInitial}
-                </span>
+                <span className="text-3xl font-bold text-red-400">{currentInitial}</span>
               )}
               <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="white"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                     fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
                   <circle cx="12" cy="13" r="4" />
                 </svg>
               </div>
             </div>
-            <input
-              ref={avatarInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleAvatarSelect}
-            />
+            <input ref={avatarInputRef} type="file" accept="image/*" className="hidden"
+                   onChange={handleAvatarSelect} />
             {avatarPreview ? (
               <div className="flex gap-1">
-                <button
-                  onClick={handleAvatarUpload}
-                  disabled={uploadingAvatar}
-                  className="text-xs btn-primary px-2 py-1 disabled:opacity-50"
-                >
+                <button onClick={handleAvatarUpload} disabled={uploadingAvatar}
+                        className="text-xs btn-primary px-2 py-1 disabled:opacity-50">
                   {uploadingAvatar ? '保存中...' : '保存'}
                 </button>
-                <button
-                  onClick={cancelAvatarPreview}
-                  className="text-xs btn-secondary px-2 py-1"
-                >
+                <button onClick={cancelAvatarPreview} className="text-xs btn-secondary px-2 py-1">
                   取消
                 </button>
               </div>
             ) : (
-              <button
-                onClick={() => avatarInputRef.current?.click()}
-                className="text-xs text-gray-400 hover:text-gray-600"
-              >
+              <button onClick={() => avatarInputRef.current?.click()}
+                      className="text-xs text-gray-400 hover:text-gray-600">
                 画像を変更
               </button>
             )}
@@ -246,34 +283,20 @@ export default function MyPage() {
               <div className="space-y-3">
                 <div>
                   <label className="label">表示名</label>
-                  <input
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    className="input-field"
-                    placeholder="表示名を入力"
-                    maxLength={30}
-                    autoFocus
-                  />
+                  <input value={displayName} onChange={(e) => setDisplayName(e.target.value)}
+                         className="input-field" placeholder="表示名を入力" maxLength={30} autoFocus />
                 </div>
-                {profileError && (
-                  <p className="text-xs text-red-500">{profileError}</p>
-                )}
+                {profileError && <p className="text-xs text-red-500">{profileError}</p>}
                 <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      setEditingProfile(false)
-                      setDisplayName(profile?.displayName ?? user?.displayName ?? '')
-                      setProfileError('')
-                    }}
-                    className="btn-secondary text-sm flex-1"
-                  >
+                  <button onClick={() => {
+                    setEditingProfile(false)
+                    setDisplayName(profile?.displayName ?? user?.displayName ?? '')
+                    setProfileError('')
+                  }} className="btn-secondary text-sm flex-1">
                     キャンセル
                   </button>
-                  <button
-                    onClick={handleSaveProfile}
-                    disabled={savingProfile || !displayName.trim()}
-                    className="btn-primary text-sm flex-[2] disabled:opacity-50"
-                  >
+                  <button onClick={handleSaveProfile} disabled={savingProfile || !displayName.trim()}
+                          className="btn-primary text-sm flex-[2] disabled:opacity-50">
                     {savingProfile ? '保存中...' : '保存する'}
                   </button>
                 </div>
@@ -284,16 +307,8 @@ export default function MyPage() {
                   {profile?.displayName ?? user.displayName ?? 'ユーザー'}
                 </p>
                 <p className="text-gray-500 text-sm">{user.email}</p>
-                {profileSuccess && (
-                  <p className="text-xs text-green-600 mt-1">
-                    ✓ プロフィールを更新しました
-                  </p>
-                )}
-                {emailSuccess && (
-                  <p className="text-xs text-green-600 mt-1">
-                    ✓ 確認メールを送信しました。受信トレイをご確認ください。
-                  </p>
-                )}
+                {profileSuccess && <p className="text-xs text-green-600 mt-1">✓ プロフィールを更新しました</p>}
+                {emailSuccess && <p className="text-xs text-green-600 mt-1">✓ 確認メールを送信しました。受信トレイをご確認ください。</p>}
               </div>
             )}
           </div>
@@ -301,16 +316,10 @@ export default function MyPage() {
           {/* 操作ボタン */}
           {!editingProfile && (
             <div className="flex flex-col gap-2 flex-shrink-0">
-              <button
-                onClick={() => setEditingProfile(true)}
-                className="btn-secondary text-sm whitespace-nowrap"
-              >
+              <button onClick={() => setEditingProfile(true)} className="btn-secondary text-sm whitespace-nowrap">
                 名前を編集
               </button>
-              <button
-                onClick={handleLogout}
-                className="text-sm text-gray-400 hover:text-gray-600 text-center"
-              >
+              <button onClick={handleLogout} className="text-sm text-gray-400 hover:text-gray-600 text-center">
                 ログアウト
               </button>
             </div>
@@ -325,13 +334,8 @@ export default function MyPage() {
               <p className="text-sm text-gray-500">{user.email}</p>
             </div>
             {!showEmailForm && (
-              <button
-                onClick={() => {
-                  setShowEmailForm(true)
-                  setEmailSuccess(false)
-                }}
-                className="btn-secondary text-sm"
-              >
+              <button onClick={() => { setShowEmailForm(true); setEmailSuccess(false) }}
+                      className="btn-secondary text-sm">
                 変更する
               </button>
             )}
@@ -345,48 +349,24 @@ export default function MyPage() {
               </p>
               <div>
                 <label className="label">現在のパスワード</label>
-                <input
-                  type="password"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  className="input-field"
-                  placeholder="現在のパスワードを入力"
-                  required
-                  autoFocus
-                />
+                <input type="password" value={currentPassword}
+                       onChange={(e) => setCurrentPassword(e.target.value)}
+                       className="input-field" placeholder="現在のパスワードを入力" required autoFocus />
               </div>
               <div>
                 <label className="label">新しいメールアドレス</label>
-                <input
-                  type="email"
-                  value={newEmail}
-                  onChange={(e) => setNewEmail(e.target.value)}
-                  className="input-field"
-                  placeholder="new@example.com"
-                  required
-                />
+                <input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)}
+                       className="input-field" placeholder="new@example.com" required />
               </div>
-              {emailError && (
-                <p className="text-xs text-red-500">{emailError}</p>
-              )}
+              {emailError && <p className="text-xs text-red-500">{emailError}</p>}
               <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowEmailForm(false)
-                    setNewEmail('')
-                    setCurrentPassword('')
-                    setEmailError('')
-                  }}
-                  className="btn-secondary text-sm flex-1"
-                >
+                <button type="button" onClick={() => {
+                  setShowEmailForm(false); setNewEmail(''); setCurrentPassword(''); setEmailError('')
+                }} className="btn-secondary text-sm flex-1">
                   キャンセル
                 </button>
-                <button
-                  type="submit"
-                  disabled={savingEmail || !newEmail.trim() || !currentPassword}
-                  className="btn-primary text-sm flex-[2] disabled:opacity-50"
-                >
+                <button type="submit" disabled={savingEmail || !newEmail.trim() || !currentPassword}
+                        className="btn-primary text-sm flex-[2] disabled:opacity-50">
                   {savingEmail ? '送信中...' : '確認メールを送信'}
                 </button>
               </div>
@@ -420,10 +400,8 @@ export default function MyPage() {
             {pets.map((pet) => (
               <div key={pet.id} className="relative">
                 <PetCard pet={pet} showEditLink />
-                <button
-                  onClick={() => handleDeletePet(pet.id)}
-                  className="absolute bottom-3 right-3 text-xs text-gray-300 hover:text-red-400 transition-colors"
-                >
+                <button onClick={() => handleDeletePet(pet.id)}
+                        className="absolute bottom-3 right-3 text-xs text-gray-300 hover:text-red-400 transition-colors">
                   削除
                 </button>
               </div>

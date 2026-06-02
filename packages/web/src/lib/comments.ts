@@ -1,12 +1,16 @@
 import {
   collection,
+  collectionGroup,
   doc,
   getDoc,
+  getDocs,
   addDoc,
+  updateDoc,
   deleteDoc,
   onSnapshot,
   query,
   orderBy,
+  where,
   Timestamp,
   type Unsubscribe,
 } from 'firebase/firestore'
@@ -24,12 +28,16 @@ function toComment(id: string, data: Record<string, unknown>): Comment {
   return {
     id,
     petId: data.petId as string,
-    userId: data.userId as string,
-    userDisplayName: (data.userDisplayName as string) ?? '匿名',
+    userId: (data.userId as string | undefined) ?? undefined,
+    guestEmail: data.guestEmail as string | undefined,
+    temporaryId: data.temporaryId as string | undefined,
+    userDisplayName: (data.userDisplayName as string) ?? '未登録ユーザー',
     userPhotoURL: data.userPhotoURL as string | undefined,
     text: (data.text as string) ?? '',
     imageUrls: (data.imageUrls as string[]) ?? [],
     parentId: data.parentId as string | undefined,
+    isBestInfo: Boolean(data.isBestInfo),
+    bestInfoPointGranted: Boolean(data.bestInfoPointGranted),
     createdAt:
       createdAt instanceof Timestamp
         ? createdAt.toDate().toISOString()
@@ -81,6 +89,7 @@ export async function uploadCommentImage(file: File): Promise<string> {
   return getDownloadURL(storageRef)
 }
 
+/** ログイン済みユーザーのコメント作成 */
 export async function createComment(params: {
   petId: string
   petOwnerId: string
@@ -100,6 +109,8 @@ export async function createComment(params: {
     userDisplayName: params.userDisplayName,
     text: params.text,
     imageUrls: params.imageUrls,
+    isBestInfo: false,
+    bestInfoPointGranted: false,
     createdAt: now,
     updatedAt: now,
   }
@@ -140,6 +151,73 @@ export async function createComment(params: {
   }
 }
 
+/** 未ログインユーザーのコメント作成（guestEmail + temporaryId 必須） */
+export async function createGuestComment(params: {
+  petId: string
+  petOwnerId: string
+  petName: string
+  guestEmail: string
+  temporaryId: string
+  text: string
+  imageUrls: string[]
+  parentId?: string
+}): Promise<void> {
+  const now = Timestamp.now()
+  const commentData: Record<string, unknown> = {
+    petId: params.petId,
+    userId: null,
+    guestEmail: params.guestEmail,
+    temporaryId: params.temporaryId,
+    userDisplayName: '未登録ユーザー',
+    text: params.text,
+    imageUrls: params.imageUrls,
+    isBestInfo: false,
+    bestInfoPointGranted: false,
+    createdAt: now,
+    updatedAt: now,
+  }
+  if (params.parentId) commentData.parentId = params.parentId
+
+  await addDoc(collection(db, PETS, params.petId, COMMENTS), commentData)
+}
+
+/** ペット投稿者がコメントを「最有力情報」に選択 */
+export async function selectBestInfo(
+  petId: string,
+  commentId: string
+): Promise<string | undefined> {
+  const commentRef = doc(db, PETS, petId, COMMENTS, commentId)
+  const snap = await getDoc(commentRef)
+  if (!snap.exists()) return undefined
+
+  const data = snap.data()
+  await updateDoc(commentRef, {
+    isBestInfo: true,
+    updatedAt: Timestamp.now(),
+  })
+
+  return data.userId as string | undefined
+}
+
+/** 最有力情報のポイント付与済みフラグをセット */
+export async function markBestInfoPointGranted(
+  petId: string,
+  commentId: string
+): Promise<void> {
+  await updateDoc(doc(db, PETS, petId, COMMENTS, commentId), {
+    bestInfoPointGranted: true,
+    updatedAt: Timestamp.now(),
+  })
+}
+
+/** 最有力情報の選択を解除 */
+export async function unselectBestInfo(petId: string, commentId: string): Promise<void> {
+  await updateDoc(doc(db, PETS, petId, COMMENTS, commentId), {
+    isBestInfo: false,
+    updatedAt: Timestamp.now(),
+  })
+}
+
 export async function deleteComment(
   petId: string,
   commentId: string
@@ -156,7 +234,7 @@ export interface UserProfile {
 export async function fetchUserProfiles(
   userIds: string[]
 ): Promise<Map<string, UserProfile>> {
-  const unique = [...new Set(userIds)]
+  const unique = [...new Set(userIds)].filter(Boolean)
   const results = await Promise.all(
     unique.map(async (uid) => {
       try {
@@ -177,4 +255,34 @@ export async function fetchUserProfiles(
     if (profile) map.set(uid, profile)
   })
   return map
+}
+
+/** メールアドレスで未ログインコメントを取得（会員登録時の紐づけ用） */
+export async function fetchGuestCommentsByEmail(
+  email: string
+): Promise<(Comment & { petId: string })[]> {
+  const snap = await getDocs(
+    query(
+      collectionGroup(db, COMMENTS),
+      where('guestEmail', '==', email),
+      where('userId', '==', null)
+    )
+  )
+  return snap.docs.map((d) => {
+    const comment = toComment(d.id, d.data())
+    const petId = d.ref.parent.parent?.id ?? ''
+    return { ...comment, petId }
+  })
+}
+
+/** 未ログインコメントをユーザーに紐づけ */
+export async function linkGuestCommentToUser(
+  petId: string,
+  commentId: string,
+  userId: string
+): Promise<void> {
+  await updateDoc(doc(db, PETS, petId, COMMENTS, commentId), {
+    userId,
+    updatedAt: Timestamp.now(),
+  })
 }

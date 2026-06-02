@@ -24,17 +24,60 @@ function toNotif(id: string, data: Record<string, unknown>): AppNotification {
   return {
     id,
     userId: data.userId as string,
-    type: data.type as 'comment' | 'reply',
+    type: data.type as AppNotification['type'],
     petId: data.petId as string,
     petName: (data.petName as string) ?? '',
-    fromUserId: data.fromUserId as string,
-    fromUserDisplayName: (data.fromUserDisplayName as string) ?? '匿名',
+    fromUserId: data.fromUserId as string | undefined,
+    fromUserDisplayName: (data.fromUserDisplayName as string) ?? '',
+    sightingId: data.sightingId as string | undefined,
+    amount: data.amount as number | undefined,
     isRead: Boolean(data.isRead),
     createdAt:
       createdAt instanceof Timestamp
         ? createdAt.toDate().toISOString()
         : (createdAt ?? ''),
   }
+}
+
+function notifLabel(n: AppNotification): string {
+  switch (n.type) {
+    case 'comment':
+      return `${n.fromUserDisplayName}さんがコメントしました`
+    case 'reply':
+      return `${n.fromUserDisplayName}さんが返信しました`
+    case 'sighting_nearby':
+      return `近くで目撃情報が投稿されました`
+    case 'found_nearby':
+      return `近くで保護情報が投稿されました`
+    case 'best_info_selected':
+      return n.amount
+        ? `あなたの情報が最有力情報に選ばれました！ +${n.amount}pt`
+        : 'あなたの情報が最有力情報に選ばれました！'
+    case 'points_granted':
+      return n.amount
+        ? `ポイントが付与されました！ +${n.amount}pt`
+        : 'ポイントが付与されました！'
+    default:
+      return 'お知らせがあります'
+  }
+}
+
+function notifIcon(type: AppNotification['type']): string {
+  switch (type) {
+    case 'sighting_nearby': return '👁️'
+    case 'found_nearby': return '🤝'
+    case 'reply': return '↩️'
+    case 'best_info_selected': return '⭐'
+    case 'points_granted': return '🎉'
+    default: return '💬'
+  }
+}
+
+function notifHref(n: AppNotification): string {
+  if ((n.type === 'best_info_selected' || n.type === 'points_granted') && n.sightingId) {
+    return `/sightings/${n.sightingId}`
+  }
+  return `/posts/${n.petId}`
 }
 
 export default function NotificationBell() {
@@ -121,7 +164,6 @@ export default function NotificationBell() {
       </button>
 
       {open && (
-        /* モバイルで画面幅を超えないよう right-0 + max-w で制御 */
         <div className="absolute right-0 top-11 w-[min(320px,calc(100vw-2rem))] bg-white rounded-3xl shadow-[0_8px_40px_rgba(232,84,122,0.15)] border border-pink-100 z-50 overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-pink-50">
             <span className="font-bold text-sm text-gray-800">🔔 通知</span>
@@ -142,19 +184,18 @@ export default function NotificationBell() {
               notifications.map((n) => (
                 <Link
                   key={n.id}
-                  href={`/posts/${n.petId}`}
+                  href={notifHref(n)}
                   onClick={() => handleClick(n)}
                   className={`flex items-start gap-3 px-4 py-3 border-b border-pink-50 transition-colors ${
-                    !n.isRead ? 'bg-primary-50/60 hover:bg-primary-50' : 'bg-red-50 hover:bg-red-100'
+                    !n.isRead ? 'bg-primary-50/60 hover:bg-primary-50' : 'hover:bg-gray-50'
                   }`}
                 >
-                  <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0 text-sm font-bold text-primary-500">
-                    {n.fromUserDisplayName.charAt(0)}
+                  <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 text-sm">
+                    {notifIcon(n.type)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-gray-700 leading-snug">
-                      <span className="font-semibold">{n.fromUserDisplayName}</span>
-                      {n.type === 'comment' ? 'さんがコメント' : 'さんが返信'}
+                      {notifLabel(n)}
                     </p>
                     <p className="text-xs text-gray-400 truncate mt-0.5">{n.petName}</p>
                     <p className="text-[10px] text-gray-300 mt-0.5">

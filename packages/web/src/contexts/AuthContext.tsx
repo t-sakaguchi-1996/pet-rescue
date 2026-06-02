@@ -21,6 +21,7 @@ import {
 import { doc, setDoc, getDoc, updateDoc, Timestamp } from 'firebase/firestore'
 import { auth, db } from '@/lib/firebase'
 import type { User } from '@pet-rescue/shared'
+import { linkGuestActivityAndGrantPoints } from '@/lib/points'
 
 interface AuthContextValue {
   user: FirebaseUser | null
@@ -56,6 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             fcmTokens: data.fcmTokens ?? [],
             notificationRadius: data.notificationRadius ?? 10,
             notificationLocation: data.notificationLocation,
+            points: (data.points as number) ?? 0,
             createdAt:
               data.createdAt instanceof Timestamp
                 ? data.createdAt.toDate().toISOString()
@@ -86,8 +88,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       displayName,
       fcmTokens: [],
       notificationRadius: 10,
+      points: 0,
       createdAt: Timestamp.now(),
     })
+
+    // 同じメールアドレスの未ログイン投稿・コメントを紐づけてポイントを付与
+    try {
+      await linkGuestActivityAndGrantPoints(cred.user.uid, email)
+    } catch {
+      // 紐づけ失敗は登録自体に影響させない
+    }
   }
 
   const logout = async () => {
@@ -106,7 +116,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await updateProfile(auth.currentUser, { photoURL })
     await updateDoc(doc(db, 'users', auth.currentUser.uid), { photoURL })
     setProfile((prev) => (prev ? { ...prev, photoURL } : null))
-    // user は Firebase Auth オブジェクトの参照で自動再描画されないため手動で更新
     setUser({ ...auth.currentUser } as typeof auth.currentUser)
   }
 

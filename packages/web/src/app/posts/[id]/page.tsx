@@ -12,6 +12,8 @@ import { format } from 'date-fns'
 import { ja } from 'date-fns/locale'
 import PetContactInfo from '@/components/PetContactInfo'
 import CommentSection from '@/components/CommentSection'
+import SightingsSection from '@/components/SightingsSection'
+import SightingCtaBox from '@/components/SightingCtaBox'
 
 export default async function PetDetailPage({
   params,
@@ -31,6 +33,8 @@ export default async function PetDetailPage({
       : pet.status === 'protected'
         ? 'status-protected'
         : 'status-resolved'
+
+  const isLostSearching = pet.type === 'lost' && pet.status === 'searching'
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
@@ -55,18 +59,12 @@ export default async function PetDetailPage({
             />
           ) : (
             <div className="flex items-center justify-center h-full text-6xl">
-              {pet.species === 'dog'
-                ? '🐕'
-                : pet.species === 'cat'
-                  ? '🐈'
-                  : '🐾'}
+              {pet.species === 'dog' ? '🐕' : pet.species === 'cat' ? '🐈' : '🐾'}
             </div>
           )}
           <div className="absolute top-4 left-4 flex gap-2">
             <span className={typeClass}>{TYPE_LABELS[pet.type]}</span>
-            <span
-              className={`text-xs font-bold px-2 py-0.5 rounded-full ${statusClass}`}
-            >
+            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${statusClass}`}>
               {STATUS_LABELS[pet.status]}
             </span>
           </div>
@@ -76,10 +74,7 @@ export default async function PetDetailPage({
         {pet.images.length > 1 && (
           <div className="flex gap-2 p-4 overflow-x-auto">
             {pet.images.slice(1).map((img, i) => (
-              <div
-                key={i}
-                className="relative w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden"
-              >
+              <div key={i} className="relative w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden">
                 <Image src={img} alt="" fill sizes="80px" className="object-cover" />
               </div>
             ))}
@@ -106,12 +101,8 @@ export default async function PetDetailPage({
                 <InfoRow label="性別" value={GENDER_LABELS[pet.gender]} />
                 {pet.age && <InfoRow label="年齢" value={pet.age} />}
                 <InfoRow
-                  label={
-                    pet.type === 'lost' ? '迷子になった日' : '保護した日'
-                  }
-                  value={format(new Date(pet.lostDate), 'yyyy年M月d日', {
-                    locale: ja,
-                  })}
+                  label={pet.type === 'lost' ? '迷子になった日' : '保護した日'}
+                  value={format(new Date(pet.lostDate), 'yyyy年M月d日', { locale: ja })}
                 />
                 <InfoRow
                   label="場所"
@@ -130,9 +121,7 @@ export default async function PetDetailPage({
             <div>
               {pet.description && (
                 <div className="mb-6">
-                  <h2 className="font-semibold text-gray-800 mb-2">
-                    詳細・特徴
-                  </h2>
+                  <h2 className="font-semibold text-gray-800 mb-2">詳細・特徴</h2>
                   <p className="text-gray-600 whitespace-pre-line leading-relaxed">
                     {pet.description}
                   </p>
@@ -145,14 +134,32 @@ export default async function PetDetailPage({
                 contactPhone={pet.contactPhone}
               />
 
+              {/* 目撃情報投稿を促す（自分の投稿には表示しない） */}
+              {isLostSearching && <SightingCtaBox petOwnerId={pet.userId} petSpecies={pet.species} />}
+
               <p className="text-xs text-gray-400 mt-4">
                 投稿日:{' '}
-                {format(new Date(pet.createdAt), 'yyyy年M月d日 H:mm', {
-                  locale: ja,
-                })}
+                {format(new Date(pet.createdAt), 'yyyy年M月d日 H:mm', { locale: ja })}
               </p>
             </div>
           </div>
+
+          {/* 目撃情報セクション（迷子・捜索中のみ） */}
+          {isLostSearching && (
+            <SightingsSection
+              petId={pet.id}
+              petName={pet.name || '名前不明'}
+              petOwnerId={pet.userId}
+              petCity={pet.location.city}
+              petPrefecture={pet.location.prefecture}
+              petLat={pet.location.lat}
+              petLng={pet.location.lng}
+              petSpecies={pet.species}
+              petBestInfoId={pet.bestInfoId}
+              petBestInfoType={pet.bestInfoType}
+              petBestInfoPointGranted={pet.bestInfoPointGranted}
+            />
+          )}
 
           {/* コメントセクション */}
           <CommentSection
@@ -178,9 +185,7 @@ function InfoRow({
   return (
     <div className="flex gap-3">
       <dt className="text-sm text-gray-500 w-28 flex-shrink-0">{label}</dt>
-      <dd
-        className={`text-sm font-medium ${highlight ? 'text-red-600' : 'text-gray-900'}`}
-      >
+      <dd className={`text-sm font-medium ${highlight ? 'text-red-600' : 'text-gray-900'}`}>
         {value}
       </dd>
     </div>

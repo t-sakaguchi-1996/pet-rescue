@@ -2,15 +2,15 @@
 
 import { useState, useEffect, useRef, Suspense } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import PetCard from '@/components/PetCard'
 import SearchFilter from '@/components/SearchFilter'
 import { fetchPets, fetchOwnerNames } from '@/lib/firestore'
 import type { Pet } from '@pet-rescue/shared'
-import { useSearchParams, useRouter } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 
 function HomeContent() {
   const searchParams = useSearchParams()
-  const router = useRouter()
   const [pets, setPets] = useState<Pet[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -35,7 +35,6 @@ function HomeContent() {
       limitCount: 50,
     })
       .then(async (fetched) => {
-        // ownerDisplayName が未保存の既存投稿は users コレクションから補完
         const needsName = fetched.filter((p) => !p.ownerDisplayName)
         if (needsName.length === 0) {
           setPets(fetched)
@@ -54,14 +53,12 @@ function HomeContent() {
       .finally(() => setLoading(false))
   }
 
-  // 検索パラメータ変更時に再取得
   useEffect(() => {
     fetchRef.current = paramsKey
     loadPets()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paramsKey])
 
-  // タブ復帰・ページ表示時に再取得（投稿編集後に戻っても最新を表示）
   useEffect(() => {
     const onVisible = () => {
       if (document.visibilityState === 'visible') loadPets()
@@ -71,33 +68,42 @@ function HomeContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paramsKey])
 
-  const setFilter = (key: string, value: string) => {
-    const p = new URLSearchParams(searchParams.toString())
-    if (value) { p.set(key, value) } else { p.delete(key) }
-    router.push(`/?${p.toString()}`)
-  }
-
   return (
     <div className="max-w-6xl mx-auto px-3 sm:px-4 py-5 sm:py-8">
 
       {/* ═══ ヒーロー ═══ */}
-      <div className="overflow-hidden mb-6">
-
-        <div className="px-6 pt-8 pb-7 sm:px-12 sm:pt-10 sm:pb-8 text-center">
+      <div className="overflow-hidden mb-6 rounded-3xl" style={{ border: '1.5px solid #FFD98A' }}>
+        <div className="px-6 pt-8 pb-5 sm:px-12 sm:pt-10 sm:pb-7 text-center"
+             style={{ background: 'linear-gradient(160deg, #FFF3DC 0%, #FFECC0 100%)' }}>
           <span className="inline-block text-xs font-bold px-3 py-1 rounded-full mb-4"
                 style={{ background: 'rgba(255,255,255,0.65)', color: '#7A4500' }}>
-            🐾 迷子ペット情報プラットフォーム
+            🐾 みんなで探す・協力者にもメリットがあるプラットフォーム
           </span>
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-black leading-snug"
               style={{ color: '#3D2400' }}>
-            大切なあの子と<br />
-            もう一度会うために
+            ANIMAL MyGO
           </h1>
-          <p className="mt-3 text-sm sm:text-base max-w-md mx-auto"
-             style={{ color: '#6B4200' }}>
-            迷子ペットの情報を掲載・検索できます。<br className="hidden sm:block" />
-            保護した子の情報登録もこちらから。
+          <p className="mt-2 text-base sm:text-lg font-bold" style={{ color: '#7A4500' }}>
+            迷子ペットを、みんなの力で見つけよう
           </p>
+          <p className="mt-2 text-sm sm:text-base max-w-md mx-auto" style={{ color: '#6B4200' }}>
+            目撃情報を投稿するとポイントが貯まります。<br className="hidden sm:block" />
+            有力情報が選ばれると大きくポイントアップ！
+          </p>
+
+          {/* CTAボタン */}
+          <div className="flex flex-col sm:flex-row gap-2 justify-center mt-5">
+            <Link href="/sightings/new"
+                  className="inline-flex items-center justify-center gap-2 font-bold text-sm px-6 py-3 rounded-full transition-all active:scale-95"
+                  style={{ background: '#FFC96B', color: '#3D2400', boxShadow: '0 4px 14px rgba(255,201,107,0.5)' }}>
+              👁️ 目撃情報を投稿（+2pt）
+            </Link>
+            <Link href="/posts/new?type=lost"
+                  className="inline-flex items-center justify-center gap-2 font-bold text-sm px-6 py-3 rounded-full transition-all active:scale-95"
+                  style={{ background: 'white', color: '#C46B00', border: '1.5px solid #FFD98A' }}>
+              🔍 迷子を報告する
+            </Link>
+          </div>
         </div>
 
         <div className="grid grid-cols-3">
@@ -121,53 +127,64 @@ function HomeContent() {
         </div>
       </div>
 
-      {/* ═══ クイックフィルター ═══ */}
-      <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-5">
-        {[
-          {
-            emoji: '🔍', label: '迷子の報告', sub: '捜索中',
-            active: params.type === 'lost',
-            onClick: () => setFilter('type', params.type === 'lost' ? '' : 'lost'),
-            bg: '#FFF3DC', activeBg: '#FFC96B', border: '#FFD98A', activeBorder: '#E8A93A',
-            color: '#6B4200', activeColor: '#3D2400',
-          },
-          {
-            emoji: '🤝', label: '保護の報告', sub: '保護した子',
-            active: params.type === 'found',
-            onClick: () => setFilter('type', params.type === 'found' ? '' : 'found'),
-            bg: '#EBF2FF', activeBg: '#D1E2FF', border: '#C0D8FF', activeBorder: '#6B9FE8',
-            color: '#2B5FBF', activeColor: '#1A3F80',
-          },
-          {
-            emoji: '💚', label: '解決済み', sub: '再会できた',
-            active: params.status === 'resolved',
-            onClick: () => setFilter('status', params.status === 'resolved' ? '' : 'resolved'),
-            bg: '#E6FAF0', activeBg: '#B2EFCD', border: '#9ADFC0', activeBorder: '#2AAA6E',
-            color: '#1A7A3C', activeColor: '#0D5228',
-          },
-        ].map((item) => (
-          <button
-            key={item.label}
-            type="button"
-            onClick={item.onClick}
-            className="rounded-2xl p-3 text-center transition-all active:scale-95 cursor-pointer"
-            style={{
-              background: item.active ? item.activeBg : item.bg,
-              border: `1.5px solid ${item.active ? item.activeBorder : item.border}`,
-              boxShadow: item.active ? '0 4px 12px rgba(0,0,0,0.1)' : 'none',
-            }}
-          >
-            <div className="text-xl sm:text-2xl mb-0.5">{item.emoji}</div>
-            <div className="text-xs font-bold"
-                 style={{ color: item.active ? item.activeColor : item.color }}>
-              {item.label}
+      {/* ═══ ポイントシステム紹介 ═══ */}
+      <div className="mb-6 rounded-3xl p-5 sm:p-6"
+           style={{ background: 'linear-gradient(135deg, #FFF3DC, #FFECC0)', border: '1.5px solid #FFD98A' }}>
+        <h2 className="text-center font-black text-base sm:text-lg mb-4" style={{ color: '#3D2400' }}>
+          ⭐ 協力するほどポイントが貯まる
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {[
+            {
+              emoji: '👁️',
+              title: '目撃情報を投稿',
+              desc: '見かけたペット情報を投稿するだけで +2pt！1日最大10ptまで獲得できます',
+              badge: '+2pt',
+              badgeColor: '#FFC96B',
+            },
+            {
+              emoji: '💬',
+              title: '有力コメントが選ばれると',
+              desc: '迷子投稿にコメントし「最有力情報」に選ばれたら大幅ポイントアップ！',
+              badge: '+100pt',
+              badgeColor: '#FFB830',
+            },
+            {
+              emoji: '🔗',
+              title: '未登録でも後から紐づけOK',
+              desc: '登録なしで投稿→会員登録時に同じメールで自動紐づけ。ポイントも受け取れます',
+              badge: '後付けOK',
+              badgeColor: '#E8A93A',
+            },
+          ].map((item) => (
+            <div key={item.title} className="bg-white rounded-2xl p-4 text-center"
+                 style={{ border: '1px solid #FFE8A0' }}>
+              <div className="text-3xl mb-2">{item.emoji}</div>
+              <span className="inline-block text-xs font-black px-2 py-0.5 rounded-full mb-2"
+                    style={{ background: item.badgeColor, color: '#3D2400' }}>
+                {item.badge}
+              </span>
+              <p className="text-xs font-bold mb-1" style={{ color: '#3D2400' }}>{item.title}</p>
+              <p className="text-xs leading-relaxed" style={{ color: '#8B6340' }}>{item.desc}</p>
             </div>
-            <div className="text-[10px] mt-0.5"
-                 style={{ color: item.active ? item.activeColor : '#9B8060', opacity: 0.8 }}>
-              {item.sub}
+          ))}
+        </div>
+        <div className="mt-4">
+          <Link href="/sightings/new"
+                className="flex items-center gap-3 p-4 rounded-2xl transition-all active:scale-[0.99]"
+                style={{ background: 'rgba(255,255,255,0.7)', border: '1.5px dashed #FFD98A' }}>
+            <div className="text-3xl flex-shrink-0">👁️</div>
+            <div className="flex-1">
+              <p className="text-sm font-bold" style={{ color: '#7A4500' }}>
+                ペットを見かけたら目撃情報を投稿しよう！
+              </p>
+              <p className="text-xs mt-0.5" style={{ color: '#B08050' }}>
+                投稿するだけで +2pt 獲得。登録なしでも投稿できます
+              </p>
             </div>
-          </button>
-        ))}
+            <span className="font-black text-sm flex-shrink-0" style={{ color: '#C46B00' }}>→</span>
+          </Link>
+        </div>
       </div>
 
       {/* ═══ フィルター ═══ */}
