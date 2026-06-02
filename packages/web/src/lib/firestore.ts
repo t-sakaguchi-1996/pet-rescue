@@ -60,6 +60,7 @@ function toPet(id: string, data: Record<string, unknown>): Pet {
     bestInfoId: data.bestInfoId as string | undefined,
     bestInfoType: data.bestInfoType as 'comment' | 'sighting' | undefined,
     bestInfoPointGranted: Boolean(data.bestInfoPointGranted),
+    discoveryBonusGranted: Boolean(data.discoveryBonusGranted),
     createdAt:
       data.createdAt instanceof Timestamp
         ? data.createdAt.toDate().toISOString()

@@ -14,6 +14,8 @@ import type { Pet } from '@pet-rescue/shared'
 import { PREFECTURES } from '@pet-rescue/shared'
 import { createPet, updatePet } from '@/lib/firestore'
 import { uploadPetImages } from '@/lib/storage'
+import { grantProtectedPostPoints } from '@/lib/points'
+import { checkAndAwardBadges } from '@/lib/titles'
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? ''
 const DEFAULT_CENTER = { lat: 35.6812362, lng: 139.7671248 }
@@ -263,7 +265,7 @@ function FormInner({ userId, ownerDisplayName, defaultType = 'lost', pet }: Prop
         })
         router.push(`/posts/${pet.id}`)
       } else {
-        await createPet({
+        const newPetId = await createPet({
           type: form.type,
           species: form.species,
           name: form.name,
@@ -288,6 +290,19 @@ function FormInner({ userId, ownerDisplayName, defaultType = 'lost', pet }: Prop
           contactPhone: form.contactPhone,
           reward: form.reward || undefined,
         })
+
+        // 保護投稿の場合はポイントを付与
+        if (form.type === 'found') {
+          const today = new Date().toISOString().split('T')[0]
+          await grantProtectedPostPoints(userId, newPetId, today).catch(() => {})
+          await checkAndAwardBadges(userId, {
+            isFirstPost: true,
+            isFirstProtection: true,
+          }).catch(() => {})
+        } else {
+          await checkAndAwardBadges(userId, { isFirstPost: true }).catch(() => {})
+        }
+
         router.push('/')
       }
     } catch (err) {

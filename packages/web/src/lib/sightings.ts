@@ -36,6 +36,9 @@ function toSighting(id: string, data: Record<string, unknown>): Sighting {
     posterName: (data.posterName as string) ?? '未登録ユーザー',
     pointGranted: Boolean(data.pointGranted),
     emailVerified: Boolean(data.emailVerified),
+    isBestInfo: Boolean(data.isBestInfo),
+    bestInfoPointGranted: Boolean(data.bestInfoPointGranted),
+    bestInfoPetId: data.bestInfoPetId as string | undefined,
     createdAt:
       createdAt instanceof Timestamp
         ? createdAt.toDate().toISOString()

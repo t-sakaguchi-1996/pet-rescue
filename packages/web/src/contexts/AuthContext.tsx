@@ -33,6 +33,9 @@ interface AuthContextValue {
   updateUserProfile: (displayName: string) => Promise<void>
   updateUserPhotoURL: (photoURL: string) => Promise<void>
   updateUserEmail: (newEmail: string, currentPassword: string) => Promise<void>
+  updateSelectedTitle: (titleId: string | null) => Promise<void>
+  updateShowInRanking: (show: boolean) => Promise<void>
+  refreshProfile: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -42,28 +45,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
+  const loadProfile = async (firebaseUser: FirebaseUser) => {
+    const snap = await getDoc(doc(db, 'users', firebaseUser.uid))
+    if (snap.exists()) {
+      const data = snap.data()
+      setProfile({
+        id: firebaseUser.uid,
+        email: firebaseUser.email ?? '',
+        displayName: data.displayName ?? '',
+        photoURL: data.photoURL,
+        fcmTokens: data.fcmTokens ?? [],
+        notificationRadius: data.notificationRadius ?? 10,
+        notificationLocation: data.notificationLocation,
+        points: (data.points as number) ?? 0,
+        totalPointsEarned: (data.totalPointsEarned as number) ?? 0,
+        showInRanking: data.showInRanking !== false,
+        isBanned: Boolean(data.isBanned),
+        selectedTitle: data.selectedTitle as string | undefined,
+        titles: (data.titles as string[]) ?? [],
+        badges: (data.badges as string[]) ?? [],
+        sightingCount: (data.sightingCount as number) ?? 0,
+        protectedPostCount: (data.protectedPostCount as number) ?? 0,
+        bestInfoCount: (data.bestInfoCount as number) ?? 0,
+        discoveryCount: (data.discoveryCount as number) ?? 0,
+        createdAt:
+          data.createdAt instanceof Timestamp
+            ? data.createdAt.toDate().toISOString()
+            : data.createdAt,
+      })
+    }
+  }
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser)
       if (firebaseUser) {
-        const snap = await getDoc(doc(db, 'users', firebaseUser.uid))
-        if (snap.exists()) {
-          const data = snap.data()
-          setProfile({
-            id: firebaseUser.uid,
-            email: firebaseUser.email ?? '',
-            displayName: data.displayName ?? '',
-            photoURL: data.photoURL,
-            fcmTokens: data.fcmTokens ?? [],
-            notificationRadius: data.notificationRadius ?? 10,
-            notificationLocation: data.notificationLocation,
-            points: (data.points as number) ?? 0,
-            createdAt:
-              data.createdAt instanceof Timestamp
-                ? data.createdAt.toDate().toISOString()
-                : data.createdAt,
-          })
-        }
+        await loadProfile(firebaseUser)
       } else {
         setProfile(null)
       }
@@ -89,10 +106,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       fcmTokens: [],
       notificationRadius: 10,
       points: 0,
+      totalPointsEarned: 0,
+      showInRanking: true,
+      titles: [],
+      badges: [],
+      sightingCount: 0,
+      protectedPostCount: 0,
+      bestInfoCount: 0,
+      discoveryCount: 0,
       createdAt: Timestamp.now(),
     })
 
-    // 同じメールアドレスの未ログイン投稿・コメントを紐づけてポイントを付与
     try {
       await linkGuestActivityAndGrantPoints(cred.user.uid, email)
     } catch {
@@ -133,6 +157,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await verifyBeforeUpdateEmail(currentUser, newEmail)
   }
 
+  const updateSelectedTitle = async (titleId: string | null) => {
+    if (!auth.currentUser) throw new Error('Not authenticated')
+    await updateDoc(doc(db, 'users', auth.currentUser.uid), {
+      selectedTitle: titleId ?? null,
+    })
+    setProfile((prev) => (prev ? { ...prev, selectedTitle: titleId ?? undefined } : null))
+  }
+
+  const updateShowInRanking = async (show: boolean) => {
+    if (!auth.currentUser) throw new Error('Not authenticated')
+    await updateDoc(doc(db, 'users', auth.currentUser.uid), { showInRanking: show })
+    setProfile((prev) => (prev ? { ...prev, showInRanking: show } : null))
+  }
+
+  const refreshProfile = async () => {
+    if (auth.currentUser) await loadProfile(auth.currentUser)
+  }
+
   return (
     <AuthContext.Provider
       value={{
@@ -145,6 +187,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         updateUserProfile,
         updateUserPhotoURL,
         updateUserEmail,
+        updateSelectedTitle,
+        updateShowInRanking,
+        refreshProfile,
       }}
     >
       {children}

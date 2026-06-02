@@ -19,7 +19,7 @@ export default function LoginPage() {
     setLoading(true)
     try {
       await login(email, password)
-      router.push('/')
+      router.push('/mypage')
     } catch {
       setError('メールアドレスまたはパスワードが正しくありません')
     } finally {

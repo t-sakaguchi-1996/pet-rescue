@@ -1,9 +1,11 @@
 'use client'
 
 import { getToken, onMessage } from 'firebase/messaging'
-import { collection, addDoc, doc, updateDoc, arrayUnion, Timestamp } from 'firebase/firestore'
+import { collection, addDoc, doc, updateDoc, arrayUnion, Timestamp, query, where, getDocs, limit } from 'firebase/firestore'
 import { getFirebaseMessaging } from './firebase'
 import { db } from './firebase'
+
+const ADMIN_EMAIL = 'admin@gmail.com'
 
 const NOTIFICATIONS = 'notifications'
 
@@ -47,6 +49,29 @@ export async function notifyPointsGranted(params: {
       petName: params.petName,
       sightingId: params.sightingId ?? null,
       amount: params.amount,
+      isRead: false,
+      createdAt: Timestamp.now(),
+    })
+  } catch { /* 通知失敗はメイン処理に影響させない */ }
+}
+
+/** 景品交換申請時に管理者へ通知（物理的な承認が必要な場合のみ） */
+export async function notifyAdminRewardExchange(params: {
+  requesterDisplayName: string
+  rewardName: string
+}): Promise<void> {
+  try {
+    const q = query(collection(db, 'users'), where('email', '==', ADMIN_EMAIL), limit(1))
+    const snap = await getDocs(q)
+    if (snap.empty) return
+    const adminUid = snap.docs[0].id
+    await addDoc(collection(db, NOTIFICATIONS), {
+      userId: adminUid,
+      type: 'reward_exchange_requested',
+      petId: '',
+      petName: '',
+      fromUserDisplayName: params.requesterDisplayName,
+      rewardName: params.rewardName,
       isRead: false,
       createdAt: Timestamp.now(),
     })

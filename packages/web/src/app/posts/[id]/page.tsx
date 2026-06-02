@@ -14,6 +14,7 @@ import PetContactInfo from '@/components/PetContactInfo'
 import CommentSection from '@/components/CommentSection'
 import SightingsSection from '@/components/SightingsSection'
 import SightingCtaBox from '@/components/SightingCtaBox'
+import DiscoveryConfirmButton from '@/components/DiscoveryConfirmButton'
 
 export default async function PetDetailPage({
   params,
@@ -136,6 +137,18 @@ export default async function PetDetailPage({
 
               {/* 目撃情報投稿を促す（自分の投稿には表示しない） */}
               {isLostSearching && <SightingCtaBox petOwnerId={pet.userId} petSpecies={pet.species} />}
+
+              {/* 発見確認ボタン（ペットオーナー向け・最有力情報が選ばれている場合） */}
+              {pet.bestInfoId && pet.status !== 'resolved' && (
+                <DiscoveryConfirmButton
+                  petId={pet.id}
+                  petName={pet.name || '名前不明'}
+                  petOwnerId={pet.userId}
+                  bestInfoId={pet.bestInfoId}
+                  bestInfoType={pet.bestInfoType}
+                  discoveryBonusGranted={pet.discoveryBonusGranted}
+                />
+              )}
 
               <p className="text-xs text-gray-400 mt-4">
                 投稿日:{' '}

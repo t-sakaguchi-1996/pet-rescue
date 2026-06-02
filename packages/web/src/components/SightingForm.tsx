@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { useAuth } from '@/contexts/AuthContext'
 import { createSighting, uploadSightingImage } from '@/lib/sightings'
 import { grantSightingPoints } from '@/lib/points'
+import { checkAndAwardBadges } from '@/lib/titles'
 import { PREFECTURES, SPECIES_LABELS, type PetSpecies } from '@pet-rescue/shared'
 
 interface Props {
@@ -152,6 +153,11 @@ export default function SightingForm({ onSuccess, defaultSpecies }: Props) {
       if (user) {
         const today = new Date().toISOString().split('T')[0]
         await grantSightingPoints(user.uid, sightingId, today)
+        // バッジチェック（初投稿・初目撃投稿）
+        await checkAndAwardBadges(user.uid, {
+          isFirstPost: true,
+          isFirstSighting: true,
+        }).catch(() => {})
       }
 
       onSuccess?.(sightingId, !user)

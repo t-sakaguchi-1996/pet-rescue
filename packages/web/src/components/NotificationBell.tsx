@@ -57,6 +57,8 @@ function notifLabel(n: AppNotification): string {
       return n.amount
         ? `ポイントが付与されました！ +${n.amount}pt`
         : 'ポイントが付与されました！'
+    case 'reward_exchange_requested':
+      return `${n.fromUserDisplayName}さんが「${n.rewardName ?? '景品'}」を申請しました`
     default:
       return 'お知らせがあります'
   }
@@ -69,15 +71,17 @@ function notifIcon(type: AppNotification['type']): string {
     case 'reply': return '↩️'
     case 'best_info_selected': return '⭐'
     case 'points_granted': return '🎉'
+    case 'reward_exchange_requested': return '🎁'
     default: return '💬'
   }
 }
 
 function notifHref(n: AppNotification): string {
+  if (n.type === 'reward_exchange_requested') return '/mypage'
   if ((n.type === 'best_info_selected' || n.type === 'points_granted') && n.sightingId) {
     return `/sightings/${n.sightingId}`
   }
-  return `/posts/${n.petId}`
+  return n.petId ? `/posts/${n.petId}` : '/mypage'
 }
 
 export default function NotificationBell() {

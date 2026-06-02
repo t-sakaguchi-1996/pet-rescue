@@ -2,18 +2,26 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // 管理者判定（メールアドレスベース）
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email == 'admin@gmail.com';
+    }
+
     // ペット情報: 読み取りは全員、書き込みは認証済みユーザーのみ
     match /pets/{petId} {
       allow read: if true;
       allow create: if request.auth != null
         && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if request.auth != null
-        && resource.data.userId == request.auth.uid;
+      allow update: if request.auth != null
+        && (resource.data.userId == request.auth.uid
+            || isAdmin()
+            || request.resource.data.diff(resource.data).affectedKeys()
+                .hasOnly(['status', 'discoveryBonusGranted', 'updatedAt']));
+      allow delete: if request.auth != null
+        && (resource.data.userId == request.auth.uid || isAdmin());
 
-      // コメント: 読み取りは全員
-      // 作成: ログイン済みは自分のUID / 未ログインはguestEmail+temporaryIdが必須
-      // 更新: コメント本人 OR ペット投稿者（最有力情報の選択）OR 未ログイン投稿をユーザーに紐づける場合
-      // 削除: コメント本人のみ
+      // コメント
       match /comments/{commentId} {
         allow read: if true;
         allow create: if
@@ -27,41 +35,37 @@ service cloud.firestore {
           && (resource.data.userId == request.auth.uid
               || get(/databases/$(database)/documents/pets/$(petId)).data.userId == request.auth.uid
               || (resource.data.userId == null
-                  && request.resource.data.userId == request.auth.uid));
+                  && request.resource.data.userId == request.auth.uid)
+              || isAdmin());
         allow delete: if request.auth != null
-          && resource.data.userId == request.auth.uid;
+          && (resource.data.userId == request.auth.uid || isAdmin());
       }
     }
 
-    // ユーザー情報:
-    //   読み取り: 誰でも可（displayName/photoURL はカード等で公開表示に使用）
-    //   作成・削除: 本人のみ
-    //   更新: 本人は全フィールド可 / 他の認証済みユーザーは points フィールドのみ可（ポイント付与のため）
+    // ユーザー情報
     match /users/{userId} {
       allow read: if true;
       allow create, delete: if request.auth != null
         && request.auth.uid == userId;
       allow update: if request.auth != null
         && (request.auth.uid == userId
-            || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['points']));
+            || isAdmin()
+            || request.resource.data.diff(resource.data).affectedKeys()
+                .hasOnly(['points', 'totalPointsEarned', 'titles', 'badges', 'selectedTitle',
+                          'sightingCount', 'protectedPostCount', 'bestInfoCount', 'discoveryCount']));
     }
 
-    // アプリ内通知: 受信者本人のみ読み取り可能、認証済みユーザーは作成可能
+    // アプリ内通知
     match /notifications/{notificationId} {
-      allow read: if request.auth != null
-        && resource.data.userId == request.auth.uid;
+      allow read: if isAdmin();
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
       allow create: if request.auth != null;
-      allow update: if request.auth != null
-        && resource.data.userId == request.auth.uid;
+      allow update: if isAdmin();
+      allow update: if request.auth != null && resource.data.userId == request.auth.uid;
       allow delete: if false;
     }
 
-    // 目撃投稿:
-    //   読み取り: 全員
-    //   作成: ログイン済みは自分のUID / 未ログインはguestEmail+temporaryIdが必須
-    //   更新: 本人 OR 未ログイン投稿を自分のアカウントに紐づける場合
-    //         OR 認証済みユーザーが isBestInfo/bestInfoPointGranted のみ変更（迷子投稿者が最有力情報に選ぶ）
-    //   削除: 本人のみ
+    // 目撃投稿
     match /sightings/{sightingId} {
       allow read: if true;
       allow create: if
@@ -73,20 +77,38 @@ service cloud.firestore {
             && request.resource.data.temporaryId is string);
       allow update: if request.auth != null
         && (resource.data.userId == request.auth.uid
+            || isAdmin()
             || (resource.data.userId == null
                 && request.resource.data.userId == request.auth.uid)
             || request.resource.data.diff(resource.data).affectedKeys()
                 .hasOnly(['isBestInfo', 'bestInfoPointGranted', 'updatedAt']));
       allow delete: if request.auth != null
-        && resource.data.userId == request.auth.uid;
+        && (resource.data.userId == request.auth.uid || isAdmin());
     }
 
-    // ポイント履歴: 本人のみ読み取り、認証済みユーザーが作成、変更・削除不可
+    // ポイント履歴: 認証済みユーザーが読み取り可能、更新は管理者のみ
     match /point_transactions/{txId} {
-      allow read: if request.auth != null
-        && resource.data.userId == request.auth.uid;
+      allow read: if request.auth != null;
       allow create: if request.auth != null;
-      allow update, delete: if false;
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // 景品マスタ: 読み取りは全員、作成・更新は管理者のみ
+    match /rewards/{rewardId} {
+      allow read: if true;
+      allow create, update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // 景品交換申請
+    match /reward_exchanges/{exchangeId} {
+      allow read: if isAdmin();
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null
+        && request.resource.data.userId == request.auth.uid;
+      allow update: if isAdmin();
+      allow delete: if false;
     }
   }
 }
