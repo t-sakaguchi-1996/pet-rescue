@@ -114,7 +114,7 @@ export default function NotificationBell() {
           <path d="M13.73 21a2 2 0 0 1-3.46 0" />
         </svg>
         {unread > 0 && (
-          <span className="absolute top-1 right-1 bg-primary-500 text-white text-[9px] font-bold rounded-full min-w-[14px] h-3.5 flex items-center justify-center px-0.5 leading-none">
+          <span className="absolute top-1 right-1 bg-white text-red-500 text-[9px] font-bold rounded-full min-w-[14px] h-3.5 flex items-center justify-center px-0.5 leading-none">
             {unread > 99 ? '99+' : unread}
           </span>
         )}
@@ -144,8 +144,8 @@ export default function NotificationBell() {
                   key={n.id}
                   href={`/posts/${n.petId}`}
                   onClick={() => handleClick(n)}
-                  className={`flex items-start gap-3 px-4 py-3 border-b border-pink-50 hover:bg-primary-50 transition-colors ${
-                    !n.isRead ? 'bg-primary-50/60' : ''
+                  className={`flex items-start gap-3 px-4 py-3 border-b border-pink-50 transition-colors ${
+                    !n.isRead ? 'bg-primary-50/60 hover:bg-primary-50' : 'bg-red-50 hover:bg-red-100'
                   }`}
                 >
                   <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0 text-sm font-bold text-primary-500">

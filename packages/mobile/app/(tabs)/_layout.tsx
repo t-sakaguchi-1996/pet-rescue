@@ -32,7 +32,7 @@ export default function TabLayout() {
           tabBarIcon: ({ focused }) => (
             <TabIcon emoji="🏠" active={focused} />
           ),
-          headerTitle: '🐾 ペット救助',
+          headerTitle: '🐾 ペットレスキュー',
         }}
       />
       <Tabs.Screen

@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git commit -m ' *)",
+      "PowerShell(Get-ChildItem \"c:\\\\Users\\\\t_sak\\\\Downloads\" | Where-Object { $_.Name -match \"shiba|スコティッシュ|IMG_9512\" } | Select-Object Name, FullName)",
+      "PowerShell(Get-ChildItem \"c:\\\\Users\\\\t_sak\\\\Downloads\" | Where-Object { $_.Name -match \"スコ|shiba|IMG_9512\" } | ForEach-Object { Write-Output \"$\\($_.FullName\\)\" })",
+      "Bash(grep -rn \"fill$\\\\|fill \" src --include=\"*.tsx\")"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\t_sak\\Downloads"
+    ]
+  }
+}
