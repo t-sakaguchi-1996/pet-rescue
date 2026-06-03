@@ -1,9 +1,7 @@
 import { Stack } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { AuthProvider } from '../src/contexts/AuthContext'
-import { ErrorBoundary } from 'expo-router'
-
-export { ErrorBoundary }
+export { ErrorBoundary } from './error'
 
 export default function RootLayout() {
   return (
