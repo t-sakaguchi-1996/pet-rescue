@@ -7,7 +7,7 @@ const workspaceRoot = path.resolve(projectRoot, '../..')
 const config = getDefaultConfig(projectRoot)
 
 // モノレポ対応: ワークスペースルートからパッケージを解決
-config.watchFolders = [workspaceRoot]
+config.watchFolders = [workspaceRoot, ...(config.watchFolders || [])]
 config.resolver.nodeModulesPaths = [
   path.resolve(projectRoot, 'node_modules'),
   path.resolve(workspaceRoot, 'node_modules'),

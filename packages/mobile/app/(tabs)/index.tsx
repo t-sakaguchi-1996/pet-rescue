@@ -10,7 +10,7 @@ import {
 import { useRouter } from 'expo-router'
 import { fetchPets } from '../../src/lib/firestore'
 import PetCard from '../../src/components/PetCard'
-import type { Pet } from '../../../shared/src/types'
+import type { Pet } from '../../src/types'
 
 export default function HomeScreen() {
   const router = useRouter()

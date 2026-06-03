@@ -12,13 +12,13 @@ import {
 } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { fetchPetById } from '../../src/lib/firestore'
-import type { Pet } from '../../../shared/src/types'
+import type { Pet } from '../../src/types'
 import {
   SPECIES_LABELS,
   GENDER_LABELS,
   STATUS_LABELS,
   TYPE_LABELS,
-} from '../../../shared/src/types'
+} from '../../src/types'
 import { format } from 'date-fns'
 import { ja } from 'date-fns/locale'
 

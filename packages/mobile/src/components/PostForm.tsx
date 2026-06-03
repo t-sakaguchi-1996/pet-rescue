@@ -17,7 +17,7 @@ import { useRouter } from 'expo-router'
 import { getAuth } from 'firebase/auth'
 import { createPet } from '../lib/firestore'
 import { uploadPetImages } from '../lib/storage'
-import type { Pet } from '../../../shared/src/types'
+import type { Pet } from '../types'
 
 const isExpoGo =
   Constants.appOwnership === 'expo' ||

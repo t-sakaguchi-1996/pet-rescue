@@ -29,6 +29,7 @@ const config: ExpoConfig = {
       backgroundColor: '#ef4444',
     },
     package: 'com.petrescue.app',
+    googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? './google-services.json',
     permissions: [
       'ACCESS_FINE_LOCATION',
       'ACCESS_COARSE_LOCATION',
@@ -72,6 +73,9 @@ const config: ExpoConfig = {
     firebaseStorageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
     firebaseMessagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
     firebaseAppId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
+    eas: {
+      projectId: '0fe3e1b7-1eaf-4e8f-ab78-8329d2f96210',
+    },
   },
 }
 

@@ -4,8 +4,8 @@ import { useRouter } from 'expo-router'
 import * as Location from 'expo-location'
 import Constants from 'expo-constants'
 import { fetchPets } from '../../src/lib/firestore'
-import type { Pet } from '../../../shared/src/types'
-import { TYPE_LABELS, SPECIES_LABELS } from '../../../shared/src/types'
+import type { Pet } from '../../src/types'
+import { TYPE_LABELS, SPECIES_LABELS } from '../../src/types'
 
 const isExpoGo =
   Constants.appOwnership === 'expo' ||

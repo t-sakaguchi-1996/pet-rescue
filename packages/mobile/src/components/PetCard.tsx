@@ -6,8 +6,8 @@ import {
   StyleSheet,
   Dimensions,
 } from 'react-native'
-import type { Pet } from '../../../shared/src/types'
-import { SPECIES_LABELS, TYPE_LABELS, STATUS_LABELS } from '../../../shared/src/types'
+import type { Pet } from '../types'
+import { SPECIES_LABELS, TYPE_LABELS, STATUS_LABELS } from '../types'
 import { format } from 'date-fns'
 import { ja } from 'date-fns/locale'
 

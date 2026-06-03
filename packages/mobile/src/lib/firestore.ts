@@ -17,7 +17,7 @@ import type {
   PetSpecies,
   PetType,
   PetStatus,
-} from '../../../shared/src/types'
+} from '../types'
 
 const PETS = 'pets'
 const FETCH_TIMEOUT_MS = 10000
