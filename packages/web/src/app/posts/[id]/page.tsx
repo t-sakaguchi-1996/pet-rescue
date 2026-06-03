@@ -1,6 +1,9 @@
+'use client'
+
 import Image from 'next/image'
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
+import { useParams } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import { fetchPetById } from '@/lib/firestore'
 import {
   SPECIES_LABELS,
@@ -8,6 +11,7 @@ import {
   STATUS_LABELS,
   TYPE_LABELS,
 } from '@pet-rescue/shared'
+import type { Pet } from '@pet-rescue/shared'
 import { format } from 'date-fns'
 import { ja } from 'date-fns/locale'
 import PetContactInfo from '@/components/PetContactInfo'
@@ -15,15 +19,39 @@ import CommentSection from '@/components/CommentSection'
 import SightingsSection from '@/components/SightingsSection'
 import SightingCtaBox from '@/components/SightingCtaBox'
 import DiscoveryConfirmButton from '@/components/DiscoveryConfirmButton'
+import { useLoadingState } from '@/contexts/LoadingContext'
 
-export default async function PetDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>
-}) {
-  const { id } = await params
-  const pet = await fetchPetById(id)
-  if (!pet) notFound()
+export default function PetDetailPage() {
+  const { id } = useParams<{ id: string }>()
+  const { startLoading, stopLoading } = useLoadingState()
+  const [pet, setPet] = useState<Pet | null>(null)
+  const [notFound, setNotFound] = useState(false)
+
+  useEffect(() => {
+    if (!id) return
+    startLoading()
+    fetchPetById(id)
+      .then((data) => {
+        if (!data) {
+          setNotFound(true)
+          return
+        }
+        setPet(data)
+      })
+      .catch(() => setNotFound(true))
+      .finally(() => stopLoading())
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id])
+
+  if (notFound) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <p className="text-gray-500">投稿が見つかりません</p>
+      </div>
+    )
+  }
+
+  if (!pet) return null
 
   const typeClass =
     pet.type === 'lost' ? 'pet-badge-lost' : 'pet-badge-found'
@@ -112,7 +140,6 @@ export default async function PetDetailPage({
                 {pet.location.address && (
                   <InfoRow label="詳しい場所" value={pet.location.address} />
                 )}
-
               </dl>
             </div>
 
