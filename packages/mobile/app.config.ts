@@ -49,6 +49,7 @@ const config: ExpoConfig = {
   plugins: [
     'expo-router',
     'expo-font',
+    ['expo-build-properties', { android: { newArchEnabled: false } }],
     [
       'expo-location',
       {
