@@ -12,29 +12,11 @@ import {
 } from 'react-native'
 import * as ImagePicker from 'expo-image-picker'
 import * as Location from 'expo-location'
-import Constants from 'expo-constants'
 import { useRouter } from 'expo-router'
 import { getAuth } from 'firebase/auth'
 import { createPet } from '../lib/firestore'
 import { uploadPetImages } from '../lib/storage'
 import type { Pet } from '../types'
-
-const isExpoGo =
-  Constants.appOwnership === 'expo' ||
-  Constants.executionEnvironment === 'storeClient'
-
-let NativeMapView: React.ComponentType<any> | null = null
-let NativeMarker: React.ComponentType<any> | null = null
-
-if (!isExpoGo) {
-  try {
-    const maps = require('react-native-maps')
-    NativeMapView = maps.default
-    NativeMarker = maps.Marker
-  } catch {
-    // native module unavailable
-  }
-}
 
 const SEARCH_RADIUS_OPTIONS = [
   { value: 5, label: '5km' },
@@ -54,12 +36,6 @@ export default function PostForm({ userId }: Props) {
   const [images, setImages] = useState<string[]>([])
   const [isLost, setIsLost] = useState(true)
   const [pinLocation, setPinLocation] = useState<{ latitude: number; longitude: number } | null>(null)
-  const [mapRegion, setMapRegion] = useState({
-    latitude: 35.6812362,
-    longitude: 139.7671248,
-    latitudeDelta: 0.05,
-    longitudeDelta: 0.05,
-  })
 
   const [searchRadiusKm, setSearchRadiusKm] = useState<number>(5)
   const [useUserInfo, setUseUserInfo] = useState(false)
@@ -122,7 +98,6 @@ export default function PostForm({ userId }: Props) {
     const loc = await Location.getCurrentPositionAsync({})
     const { latitude, longitude } = loc.coords
     setPinLocation({ latitude, longitude })
-    setMapRegion((r) => ({ ...r, latitude, longitude }))
     Alert.alert('位置設定完了', `現在地を設定しました`)
   }
 
@@ -173,9 +148,6 @@ export default function PostForm({ userId }: Props) {
       setSubmitting(false)
     }
   }
-
-  const MapViewComp = NativeMapView
-  const MarkerComp = NativeMarker
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -271,24 +243,6 @@ export default function PostForm({ userId }: Props) {
           )}
         </View>
 
-        {/* ネイティブビルドのみ地図表示 */}
-        {!isExpoGo && MapViewComp && (
-          <>
-            <Text style={styles.mapHint}>または地図をタップして場所を指定</Text>
-            <View style={styles.mapWrapper}>
-              <MapViewComp
-                style={styles.map}
-                region={mapRegion}
-                onRegionChangeComplete={setMapRegion}
-                onPress={(e: any) => setPinLocation(e.nativeEvent.coordinate)}
-              >
-                {MarkerComp && pinLocation && (
-                  <MarkerComp coordinate={pinLocation} />
-                )}
-              </MapViewComp>
-            </View>
-          </>
-        )}
       </View>
 
       {/* 探知範囲 */}

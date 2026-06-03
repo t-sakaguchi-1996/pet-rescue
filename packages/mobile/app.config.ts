@@ -29,7 +29,7 @@ const config: ExpoConfig = {
       backgroundColor: '#ef4444',
     },
     package: 'com.petrescue.app',
-    googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? './google-services.json',
+    googleServicesFile: './google-services.json',
     config: {
       googleMaps: {
         apiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? '',
