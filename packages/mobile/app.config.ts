@@ -50,12 +50,6 @@ const config: ExpoConfig = {
     'expo-router',
     'expo-font',
     [
-      'expo-notifications',
-      {
-        color: '#ef4444',
-      },
-    ],
-    [
       'expo-location',
       {
         locationAlwaysAndWhenInUsePermission:
