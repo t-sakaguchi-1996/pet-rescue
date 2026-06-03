@@ -151,9 +151,7 @@ export default function PetDetailScreen() {
           {pet.location.address ? (
             <InfoRow label="詳細場所" value={pet.location.address} />
           ) : null}
-          {pet.reward ? (
-            <InfoRow label="お礼" value={pet.reward} highlight />
-          ) : null}
+
         </View>
 
         {/* 特徴・説明 */}

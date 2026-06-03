@@ -14,11 +14,14 @@ import * as ImagePicker from 'expo-image-picker'
 import * as Location from 'expo-location'
 import Constants from 'expo-constants'
 import { useRouter } from 'expo-router'
+import { getAuth } from 'firebase/auth'
 import { createPet } from '../lib/firestore'
 import { uploadPetImages } from '../lib/storage'
 import type { Pet } from '../../../shared/src/types'
 
-const isExpoGo = Constants.appOwnership === 'expo'
+const isExpoGo =
+  Constants.appOwnership === 'expo' ||
+  Constants.executionEnvironment === 'storeClient'
 
 let NativeMapView: React.ComponentType<any> | null = null
 let NativeMarker: React.ComponentType<any> | null = null
@@ -32,6 +35,14 @@ if (!isExpoGo) {
     // native module unavailable
   }
 }
+
+const SEARCH_RADIUS_OPTIONS = [
+  { value: 5, label: '5km' },
+  { value: 10, label: '10km' },
+  { value: 15, label: '15km' },
+  { value: 20, label: '20km' },
+  { value: 30, label: 'それ以上' },
+] as const
 
 interface Props {
   userId: string
@@ -50,6 +61,9 @@ export default function PostForm({ userId }: Props) {
     longitudeDelta: 0.05,
   })
 
+  const [searchRadiusKm, setSearchRadiusKm] = useState<number>(5)
+  const [useUserInfo, setUseUserInfo] = useState(false)
+  const [emailBeforeAutoFill, setEmailBeforeAutoFill] = useState('')
   const [form, setForm] = useState({
     species: 'dog' as Pet['species'],
     name: '',
@@ -64,11 +78,23 @@ export default function PostForm({ userId }: Props) {
     address: '',
     contactEmail: '',
     contactPhone: '',
-    reward: '',
   })
+
+  const currentUser = getAuth().currentUser
 
   const set = (key: string, value: string) =>
     setForm((prev) => ({ ...prev, [key]: value }))
+
+  const handleUseUserInfo = (checked: boolean) => {
+    setUseUserInfo(checked)
+    if (checked && currentUser) {
+      setEmailBeforeAutoFill(form.contactEmail)
+      set('contactEmail', currentUser.email ?? '')
+    } else if (!checked) {
+      set('contactEmail', emailBeforeAutoFill)
+      setEmailBeforeAutoFill('')
+    }
+  }
 
   const pickImages = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
@@ -77,7 +103,7 @@ export default function PostForm({ userId }: Props) {
       return
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsMultipleSelection: true,
       quality: 0.8,
       selectionLimit: 5,
@@ -136,7 +162,7 @@ export default function PostForm({ userId }: Props) {
         userId,
         contactEmail: form.contactEmail,
         contactPhone: form.contactPhone,
-        reward: form.reward || undefined,
+        searchRadiusKm,
       })
       Alert.alert('投稿完了', '投稿しました', [
         { text: 'OK', onPress: () => router.replace('/(tabs)') },
@@ -265,12 +291,42 @@ export default function PostForm({ userId }: Props) {
         )}
       </View>
 
+      {/* 探知範囲 */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>目撃情報の探知範囲</Text>
+        <Text style={styles.radiusHint}>この範囲内で目撃情報が投稿された場合に通知します</Text>
+        <View style={styles.chipRow}>
+          {SEARCH_RADIUS_OPTIONS.map((opt) => (
+            <TouchableOpacity
+              key={opt.value}
+              style={[styles.chip, searchRadiusKm === opt.value && styles.chipActive]}
+              onPress={() => setSearchRadiusKm(opt.value)}
+            >
+              <Text style={[styles.chipText, searchRadiusKm === opt.value && styles.chipTextActive]}>
+                {opt.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
       {/* 連絡先 */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>連絡先</Text>
+        {currentUser ? (
+          <TouchableOpacity
+            style={styles.checkboxRow}
+            onPress={() => handleUseUserInfo(!useUserInfo)}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.checkbox, useUserInfo && styles.checkboxChecked]}>
+              {useUserInfo && <Text style={styles.checkboxMark}>✓</Text>}
+            </View>
+            <Text style={styles.checkboxLabel}>会員情報と同じものを使用する</Text>
+          </TouchableOpacity>
+        ) : null}
         <Field label="メールアドレス *" value={form.contactEmail} onChange={(v) => set('contactEmail', v)} placeholder="example@email.com" keyboardType="email-address" />
         <Field label="電話番号" value={form.contactPhone} onChange={(v) => set('contactPhone', v)} placeholder="090-0000-0000" keyboardType="phone-pad" />
-        <Field label="お礼（任意）" value={form.reward} onChange={(v) => set('reward', v)} placeholder="例: お礼あり" />
       </View>
 
       <TouchableOpacity
@@ -332,6 +388,15 @@ const styles = StyleSheet.create({
   },
   toggleLabel: { fontSize: 15, fontWeight: '600', color: '#374151' },
   label: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6, marginTop: 12 },
+  radiusHint: { fontSize: 12, color: '#6b7280', marginBottom: 10, marginTop: -4 },
+  checkboxRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  checkbox: {
+    width: 20, height: 20, borderRadius: 4, borderWidth: 1.5, borderColor: '#d1d5db',
+    alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff',
+  },
+  checkboxChecked: { backgroundColor: '#ef4444', borderColor: '#ef4444' },
+  checkboxMark: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
+  checkboxLabel: { fontSize: 13, color: '#374151' },
   chipRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   chip: {
     paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,

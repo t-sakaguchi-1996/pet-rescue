@@ -46,9 +46,11 @@ function notifLabel(n: AppNotification): string {
     case 'reply':
       return `${n.fromUserDisplayName}さんが返信しました`
     case 'sighting_nearby':
-      return `近くで目撃情報が投稿されました`
+      return `近くで目撃情報がありました！`
     case 'found_nearby':
       return `近くで保護情報が投稿されました`
+    case 'prefecture_sighting':
+      return `県内で目撃情報がありました！`
     case 'best_info_selected':
       return n.amount
         ? `あなたの情報が最有力情報に選ばれました！ +${n.amount}pt`
@@ -68,6 +70,7 @@ function notifIcon(type: AppNotification['type']): string {
   switch (type) {
     case 'sighting_nearby': return '👁️'
     case 'found_nearby': return '🤝'
+    case 'prefecture_sighting': return '📍'
     case 'reply': return '↩️'
     case 'best_info_selected': return '⭐'
     case 'points_granted': return '🎉'
@@ -78,8 +81,18 @@ function notifIcon(type: AppNotification['type']): string {
 
 function notifHref(n: AppNotification): string {
   if (n.type === 'reward_exchange_requested') return '/mypage'
-  if ((n.type === 'best_info_selected' || n.type === 'points_granted') && n.sightingId) {
+  // 目撃情報起因の通知 → sightingId を優先して目撃情報詳細ページへ
+  if (n.sightingId && (
+    n.type === 'sighting_nearby' ||
+    n.type === 'prefecture_sighting' ||
+    n.type === 'best_info_selected' ||
+    n.type === 'points_granted'
+  )) {
     return `/sightings/${n.sightingId}`
+  }
+  // found_nearby の sightingId は実際には保護投稿の petId
+  if (n.sightingId && n.type === 'found_nearby') {
+    return `/posts/${n.sightingId}`
   }
   return n.petId ? `/posts/${n.petId}` : '/mypage'
 }

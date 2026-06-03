@@ -112,9 +112,7 @@ export default async function PetDetailPage({
                 {pet.location.address && (
                   <InfoRow label="詳しい場所" value={pet.location.address} />
                 )}
-                {pet.reward && (
-                  <InfoRow label="お礼" value={pet.reward} highlight />
-                )}
+
               </dl>
             </div>
 

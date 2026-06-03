@@ -31,12 +31,12 @@ export default function Header() {
           {isAdmin ? (
             <span className="flex items-center gap-1.5 font-black text-lg cursor-default select-none">
               <span className="text-2xl">🐾</span>
-              <span style={{ color: '#C46B00' }}>ANIMAL MyGO</span>
+              <span style={{ color: '#C46B00' }}>ANIMAL GO</span>
             </span>
           ) : (
             <Link href="/" onClick={closeMenu} className="flex items-center gap-1.5 font-black text-lg">
               <span className="text-2xl">🐾</span>
-              <span style={{ color: '#C46B00' }}>ANIMAL MyGO</span>
+              <span style={{ color: '#C46B00' }}>ANIMAL GO</span>
             </Link>
           )}
 

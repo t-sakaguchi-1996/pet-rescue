@@ -7,7 +7,9 @@ import { fetchPets } from '../../src/lib/firestore'
 import type { Pet } from '../../../shared/src/types'
 import { TYPE_LABELS, SPECIES_LABELS } from '../../../shared/src/types'
 
-const isExpoGo = Constants.appOwnership === 'expo'
+const isExpoGo =
+  Constants.appOwnership === 'expo' ||
+  Constants.executionEnvironment === 'storeClient'
 
 // react-native-maps は Expo Go 非対応のため条件付きロード
 let NativeMapView: React.ComponentType<any> | null = null

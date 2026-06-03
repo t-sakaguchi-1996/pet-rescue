@@ -58,7 +58,6 @@ function toPet(id: string, data: Record<string, unknown>): Pet {
     userId: (data.userId as string) ?? '',
     contactEmail: (data.contactEmail as string) ?? '',
     contactPhone: (data.contactPhone as string) ?? '',
-    reward: data.reward as string | undefined,
     createdAt: createdAt instanceof Timestamp ? createdAt.toDate().toISOString() : (createdAt ?? ''),
     updatedAt: updatedAt instanceof Timestamp ? updatedAt.toDate().toISOString() : (updatedAt ?? ''),
   }

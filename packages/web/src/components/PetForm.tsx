@@ -5,10 +5,7 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import {
   APIProvider,
-  AdvancedMarker,
-  Map,
   useMapsLibrary,
-  useMap,
 } from '@vis.gl/react-google-maps'
 import type { Pet } from '@pet-rescue/shared'
 import { PREFECTURES } from '@pet-rescue/shared'
@@ -16,9 +13,10 @@ import { createPet, updatePet } from '@/lib/firestore'
 import { uploadPetImages } from '@/lib/storage'
 import { grantProtectedPostPoints } from '@/lib/points'
 import { checkAndAwardBadges } from '@/lib/titles'
+import { useAuth } from '@/contexts/AuthContext'
+import LocationMapPicker, { type LocationData } from './LocationMapPicker'
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? ''
-const DEFAULT_CENTER = { lat: 35.6812362, lng: 139.7671248 }
 
 interface Props {
   userId: string
@@ -35,6 +33,14 @@ export default function PetForm(props: Props) {
   )
 }
 
+const SEARCH_RADIUS_OPTIONS = [
+  { value: 5, label: '5km' },
+  { value: 10, label: '10km' },
+  { value: 15, label: '15km' },
+  { value: 20, label: '20km' },
+  { value: 30, label: 'それ以上（30km）' },
+] as const
+
 interface FormData {
   type: 'lost' | 'found'
   species: Pet['species']
@@ -50,30 +56,29 @@ interface FormData {
   address: string
   contactEmail: string
   contactPhone: string
-  reward: string
   status: Pet['status']
+  searchRadiusKm: number
 }
 
 function FormInner({ userId, ownerDisplayName, defaultType = 'lost', pet }: Props) {
   const router = useRouter()
+  const { user } = useAuth()
   const isEdit = Boolean(pet)
-  const map = useMap('pet-form-map')
   const geocodingLib = useMapsLibrary('geocoding')
   const [geocoder, setGeocoder] = useState<google.maps.Geocoder | null>(null)
   const [geocoding, setGeocoding] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [submitting, setSubmitting] = useState(false)
-  const [gettingLocation, setGettingLocation] = useState(false)
-  const [existingImages, setExistingImages] = useState<string[]>(
-    pet?.images ?? []
-  )
+  const [existingImages, setExistingImages] = useState<string[]>(pet?.images ?? [])
   const [newImageFiles, setNewImageFiles] = useState<File[]>([])
   const [newImagePreviews, setNewImagePreviews] = useState<string[]>([])
-  const [pinLocation, setPinLocation] = useState<{
-    lat: number
-    lng: number
-  } | null>(pet?.location ? { lat: pet.location.lat, lng: pet.location.lng } : null)
+  const [pinLocation, setPinLocation] = useState<{ lat: number; lng: number } | null>(
+    pet?.location ? { lat: pet.location.lat, lng: pet.location.lng } : null
+  )
+
+  const [useUserInfoChecked, setUseUserInfoChecked] = useState(false)
+  const emailBeforeAutoFill = useRef('')
 
   const [form, setForm] = useState<FormData>({
     type: pet?.type ?? defaultType,
@@ -92,29 +97,24 @@ function FormInner({ userId, ownerDisplayName, defaultType = 'lost', pet }: Prop
     address: pet?.location.address ?? '',
     contactEmail: pet?.contactEmail ?? '',
     contactPhone: pet?.contactPhone ?? '',
-    reward: pet?.reward ?? '',
     status: pet?.status ?? 'searching',
+    searchRadiusKm: pet?.searchRadiusKm ?? 5,
   })
 
   useEffect(() => {
     if (geocodingLib) setGeocoder(new geocodingLib.Geocoder())
   }, [geocodingLib])
 
+  // Forward geocoding: address/city → pin
   const geocodeAddress = useCallback(
     async (addressStr: string) => {
       if (!geocoder || !addressStr.trim()) return
       setGeocoding(true)
       try {
-        const result = await geocoder.geocode({
-          address: addressStr,
-          region: 'JP',
-        })
+        const result = await geocoder.geocode({ address: addressStr, region: 'JP' })
         if (result.results[0]) {
           const loc = result.results[0].geometry.location
-          const pos = { lat: loc.lat(), lng: loc.lng() }
-          setPinLocation(pos)
-          map?.panTo(pos)
-          map?.setZoom(15)
+          setPinLocation({ lat: loc.lat(), lng: loc.lng() })
         }
       } catch (e) {
         console.warn('Geocoding failed:', e)
@@ -122,15 +122,17 @@ function FormInner({ userId, ownerDisplayName, defaultType = 'lost', pet }: Prop
         setGeocoding(false)
       }
     },
-    [geocoder, map]
+    [geocoder]
   )
 
   const handleChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-    >
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
+    const { name, value } = e.target
+    setForm((prev) => ({
+      ...prev,
+      [name]: name === 'searchRadiusKm' ? Number(value) : value,
+    }))
   }
 
   const handlePrefectureChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -144,53 +146,30 @@ function FormInner({ userId, ownerDisplayName, defaultType = 'lost', pet }: Prop
   }
 
   const handleAddressBlur = () => {
-    const query = `${form.prefecture}${form.city}${form.address}`
-    if (form.address || form.city) void geocodeAddress(query)
+    const q = `${form.prefecture}${form.city}${form.address}`
+    if (form.address || form.city) void geocodeAddress(q)
   }
 
-  const handleGetCurrentLocation = () => {
-    if (!navigator.geolocation) {
-      alert('この端末では現在位置の取得に対応していません')
-      return
+  // Called by LocationMapPicker when user clicks map or uses current location
+  const handlePinChange = useCallback((loc: LocationData) => {
+    setPinLocation({ lat: loc.lat, lng: loc.lng })
+    setForm((prev) => ({
+      ...prev,
+      prefecture: loc.prefecture || prev.prefecture,
+      city: loc.city || prev.city,
+      address: loc.address || prev.address,
+    }))
+  }, [])
+
+  const handleUseUserInfo = (checked: boolean) => {
+    setUseUserInfoChecked(checked)
+    if (checked && user) {
+      emailBeforeAutoFill.current = form.contactEmail
+      setForm((prev) => ({ ...prev, contactEmail: user.email ?? '' }))
+    } else if (!checked) {
+      setForm((prev) => ({ ...prev, contactEmail: emailBeforeAutoFill.current }))
+      emailBeforeAutoFill.current = ''
     }
-    setGettingLocation(true)
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const { latitude, longitude } = pos.coords
-        const newPos = { lat: latitude, lng: longitude }
-        setPinLocation(newPos)
-        map?.panTo(newPos)
-        map?.setZoom(15)
-        // リバースジオコーディングで住所を補完
-        if (geocoder) {
-          try {
-            const result = await geocoder.geocode({ location: newPos })
-            if (result.results[0]) {
-              const comps = result.results[0].address_components
-              const prefecture = comps.find((c: google.maps.GeocoderAddressComponent) =>
-                c.types.includes('administrative_area_level_1'))?.long_name ?? ''
-              const city =
-                comps.find((c: google.maps.GeocoderAddressComponent) =>
-                  c.types.includes('locality'))?.long_name ??
-                comps.find((c: google.maps.GeocoderAddressComponent) =>
-                  c.types.includes('administrative_area_level_2'))?.long_name ?? ''
-              setForm((prev) => ({
-                ...prev,
-                prefecture: prefecture || prev.prefecture,
-                city: city || prev.city,
-                address: result.results[0].formatted_address || prev.address,
-              }))
-            }
-          } catch { /* ignore */ }
-        }
-        setGettingLocation(false)
-      },
-      () => {
-        alert('現在位置の取得に失敗しました。手動で入力してください。')
-        setGettingLocation(false)
-      },
-      { timeout: 10000 }
-    )
   }
 
   const handleNewImages = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -218,13 +197,6 @@ function FormInner({ userId, ownerDisplayName, defaultType = 'lost', pet }: Prop
     setNewImagePreviews((prev) => prev.filter((_, i) => i !== index))
   }
 
-  const handleMapClick = (e: {
-    detail: { latLng: { lat: number; lng: number } | null }
-  }) => {
-    const pos = e.detail.latLng
-    if (pos) setPinLocation({ lat: pos.lat, lng: pos.lng })
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!pinLocation) {
@@ -234,9 +206,7 @@ function FormInner({ userId, ownerDisplayName, defaultType = 'lost', pet }: Prop
     setSubmitting(true)
     try {
       const newUrls =
-        newImageFiles.length > 0
-          ? await uploadPetImages(userId, newImageFiles)
-          : []
+        newImageFiles.length > 0 ? await uploadPetImages(userId, newImageFiles) : []
       const allImages = [...existingImages, ...newUrls]
 
       if (isEdit && pet) {
@@ -261,7 +231,7 @@ function FormInner({ userId, ownerDisplayName, defaultType = 'lost', pet }: Prop
           status: form.status,
           contactEmail: form.contactEmail,
           contactPhone: form.contactPhone,
-          reward: form.reward || undefined,
+          searchRadiusKm: form.searchRadiusKm,
         })
         router.push(`/posts/${pet.id}`)
       } else {
@@ -288,10 +258,9 @@ function FormInner({ userId, ownerDisplayName, defaultType = 'lost', pet }: Prop
           ownerDisplayName: ownerDisplayName ?? undefined,
           contactEmail: form.contactEmail,
           contactPhone: form.contactPhone,
-          reward: form.reward || undefined,
+          searchRadiusKm: form.searchRadiusKm,
         })
 
-        // 保護投稿の場合はポイントを付与
         if (form.type === 'found') {
           const today = new Date().toISOString().split('T')[0]
           await grantProtectedPostPoints(userId, newPetId, today).catch(() => {})
@@ -462,17 +431,12 @@ function FormInner({ userId, ownerDisplayName, defaultType = 'lost', pet }: Prop
 
       {/* 写真 */}
       <div className="bg-white rounded-xl shadow-sm p-5">
-        <h2 className="font-semibold text-gray-800 mb-4">
-          写真（最大5枚）
-        </h2>
+        <h2 className="font-semibold text-gray-800 mb-4">写真（最大5枚）</h2>
 
         {(existingImages.length > 0 || newImagePreviews.length > 0) && (
           <div className="flex gap-2 flex-wrap mb-3">
             {existingImages.map((url, i) => (
-              <div
-                key={`existing-${i}`}
-                className="relative w-20 h-20 rounded-lg overflow-hidden"
-              >
+              <div key={`existing-${i}`} className="relative w-20 h-20 rounded-lg overflow-hidden">
                 <Image src={url} alt="" fill sizes="80px" className="object-cover" />
                 <button
                   type="button"
@@ -484,10 +448,7 @@ function FormInner({ userId, ownerDisplayName, defaultType = 'lost', pet }: Prop
               </div>
             ))}
             {newImagePreviews.map((src, i) => (
-              <div
-                key={`new-${i}`}
-                className="relative w-20 h-20 rounded-lg overflow-hidden"
-              >
+              <div key={`new-${i}`} className="relative w-20 h-20 rounded-lg overflow-hidden">
                 <Image src={src} alt="" fill sizes="80px" className="object-cover" />
                 <button
                   type="button"
@@ -567,57 +528,64 @@ function FormInner({ userId, ownerDisplayName, defaultType = 'lost', pet }: Prop
             />
           </div>
         </div>
+        {geocoding && (
+          <p className="text-xs text-gray-400 animate-pulse mb-2">住所を検索中...</p>
+        )}
+        <LocationMapPicker
+          mapInstanceId="pet-form-map"
+          pinLocation={pinLocation}
+          species={form.species}
+          searchRadiusKm={form.searchRadiusKm}
+          showRadiusCircle
+          draggable
+          autoDetectOnMount={!pet}
+          onPinChange={handlePinChange}
+        />
+      </div>
 
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-sm text-gray-600">
-            地図をクリックして正確な場所を指定{' '}
-            {!pinLocation && (
-              <span className="text-red-500 font-medium">*必須</span>
-            )}
-            {pinLocation && (
-              <span className="text-green-600 font-medium">✓ 設定済み</span>
-            )}
-          </p>
-          <div className="flex items-center gap-2">
-            {geocoding && (
-              <span className="text-xs text-gray-400 animate-pulse">
-                住所を検索中...
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={handleGetCurrentLocation}
-              disabled={gettingLocation || !geocoder}
-              className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg font-semibold transition-all disabled:opacity-50"
-              style={{ background: '#FFF3DC', color: '#7A4500', border: '1px solid #FFD98A' }}
-            >
-              📍 {gettingLocation ? '取得中...' : '現在位置'}
-            </button>
-          </div>
-        </div>
-
-        <div className="h-64 rounded-xl overflow-hidden border border-gray-200">
-          <Map
-            id="pet-form-map"
-            defaultCenter={
-              pet?.location
-                ? { lat: pet.location.lat, lng: pet.location.lng }
-                : DEFAULT_CENTER
-            }
-            defaultZoom={pet?.location ? 15 : 12}
-            mapId="pet-form-map"
-            style={{ width: '100%', height: '100%' }}
-            gestureHandling="greedy"
-            onClick={handleMapClick}
-          >
-            {pinLocation && <AdvancedMarker position={pinLocation} />}
-          </Map>
-        </div>
+      {/* 探知範囲 */}
+      <div className="bg-white rounded-xl shadow-sm p-5">
+        <h2 className="font-semibold text-gray-800 mb-1">目撃情報の探知範囲</h2>
+        <p className="text-xs text-gray-500 mb-4">
+          この範囲内で目撃情報が投稿された場合に通知します
+        </p>
+        <select
+          name="searchRadiusKm"
+          value={form.searchRadiusKm}
+          onChange={handleChange}
+          className="select-field"
+        >
+          {SEARCH_RADIUS_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* 連絡先 */}
       <div className="bg-white rounded-xl shadow-sm p-5">
         <h2 className="font-semibold text-gray-800 mb-4">連絡先情報</h2>
+
+        {user ? (
+          <label className="flex items-center gap-2 mb-4 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={useUserInfoChecked}
+              onChange={(e) => handleUseUserInfo(e.target.checked)}
+              className="w-4 h-4 accent-red-500"
+            />
+            <span className="text-sm text-gray-700">会員情報と同じものを使用する</span>
+          </label>
+        ) : (
+          <div className="flex items-center gap-2 mb-4 opacity-50">
+            <input type="checkbox" disabled className="w-4 h-4" />
+            <span className="text-sm text-gray-500">
+              会員情報と同じものを使用する（ログイン後に利用できます）
+            </span>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {ownerDisplayName && (
             <div className="sm:col-span-2">
@@ -648,16 +616,6 @@ function FormInner({ userId, ownerDisplayName, defaultType = 'lost', pet }: Prop
               onChange={handleChange}
               className="input-field"
               placeholder="090-0000-0000"
-            />
-          </div>
-          <div className="sm:col-span-2">
-            <label className="label">お礼（任意）</label>
-            <input
-              name="reward"
-              value={form.reward}
-              onChange={handleChange}
-              className="input-field"
-              placeholder="例: お礼あり"
             />
           </div>
         </div>

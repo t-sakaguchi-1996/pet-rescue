@@ -9,6 +9,7 @@ interface Props {
     type?: string
     species?: string
     prefecture?: string
+    city?: string
     status?: string
   }
 }
@@ -18,13 +19,20 @@ export default function SearchFilter({ currentParams }: Props) {
   const [type, setType] = useState(currentParams.type ?? '')
   const [species, setSpecies] = useState(currentParams.species ?? '')
   const [prefecture, setPrefecture] = useState(currentParams.prefecture ?? '')
+  const [city, setCity] = useState(currentParams.city ?? '')
   const [status, setStatus] = useState(currentParams.status ?? 'searching')
+
+  const handlePrefectureChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setPrefecture(e.target.value)
+    setCity('')
+  }
 
   const handleSearch = () => {
     const params = new URLSearchParams()
     if (type) params.set('type', type)
     if (species) params.set('species', species)
     if (prefecture) params.set('prefecture', prefecture)
+    if (city) params.set('city', city)
     if (status) params.set('status', status)
     router.push(`/?${params.toString()}`)
   }
@@ -33,13 +41,14 @@ export default function SearchFilter({ currentParams }: Props) {
     setType('')
     setSpecies('')
     setPrefecture('')
+    setCity('')
     setStatus('searching')
     router.push('/')
   }
 
   return (
     <div className="bg-white rounded-xl shadow-sm p-4">
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <div>
           <label className="label text-xs">種別</label>
           <select
@@ -70,10 +79,24 @@ export default function SearchFilter({ currentParams }: Props) {
         </div>
 
         <div>
+          <label className="label text-xs">状態</label>
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            className="select-field text-sm py-2"
+          >
+            <option value="">すべて</option>
+            <option value="searching">捜索中</option>
+            <option value="protected">保護済み</option>
+            <option value="resolved">解決済み</option>
+          </select>
+        </div>
+
+        <div>
           <label className="label text-xs">都道府県</label>
           <select
             value={prefecture}
-            onChange={(e) => setPrefecture(e.target.value)}
+            onChange={handlePrefectureChange}
             className="select-field text-sm py-2"
           >
             <option value="">すべて</option>
@@ -86,17 +109,15 @@ export default function SearchFilter({ currentParams }: Props) {
         </div>
 
         <div>
-          <label className="label text-xs">状態</label>
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            className="select-field text-sm py-2"
-          >
-            <option value="">すべて</option>
-            <option value="searching">捜索中</option>
-            <option value="protected">保護済み</option>
-            <option value="resolved">解決済み</option>
-          </select>
+          <label className="label text-xs">市区町村</label>
+          <input
+            type="text"
+            value={city}
+            onChange={(e) => setCity(e.target.value)}
+            placeholder={prefecture ? '例: 新宿区' : '都道府県を先に選択'}
+            disabled={!prefecture}
+            className="input-field text-sm py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          />
         </div>
       </div>
 

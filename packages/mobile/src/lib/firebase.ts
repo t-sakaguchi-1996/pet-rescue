@@ -2,8 +2,13 @@ import { initializeApp, getApps, type FirebaseApp } from 'firebase/app'
 import {
   getAuth,
   initializeAuth,
-  getReactNativePersistence,
 } from 'firebase/auth'
+import type { Persistence } from 'firebase/auth'
+// getReactNativePersistence is only in the React Native build (dist/rn), not in Node types
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { getReactNativePersistence } = require('firebase/auth') as {
+  getReactNativePersistence: (storage: unknown) => Persistence
+}
 import { getFirestore } from 'firebase/firestore'
 import { getStorage } from 'firebase/storage'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -28,12 +33,13 @@ if (getApps().length === 0) {
 }
 
 // AsyncStorageで認証状態を永続化
-let _auth
+let _auth: ReturnType<typeof getAuth>
 try {
   _auth = initializeAuth(app, {
     persistence: getReactNativePersistence(AsyncStorage),
   })
 } catch {
+  // auth already initialized (hot reload / fast refresh)
   _auth = getAuth(app)
 }
 

@@ -21,6 +21,7 @@ function HomeContent() {
     type:       searchParams.get('type')       ?? undefined,
     species:    searchParams.get('species')    ?? undefined,
     prefecture: searchParams.get('prefecture') ?? undefined,
+    city:       searchParams.get('city')       ?? undefined,
     status:     searchParams.get('status')     ?? undefined,
   }
 
@@ -31,6 +32,7 @@ function HomeContent() {
       type:       params.type    as 'lost' | 'found' | undefined,
       species:    params.species as 'dog' | 'cat' | 'rabbit' | 'bird' | 'other' | undefined,
       prefecture: params.prefecture,
+      city:       params.city,
       status:     (params.status as 'searching' | 'protected' | 'resolved') ?? 'searching',
       limitCount: 50,
     })
@@ -81,7 +83,7 @@ function HomeContent() {
           </span>
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-black leading-snug"
               style={{ color: '#3D2400' }}>
-            ANIMAL MyGO
+            ANIMAL GO
           </h1>
           <p className="mt-2 text-base sm:text-lg font-bold" style={{ color: '#7A4500' }}>
             迷子ペットを、みんなの力で見つけよう

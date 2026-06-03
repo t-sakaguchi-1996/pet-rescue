@@ -1,49 +1,39 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import Image from 'next/image'
+import { APIProvider } from '@vis.gl/react-google-maps'
 import { useAuth } from '@/contexts/AuthContext'
 import { createSighting, uploadSightingImage } from '@/lib/sightings'
 import { grantSightingPoints } from '@/lib/points'
 import { checkAndAwardBadges } from '@/lib/titles'
 import { PREFECTURES, SPECIES_LABELS, type PetSpecies } from '@pet-rescue/shared'
+import LocationMapPicker, { type LocationData } from './LocationMapPicker'
+
+const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? ''
 
 interface Props {
   onSuccess?: (sightingId: string, wasGuest: boolean) => void
   defaultSpecies?: PetSpecies
 }
 
-async function reverseGeocode(lat: number, lng: number): Promise<{
-  address: string; city: string; prefecture: string
-} | null> {
-  const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
-  if (!key) return null
-  try {
-    const res = await fetch(
-      `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${key}&language=ja`
-    )
-    const data = await res.json()
-    if (data.status !== 'OK' || !data.results[0]) return null
-    const comps = data.results[0].address_components as { types: string[]; long_name: string }[]
-    const prefecture = comps.find((c) => c.types.includes('administrative_area_level_1'))?.long_name ?? ''
-    const city =
-      comps.find((c) => c.types.includes('locality'))?.long_name ??
-      comps.find((c) => c.types.includes('administrative_area_level_2'))?.long_name ?? ''
-    return { address: data.results[0].formatted_address, city, prefecture }
-  } catch {
-    return null
-  }
-}
-
 const SPECIES_OPTIONS: { value: PetSpecies; label: string; emoji: string }[] = [
-  { value: 'dog',    label: '犬',     emoji: '🐕' },
-  { value: 'cat',    label: '猫',     emoji: '🐈' },
+  { value: 'dog', label: '犬', emoji: '🐕' },
+  { value: 'cat', label: '猫', emoji: '🐈' },
   { value: 'rabbit', label: 'うさぎ', emoji: '🐇' },
-  { value: 'bird',   label: '鳥',     emoji: '🐦' },
-  { value: 'other',  label: 'その他', emoji: '🐾' },
+  { value: 'bird', label: '鳥', emoji: '🐦' },
+  { value: 'other', label: 'その他', emoji: '🐾' },
 ]
 
 export default function SightingForm({ onSuccess, defaultSpecies }: Props) {
+  return (
+    <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
+      <SightingFormInner onSuccess={onSuccess} defaultSpecies={defaultSpecies} />
+    </APIProvider>
+  )
+}
+
+function SightingFormInner({ onSuccess, defaultSpecies }: Props) {
   const { user, profile } = useAuth()
   const [species, setSpecies] = useState<PetSpecies>(defaultSpecies ?? 'dog')
   const [title, setTitle] = useState('')
@@ -52,42 +42,19 @@ export default function SightingForm({ onSuccess, defaultSpecies }: Props) {
   const [address, setAddress] = useState('')
   const [city, setCity] = useState('')
   const [prefecture, setPrefecture] = useState('東京都')
-  const [lat, setLat] = useState<number | null>(null)
-  const [lng, setLng] = useState<number | null>(null)
+  const [pinLocation, setPinLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [photos, setPhotos] = useState<File[]>([])
   const [previews, setPreviews] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
-  const [gettingLocation, setGettingLocation] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const handleGetLocation = () => {
-    if (!navigator.geolocation) {
-      setError('この端末では現在位置の取得に対応していません')
-      return
-    }
-    setGettingLocation(true)
-    setError('')
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const { latitude, longitude } = pos.coords
-        setLat(latitude)
-        setLng(longitude)
-        const geo = await reverseGeocode(latitude, longitude)
-        if (geo) {
-          setAddress(geo.address)
-          setCity(geo.city)
-          if (PREFECTURES.includes(geo.prefecture)) setPrefecture(geo.prefecture)
-        }
-        setGettingLocation(false)
-      },
-      () => {
-        setError('現在位置の取得に失敗しました。手動で入力してください。')
-        setGettingLocation(false)
-      },
-      { timeout: 10000 }
-    )
-  }
+  const handlePinChange = useCallback((loc: LocationData) => {
+    setPinLocation({ lat: loc.lat, lng: loc.lng })
+    if (loc.address) setAddress(loc.address)
+    if (loc.city) setCity(loc.city)
+    if (loc.prefecture && PREFECTURES.includes(loc.prefecture)) setPrefecture(loc.prefecture)
+  }, [])
 
   const handleFiles = (files: FileList | null) => {
     if (!files) return
@@ -110,7 +77,7 @@ export default function SightingForm({ onSuccess, defaultSpecies }: Props) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!title.trim()) { setError('タイトルを入力してください'); return }
-    if (!address.trim() && lat === null) { setError('場所を入力してください'); return }
+    if (!address.trim() && pinLocation === null) { setError('場所を入力してください'); return }
     if (!user && !guestEmail.trim()) { setError('メールアドレスを入力してください'); return }
 
     setSubmitting(true)
@@ -137,8 +104,8 @@ export default function SightingForm({ onSuccess, defaultSpecies }: Props) {
           address: address.trim() || `${prefecture} ${city}`,
           city: city.trim(),
           prefecture,
-          lat: lat ?? undefined,
-          lng: lng ?? undefined,
+          lat: pinLocation?.lat,
+          lng: pinLocation?.lng,
         },
         description: description.trim() || undefined,
         userId: user?.uid,
@@ -149,11 +116,9 @@ export default function SightingForm({ onSuccess, defaultSpecies }: Props) {
           : '未登録ユーザー',
       })
 
-      // ログイン済みならすぐにポイントを付与
       if (user) {
         const today = new Date().toISOString().split('T')[0]
         await grantSightingPoints(user.uid, sightingId, today)
-        // バッジチェック（初投稿・初目撃投稿）
         await checkAndAwardBadges(user.uid, {
           isFirstPost: true,
           isFirstSighting: true,
@@ -256,21 +221,18 @@ export default function SightingForm({ onSuccess, defaultSpecies }: Props) {
         <label className="label">
           場所 <span className="text-red-500">*</span>
         </label>
-        <button
-          type="button"
-          onClick={handleGetLocation}
-          disabled={gettingLocation}
-          className="mb-2 flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all active:scale-95 disabled:opacity-50"
-          style={{ background: '#FFF3DC', color: '#7A4500', border: '1.5px solid #FFD98A' }}
-        >
-          📍 {gettingLocation ? '取得中...' : '現在位置を自動取得'}
-        </button>
-        {lat !== null && (
-          <p className="text-xs mb-2" style={{ color: '#2AAA6E' }}>
-            ✓ 位置情報を取得しました
-          </p>
-        )}
-        <div className="grid grid-cols-2 gap-2 mb-2">
+
+        <LocationMapPicker
+          mapInstanceId="sighting-form-map"
+          pinLocation={pinLocation}
+          species={species}
+          showRadiusCircle={false}
+          draggable
+          autoDetectOnMount
+          onPinChange={handlePinChange}
+        />
+
+        <div className="grid grid-cols-2 gap-2 mt-3">
           <select
             value={prefecture}
             onChange={(e) => setPrefecture(e.target.value)}
@@ -292,7 +254,7 @@ export default function SightingForm({ onSuccess, defaultSpecies }: Props) {
           type="text"
           value={address}
           onChange={(e) => setAddress(e.target.value)}
-          className="input-field"
+          className="input-field mt-2"
           placeholder="詳しい場所（例: ○○公園付近）"
         />
       </div>

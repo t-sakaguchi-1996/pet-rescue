@@ -9,6 +9,16 @@ import {
 import MapCircle from './MapCircle'
 import type { PetSpecies, PetType } from '@pet-rescue/shared'
 
+function speciesGlyph(species: PetSpecies): string {
+  switch (species) {
+    case 'dog': return '🐕'
+    case 'cat': return '🐈'
+    case 'rabbit': return '🐇'
+    case 'bird': return '🐦'
+    default: return '🐾'
+  }
+}
+
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? ''
 interface NearbyPet {
   id: string
@@ -51,7 +61,7 @@ export default function SightingMap({ sightingLat, sightingLng, nearbyPets = [] 
                 background={pet.type === 'lost' ? '#ef4444' : '#3b82f6'}
                 borderColor={pet.type === 'lost' ? '#b91c1c' : '#1d4ed8'}
                 glyphColor="white"
-                glyph={pet.species === 'dog' ? '🐕' : pet.species === 'cat' ? '🐈' : '🐾'}
+                glyph={speciesGlyph(pet.species)}
               />
             </AdvancedMarker>
             <MapCircle

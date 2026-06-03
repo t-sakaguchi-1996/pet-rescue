@@ -29,7 +29,7 @@ export interface Pet {
   ownerDisplayName?: string
   contactEmail: string
   contactPhone: string
-  reward?: string
+  searchRadiusKm?: number
   bestInfoId?: string
   bestInfoType?: 'comment' | 'sighting'
   bestInfoPointGranted?: boolean
@@ -144,7 +144,7 @@ export const TITLE_DEFINITIONS: TitleDefinition[] = [
   { id: 'first_contributor', name: '初回協力者', requiredPoints: 10 },
   { id: 'community_watcher', name: '地域見守りメンバー', requiredPoints: 100 },
   { id: 'search_supporter', name: '捜索サポーター', requiredPoints: 500 },
-  { id: 'mygo_supporter', name: 'ANIMAL MyGOサポーター', requiredPoints: 1000 },
+  { id: 'mygo_supporter', name: 'ANIMAL GOサポーター', requiredPoints: 1000 },
   { id: 'info_provider', name: '有力情報提供者', requiredPoints: 3000 },
   { id: 'regional_rescue', name: '地域レスキュー協力者', requiredPoints: 5000 },
   { id: 'certified_supporter', name: '認定サポーター', requiredPoints: 10000 },
@@ -236,7 +236,7 @@ export interface Sighting {
 export interface AppNotification {
   id: string
   userId: string
-  type: 'comment' | 'reply' | 'sighting_nearby' | 'found_nearby' | 'best_info_selected' | 'points_granted' | 'discovery_bonus' | 'reward_exchange_requested'
+  type: 'comment' | 'reply' | 'sighting_nearby' | 'found_nearby' | 'best_info_selected' | 'points_granted' | 'discovery_bonus' | 'reward_exchange_requested' | 'prefecture_sighting'
   petId: string
   petName: string
   fromUserId?: string

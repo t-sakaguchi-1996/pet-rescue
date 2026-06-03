@@ -17,6 +17,13 @@ import { db, storage } from './firebase'
 import type { Sighting, SightingLocation, PetSpecies } from '@pet-rescue/shared'
 import { fetchPets } from './firestore'
 
+export interface SightingFilter {
+  prefecture?: string
+  city?: string
+  species?: PetSpecies
+  limitCount?: number
+}
+
 const SIGHTINGS = 'sightings'
 const NOTIFICATIONS = 'notifications'
 
@@ -112,7 +119,24 @@ export async function createSighting(params: {
   return ref2.id
 }
 
-/** 目撃・保護投稿の位置情報をチェックし、近隣の迷子投稿者に通知 */
+/** 指定の通知が既に存在するか確認（重複防止） */
+async function notificationExists(
+  sightingId: string,
+  petId: string,
+  type: string
+): Promise<boolean> {
+  const q = query(
+    collection(db, NOTIFICATIONS),
+    where('sightingId', '==', sightingId),
+    where('petId', '==', petId),
+    where('type', '==', type),
+    limit(1)
+  )
+  const snap = await getDocs(q)
+  return !snap.empty
+}
+
+/** 目撃・保護投稿の位置情報をチェックし、近隣または同県の迷子/保護投稿者に通知 */
 async function notifyNearbyLostPets(
   sightingId: string,
   sightingLocation: SightingLocation,
@@ -122,36 +146,57 @@ async function notifyNearbyLostPets(
   sightingUserId?: string
 ): Promise<void> {
   try {
-    const lostPets = await fetchPets({
-      type: 'lost',
-      status: 'searching',
-      limitCount: 100,
-    })
+    const [lostPets, foundPets] = await Promise.all([
+      fetchPets({ type: 'lost', status: 'searching', limitCount: 100 }),
+      fetchPets({ type: 'found', status: 'searching', limitCount: 100 }),
+    ])
+    const allPets = [...lostPets, ...foundPets]
 
     const now = Timestamp.now()
     const notifications: Promise<unknown>[] = []
 
-    for (const pet of lostPets) {
-      // 自分の迷子投稿には通知しない
+    for (const pet of allPets) {
       if (sightingUserId && pet.userId === sightingUserId) continue
-      // 動物種が設定されている場合は一致するもののみ通知
       if (sightingSpecies && pet.species !== sightingSpecies) continue
 
-      const isNearby = isLocationNearby(sightingLocation, pet.location)
-      if (!isNearby) continue
+      const radiusKm = pet.searchRadiusKm ?? 5
+      const withinRadius = isWithinRadius(sightingLocation, pet.location, radiusKm)
 
-      notifications.push(
-        addDoc(collection(db, NOTIFICATIONS), {
-          userId: pet.userId,
-          type: notifType,
-          petId: pet.id,
-          petName: pet.name || '名前不明',
-          sightingId,
-          fromUserDisplayName: sightingTitle,
-          isRead: false,
-          createdAt: now,
-        })
-      )
+      if (withinRadius) {
+        // 探知範囲内 → sighting_nearby (または found_nearby)
+        const alreadySent = await notificationExists(sightingId, pet.id, notifType)
+        if (!alreadySent) {
+          notifications.push(
+            addDoc(collection(db, NOTIFICATIONS), {
+              userId: pet.userId,
+              type: notifType,
+              petId: pet.id,
+              petName: pet.name || '名前不明',
+              sightingId,
+              fromUserDisplayName: sightingTitle,
+              isRead: false,
+              createdAt: now,
+            })
+          )
+        }
+      } else if (isSamePrefecture(sightingLocation, pet.location)) {
+        // 探知範囲外だが同じ都道府県内 → prefecture_sighting
+        const alreadySent = await notificationExists(sightingId, pet.id, 'prefecture_sighting')
+        if (!alreadySent) {
+          notifications.push(
+            addDoc(collection(db, NOTIFICATIONS), {
+              userId: pet.userId,
+              type: 'prefecture_sighting',
+              petId: pet.id,
+              petName: pet.name || '名前不明',
+              sightingId,
+              fromUserDisplayName: sightingTitle,
+              isRead: false,
+              createdAt: now,
+            })
+          )
+        }
+      }
     }
 
     await Promise.all(notifications)
@@ -160,16 +205,12 @@ async function notifyNearbyLostPets(
   }
 }
 
-/** 目撃・保護投稿の位置情報が迷子投稿と近いか判定 */
-function isLocationNearby(
+/** 目撃位置が迷子/保護投稿の探知範囲内か判定 */
+function isWithinRadius(
   sightingLoc: SightingLocation,
-  petLoc: { city: string; lat: number; lng: number }
+  petLoc: { city: string; lat: number; lng: number },
+  radiusKm: number
 ): boolean {
-  // 同じ市区町村
-  if (sightingLoc.city && petLoc.city && sightingLoc.city === petLoc.city) {
-    return true
-  }
-  // 5km以内
   if (
     sightingLoc.lat !== undefined &&
     sightingLoc.lng !== undefined &&
@@ -180,9 +221,25 @@ function isLocationNearby(
       sightingLoc.lat, sightingLoc.lng,
       petLoc.lat, petLoc.lng
     )
-    if (dist <= 5) return true
+    if (dist <= radiusKm) return true
+  }
+  // 座標がない場合は市区町村で代替判定
+  if (sightingLoc.city && petLoc.city && sightingLoc.city === petLoc.city) {
+    return true
   }
   return false
+}
+
+/** 目撃位置と迷子/保護投稿が同じ都道府県か判定 */
+function isSamePrefecture(
+  sightingLoc: SightingLocation,
+  petLoc: { prefecture: string }
+): boolean {
+  return Boolean(
+    sightingLoc.prefecture &&
+    petLoc.prefecture &&
+    sightingLoc.prefecture === petLoc.prefecture
+  )
 }
 
 /** 保護投稿作成後に近隣通知 */
@@ -212,6 +269,18 @@ export async function fetchSightings(limitCount = 20): Promise<Sighting[]> {
   )
   const snap = await getDocs(q)
   return snap.docs.map((d) => toSighting(d.id, d.data()))
+}
+
+/** フィルター付き目撃情報取得（クライアント側で絞り込み） */
+export async function fetchSightingsFiltered(filter: SightingFilter): Promise<Sighting[]> {
+  const fetchLimit = filter.limitCount ?? 100
+  const sightings = await fetchSightings(fetchLimit)
+  return sightings.filter((s) => {
+    if (filter.prefecture && s.location.prefecture !== filter.prefecture) return false
+    if (filter.city && s.location.city !== filter.city) return false
+    if (filter.species && s.species !== filter.species) return false
+    return true
+  })
 }
 
 /** ユーザーの目撃投稿一覧 */

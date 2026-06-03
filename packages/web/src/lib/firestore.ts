@@ -56,7 +56,7 @@ function toPet(id: string, data: Record<string, unknown>): Pet {
     ownerDisplayName: data.ownerDisplayName as string | undefined,
     contactEmail: (data.contactEmail as string) ?? '',
     contactPhone: (data.contactPhone as string) ?? '',
-    reward: data.reward as string | undefined,
+    searchRadiusKm: data.searchRadiusKm as number | undefined,
     bestInfoId: data.bestInfoId as string | undefined,
     bestInfoType: data.bestInfoType as 'comment' | 'sighting' | undefined,
     bestInfoPointGranted: Boolean(data.bestInfoPointGranted),
@@ -76,6 +76,7 @@ export interface PetFilter {
   type?: PetType
   species?: PetSpecies
   prefecture?: string
+  city?: string
   status?: PetStatus
   limitCount?: number
 }
@@ -87,6 +88,8 @@ export async function fetchPets(filter: PetFilter = {}): Promise<Pet[]> {
   if (filter.species) constraints.push(where('species', '==', filter.species))
   if (filter.prefecture)
     constraints.push(where('location.prefecture', '==', filter.prefecture))
+  if (filter.city)
+    constraints.push(where('location.city', '==', filter.city))
   if (filter.status) constraints.push(where('status', '==', filter.status))
   if (filter.limitCount) constraints.push(limit(filter.limitCount))
 

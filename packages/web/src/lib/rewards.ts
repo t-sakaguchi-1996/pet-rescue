@@ -271,7 +271,7 @@ export async function seedInitialRewards(): Promise<void> {
     { name: 'プロフィールバッジ', description: 'プロフィールに表示できる特別バッジです', requiredPoints: 100, rewardType: 'badge', stock: null, monthlyExchangeLimit: null, isActive: true },
     { name: '称号「地域見守りメンバー」', description: 'プロフィールや投稿に表示できる称号です', requiredPoints: 300, rewardType: 'title', stock: null, monthlyExchangeLimit: null, isActive: true },
     { name: '称号「捜索サポーター」', description: 'プロフィールや投稿に表示できる称号です', requiredPoints: 500, rewardType: 'title', stock: null, monthlyExchangeLimit: null, isActive: true },
-    { name: 'ANIMAL MyGOステッカー', description: 'オリジナルステッカーをご自宅にお届けします', requiredPoints: 1000, rewardType: 'sticker', stock: 100, monthlyExchangeLimit: null, isActive: true },
+    { name: 'ANIMAL GOステッカー', description: 'オリジナルステッカーをご自宅にお届けします', requiredPoints: 1000, rewardType: 'sticker', stock: 100, monthlyExchangeLimit: null, isActive: true },
     { name: '迷子札・ペット用品クーポン500円分', description: '提携ペット用品店で使えるクーポンです', requiredPoints: 2500, rewardType: 'coupon', stock: null, monthlyExchangeLimit: null, isActive: true },
     { name: 'ペット用品クーポン1,000円分', description: '提携ペット用品店で使えるクーポンです', requiredPoints: 5000, rewardType: 'coupon', stock: null, monthlyExchangeLimit: null, isActive: true },
     { name: 'ペット用品クーポン2,000円分', description: '提携ペット用品店で使えるクーポンです（月1回まで）', requiredPoints: 10000, rewardType: 'coupon', stock: null, monthlyExchangeLimit: 1, isActive: true },
