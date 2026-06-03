@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "544991170366",
+    "project_id": "pet-rescue-9f570",
+    "storage_bucket": "pet-rescue-9f570.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:544991170366:android:77b4e14deaa8f934c0266f",
+        "android_client_info": {
+          "package_name": "com.petrescue.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBlowq7n5LVYq6AX1_ms3DKOApr0XxoqoI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

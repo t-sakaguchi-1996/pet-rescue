@@ -22,7 +22,6 @@ Thumbs.db
 .idea/
 
 # Firebase credentials (APIキーを含むため除外)
-packages/mobile/google-services.json
 packages/mobile/GoogleService-Info.plist
 packages/mobile/.env
 packages/web/.env.local

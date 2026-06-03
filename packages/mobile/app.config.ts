@@ -30,6 +30,11 @@ const config: ExpoConfig = {
     },
     package: 'com.petrescue.app',
     googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? './google-services.json',
+    config: {
+      googleMaps: {
+        apiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? '',
+      },
+    },
     permissions: [
       'ACCESS_FINE_LOCATION',
       'ACCESS_COARSE_LOCATION',
