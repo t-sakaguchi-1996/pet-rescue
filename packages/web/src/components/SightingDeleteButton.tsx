@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
+import { useLoadingState } from '@/contexts/LoadingContext'
 import { deleteSighting } from '@/lib/sightings'
 
 interface Props {
@@ -13,6 +14,7 @@ interface Props {
 export default function SightingDeleteButton({ sightingId, sightingUserId }: Props) {
   const { user } = useAuth()
   const router = useRouter()
+  const { startLoading, stopLoading } = useLoadingState()
   const [deleting, setDeleting] = useState(false)
 
   if (!user || user.uid !== sightingUserId) return null
@@ -20,12 +22,14 @@ export default function SightingDeleteButton({ sightingId, sightingUserId }: Pro
   const handleDelete = async () => {
     if (!window.confirm('この目撃情報を削除しますか？\nこの操作は取り消せません。')) return
     setDeleting(true)
+    startLoading()
     try {
       await deleteSighting(sightingId)
       router.push('/sightings')
     } catch {
       alert('削除に失敗しました。もう一度お試しください。')
       setDeleting(false)
+      stopLoading()
     }
   }
 

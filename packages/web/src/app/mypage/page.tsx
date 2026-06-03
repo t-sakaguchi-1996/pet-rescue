@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useLoadingState } from '@/contexts/LoadingContext'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useAuth } from '@/contexts/AuthContext'
@@ -23,9 +24,11 @@ type MyPageTab = 'overview' | 'points' | 'titles' | 'rewards' | 'settings' | 'po
 export default function MyPage() {
   const router = useRouter()
   const { user, profile, loading, logout, updateUserProfile, updateUserPhotoURL, updateUserEmail, updateSelectedTitle, updateShowInRanking, refreshProfile } = useAuth()
+  const { startLoading, stopLoading } = useLoadingState()
   const isAdmin = user?.email ? ADMIN_EMAILS.includes(user.email) : false
   const [pets, setPets] = useState<Pet[]>([])
   const [petsLoading, setPetsLoading] = useState(true)
+  const [loggingOut, setLoggingOut] = useState(false)
   const [transactions, setTransactions] = useState<PointTransaction[]>([])
   const [exchanges, setExchanges] = useState<RewardExchange[]>([])
   const [myTotalRank, setMyTotalRank] = useState<number | null>(null)
@@ -92,8 +95,14 @@ export default function MyPage() {
   }, [user, profile])
 
   const handleLogout = async () => {
-    await logout()
-    router.push('/')
+    setLoggingOut(true)
+    startLoading()
+    try {
+      await logout()
+      router.push('/')
+    } finally {
+      stopLoading()
+    }
   }
 
   const handleAvatarSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -109,6 +118,7 @@ export default function MyPage() {
   const handleAvatarUpload = async () => {
     if (!avatarFile || !user) return
     setUploadingAvatar(true)
+    startLoading()
     try {
       const url = await uploadAvatarImage(user.uid, avatarFile)
       await updateUserPhotoURL(url)
@@ -118,6 +128,7 @@ export default function MyPage() {
       alert('画像のアップロードに失敗しました。')
     } finally {
       setUploadingAvatar(false)
+      stopLoading()
     }
   }
 
@@ -125,6 +136,7 @@ export default function MyPage() {
     if (!displayName.trim()) return
     setSavingProfile(true)
     setProfileError('')
+    startLoading()
     try {
       await updateUserProfile(displayName.trim())
       setEditingProfile(false)
@@ -132,6 +144,7 @@ export default function MyPage() {
       setProfileError('保存に失敗しました。')
     } finally {
       setSavingProfile(false)
+      stopLoading()
     }
   }
 
@@ -140,6 +153,7 @@ export default function MyPage() {
     if (!newEmail.trim() || !currentPassword) return
     setSavingEmail(true)
     setEmailError('')
+    startLoading()
     try {
       await updateUserEmail(newEmail.trim(), currentPassword)
       setEmailSuccess(true)
@@ -155,25 +169,31 @@ export default function MyPage() {
       }
     } finally {
       setSavingEmail(false)
+      stopLoading()
     }
   }
 
   const handleDeletePet = async (petId: string) => {
     if (!confirm('この投稿を削除しますか？')) return
+    startLoading()
     try {
       await deletePet(petId)
       setPets((prev) => prev.filter((p) => p.id !== petId))
     } catch {
       alert('削除に失敗しました。')
+    } finally {
+      stopLoading()
     }
   }
 
   const handleSaveTitle = async () => {
     setSavingTitle(true)
+    startLoading()
     try {
       await updateSelectedTitle(selectedTitleEdit)
     } finally {
       setSavingTitle(false)
+      stopLoading()
     }
   }
 
@@ -215,11 +235,12 @@ export default function MyPage() {
         <AdminDashboard />
         <div className="mt-8 pt-6 border-t" style={{ borderColor: '#FFE0A0' }}>
           <button
-            onClick={async () => { await logout(); router.push('/') }}
-            className="text-sm font-bold px-4 py-2 rounded-xl"
+            onClick={handleLogout}
+            disabled={loggingOut}
+            className="text-sm font-bold px-4 py-2 rounded-xl disabled:opacity-60"
             style={{ background: '#FFE8E8', color: '#CC3333' }}
           >
-            ログアウト
+            {loggingOut ? 'ログアウト中...' : 'ログアウト'}
           </button>
         </div>
       </div>
@@ -304,8 +325,8 @@ export default function MyPage() {
               <button onClick={() => setEditingProfile(true)} className="btn-secondary text-xs whitespace-nowrap">
                 名前を編集
               </button>
-              <button onClick={handleLogout} className="text-xs text-gray-400 hover:text-gray-600">
-                ログアウト
+              <button onClick={handleLogout} disabled={loggingOut} className="text-xs text-gray-400 hover:text-gray-600 disabled:opacity-60">
+                {loggingOut ? 'ログアウト中...' : 'ログアウト'}
               </button>
             </div>
           )}

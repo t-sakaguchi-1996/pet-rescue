@@ -236,7 +236,7 @@ export interface Sighting {
 export interface AppNotification {
   id: string
   userId: string
-  type: 'comment' | 'reply' | 'sighting_nearby' | 'found_nearby' | 'best_info_selected' | 'points_granted' | 'discovery_bonus' | 'reward_exchange_requested' | 'prefecture_sighting'
+  type: 'comment' | 'reply' | 'sighting_nearby' | 'found_nearby' | 'best_info_selected' | 'points_granted' | 'discovery_bonus' | 'reward_exchange_requested' | 'prefecture_sighting' | 'new_matched_sighting_after_edit' | 'new_matched_protected_after_edit'
   petId: string
   petName: string
   fromUserId?: string

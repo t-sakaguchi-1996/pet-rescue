@@ -4,10 +4,12 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
+import { useLoadingState } from '@/contexts/LoadingContext'
 
 export default function LoginPage() {
   const router = useRouter()
   const { login } = useAuth()
+  const { startLoading, stopLoading } = useLoadingState()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -17,6 +19,7 @@ export default function LoginPage() {
     e.preventDefault()
     setError('')
     setLoading(true)
+    startLoading()
     try {
       await login(email, password)
       router.push('/mypage')
@@ -24,6 +27,7 @@ export default function LoginPage() {
       setError('メールアドレスまたはパスワードが正しくありません')
     } finally {
       setLoading(false)
+      stopLoading()
     }
   }
 

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { doc, getDoc, updateDoc, Timestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/contexts/AuthContext'
+import { useLoadingState } from '@/contexts/LoadingContext'
 import { grantDiscoveryBonus } from '@/lib/points'
 import { checkAndAwardBadges } from '@/lib/titles'
 import { notifyBestInfoSelected } from '@/lib/notifications'
@@ -26,6 +27,7 @@ export default function DiscoveryConfirmButton({
   discoveryBonusGranted = false,
 }: Props) {
   const { user } = useAuth()
+  const { startLoading, stopLoading } = useLoadingState()
   const [processing, setProcessing] = useState(false)
   const [done, setDone] = useState(discoveryBonusGranted)
 
@@ -53,6 +55,7 @@ export default function DiscoveryConfirmButton({
     )) return
 
     setProcessing(true)
+    startLoading()
     try {
       // 最有力情報の投稿者 userId を取得
       let contributorUserId: string | undefined
@@ -94,6 +97,7 @@ export default function DiscoveryConfirmButton({
       alert('処理に失敗しました。もう一度お試しください。')
     } finally {
       setProcessing(false)
+      stopLoading()
     }
   }
 

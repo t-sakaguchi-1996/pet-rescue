@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from 'react'
 import Image from 'next/image'
 import { APIProvider } from '@vis.gl/react-google-maps'
 import { useAuth } from '@/contexts/AuthContext'
+import { useLoadingState } from '@/contexts/LoadingContext'
 import { createSighting, uploadSightingImage } from '@/lib/sightings'
 import { grantSightingPoints } from '@/lib/points'
 import { checkAndAwardBadges } from '@/lib/titles'
@@ -35,6 +36,7 @@ export default function SightingForm({ onSuccess, defaultSpecies }: Props) {
 
 function SightingFormInner({ onSuccess, defaultSpecies }: Props) {
   const { user, profile } = useAuth()
+  const { startLoading, stopLoading } = useLoadingState()
   const [species, setSpecies] = useState<PetSpecies>(defaultSpecies ?? 'dog')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -82,6 +84,7 @@ function SightingFormInner({ onSuccess, defaultSpecies }: Props) {
 
     setSubmitting(true)
     setError('')
+    startLoading()
 
     try {
       let temporaryId = ''
@@ -131,6 +134,7 @@ function SightingFormInner({ onSuccess, defaultSpecies }: Props) {
       console.error(err)
     } finally {
       setSubmitting(false)
+      stopLoading()
     }
   }
 

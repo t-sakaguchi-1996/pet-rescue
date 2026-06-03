@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { format } from 'date-fns'
 import { ja } from 'date-fns/locale'
 import { useAuth } from '@/contexts/AuthContext'
+import { useLoadingState } from '@/contexts/LoadingContext'
 import {
   createComment,
   createGuestComment,
@@ -28,6 +29,7 @@ interface Props {
 
 export default function CommentSection({ petId, petOwnerId, petName }: Props) {
   const { user, profile } = useAuth()
+  const { startLoading, stopLoading } = useLoadingState()
   const [comments, setComments] = useState<Comment[]>([])
   const [replyingToId, setReplyingToId] = useState<string | null>(null)
   const [userProfiles, setUserProfiles] = useState<Map<string, UserProfile>>(new Map())
@@ -72,14 +74,13 @@ export default function CommentSection({ petId, petOwnerId, petName }: Props) {
 
     if (!window.confirm(confirmMsg)) return
 
+    startLoading()
     try {
       const authorUserId = await selectBestInfo(petId, comment.id)
-      // ログイン済みユーザーのコメントなら即ポイント付与＆通知
       if (authorUserId && !comment.bestInfoPointGranted) {
         await grantBestCommentPoints(authorUserId, comment.id)
         await markBestInfoPointGranted(petId, comment.id)
       }
-      // 最有力情報選択を投稿者に通知（ログイン済みの場合のみ）
       if (authorUserId) {
         await notifyBestInfoSelected({
           recipientUserId: authorUserId,
@@ -90,6 +91,8 @@ export default function CommentSection({ petId, petOwnerId, petName }: Props) {
       }
     } catch (err) {
       console.error('最有力情報の選択に失敗しました', err)
+    } finally {
+      stopLoading()
     }
   }
 
@@ -237,6 +240,7 @@ function CommentItem({
   isReplyActive: boolean
   onSelectBestInfo: () => void
 }) {
+  const { startLoading, stopLoading } = useLoadingState()
   const [deleting, setDeleting] = useState(false)
   const [settingBest, setSettingBest] = useState(false)
   const isOwn = currentUserId && comment.userId ? currentUserId === comment.userId : false
@@ -251,10 +255,12 @@ function CommentItem({
   const handleDelete = async () => {
     if (!confirm('このコメントを削除しますか？')) return
     setDeleting(true)
+    startLoading()
     try {
       await deleteComment(petId, comment.id)
     } catch {
       setDeleting(false)
+      stopLoading()
     }
   }
 
@@ -373,6 +379,7 @@ function CommentForm({
   compact?: boolean
 }) {
   const { user, profile } = useAuth()
+  const { startLoading, stopLoading } = useLoadingState()
   const [text, setText] = useState('')
   const [files, setFiles] = useState<File[]>([])
   const [previews, setPreviews] = useState<string[]>([])
@@ -408,6 +415,7 @@ function CommentForm({
     if (!user || (!text.trim() && files.length === 0)) return
     setSubmitting(true)
     setError('')
+    startLoading()
     try {
       const imageUrls = await Promise.all(files.map(uploadCommentImage))
       await createComment({
@@ -431,6 +439,7 @@ function CommentForm({
       console.error(err)
     } finally {
       setSubmitting(false)
+      stopLoading()
     }
   }
 
@@ -503,6 +512,7 @@ function GuestCommentForm({
   petOwnerId: string
   petName: string
 }) {
+  const { startLoading, stopLoading } = useLoadingState()
   const [text, setText] = useState('')
   const [guestEmail, setGuestEmail] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -516,6 +526,7 @@ function GuestCommentForm({
 
     setSubmitting(true)
     setError('')
+    startLoading()
     try {
       let temporaryId = localStorage.getItem('animal_go_temp_id') ?? ''
       if (!temporaryId) {
@@ -539,6 +550,7 @@ function GuestCommentForm({
       console.error(err)
     } finally {
       setSubmitting(false)
+      stopLoading()
     }
   }
 

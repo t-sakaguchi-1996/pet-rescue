@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
+import { useLoadingState } from '@/contexts/LoadingContext'
 import { getAllPointTransactions, cancelPointTransaction } from '@/lib/points'
 import { fetchAllRewardExchanges, updateExchangeStatus, fetchAllRewards, updateReward, createReward, seedInitialRewards } from '@/lib/rewards'
 import { getDocs, collection, writeBatch, query, orderBy } from 'firebase/firestore'
@@ -41,6 +42,7 @@ type AdminTab = 'exchanges' | 'points' | 'users' | 'rewards'
 
 export default function AdminDashboard() {
   const { user } = useAuth()
+  const { startLoading, stopLoading } = useLoadingState()
   const [tab, setTab] = useState<AdminTab>('exchanges')
   const [exchanges, setExchanges] = useState<RewardExchange[]>([])
   const [transactions, setTransactions] = useState<PointTransaction[]>([])
@@ -59,6 +61,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     setLoading(true)
+    startLoading()
     Promise.all([
       fetchAllRewardExchanges(),
       getAllPointTransactions(100),
@@ -74,12 +77,21 @@ export default function AdminDashboard() {
         setAllUsers(usersSnap.docs.map((d) => ({ id: d.id, ...d.data() })))
       })
       .catch((err) => console.error('Admin load error:', err))
-      .finally(() => setLoading(false))
+      .finally(() => {
+        setLoading(false)
+        stopLoading()
+      })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleExchangeStatus = async (exchangeId: string, status: ExchangeStatus, note?: string) => {
-    await updateExchangeStatus(exchangeId, status, note)
-    setExchanges((prev) => prev.map((e) => e.id === exchangeId ? { ...e, status } : e))
+    startLoading()
+    try {
+      await updateExchangeStatus(exchangeId, status, note)
+      setExchanges((prev) => prev.map((e) => e.id === exchangeId ? { ...e, status } : e))
+    } finally {
+      stopLoading()
+    }
   }
 
   const handleCancelTransaction = async (txId: string) => {
@@ -87,6 +99,7 @@ export default function AdminDashboard() {
     if (!window.confirm(`このポイントトランザクション(${txId})を取り消しますか？`)) return
     if (!user) return
     setCancellingId(txId)
+    startLoading()
     try {
       await cancelPointTransaction(txId, cancelReason.trim(), user.uid)
       setTransactions((prev) => prev.map((t) => t.id === txId ? { ...t, isCancelled: true } : t))
@@ -95,55 +108,68 @@ export default function AdminDashboard() {
       alert((err as Error).message)
     } finally {
       setCancellingId(null)
+      stopLoading()
     }
   }
 
   const handleResetAllUsers = async () => {
     if (!window.confirm('全ユーザーのポイント・実績・称号・バッジをリセットします。この操作は元に戻せません。続行しますか？')) return
-    const snap = await getDocs(collection(db, 'users'))
-    const CHUNK = 400
-    const docs = snap.docs
-    for (let i = 0; i < docs.length; i += CHUNK) {
-      const batch = writeBatch(db)
-      docs.slice(i, i + CHUNK).forEach((d) => {
-        batch.update(d.ref, {
-          points: 0,
-          totalPointsEarned: 0,
-          sightingCount: 0,
-          protectedPostCount: 0,
-          bestInfoCount: 0,
-          discoveryCount: 0,
-          titles: [],
-          badges: [],
-          selectedTitle: null,
+    startLoading()
+    try {
+      const snap = await getDocs(collection(db, 'users'))
+      const CHUNK = 400
+      const docs = snap.docs
+      for (let i = 0; i < docs.length; i += CHUNK) {
+        const batch = writeBatch(db)
+        docs.slice(i, i + CHUNK).forEach((d) => {
+          batch.update(d.ref, {
+            points: 0,
+            totalPointsEarned: 0,
+            sightingCount: 0,
+            protectedPostCount: 0,
+            bestInfoCount: 0,
+            discoveryCount: 0,
+            titles: [],
+            badges: [],
+            selectedTitle: null,
+          })
         })
-      })
-      await batch.commit()
+        await batch.commit()
+      }
+      alert(`${snap.docs.length}件のユーザーデータをリセットしました`)
+    } finally {
+      stopLoading()
     }
-    alert(`${docs.length}件のユーザーデータをリセットしました`)
   }
 
   const handleSeedRewards = async () => {
     setSeeding(true)
+    startLoading()
     try {
       await seedInitialRewards()
       setRewards(await fetchAllRewards())
       alert('初期景品データを追加しました')
     } finally {
       setSeeding(false)
+      stopLoading()
     }
   }
 
   const handleSaveReward = async () => {
     if (!editingReward) return
-    if (editingReward.id) {
-      await updateReward(editingReward.id, editingReward)
-    } else {
-      await createReward(editingReward as Omit<Reward, 'id' | 'createdAt' | 'updatedAt'>)
+    startLoading()
+    try {
+      if (editingReward.id) {
+        await updateReward(editingReward.id, editingReward)
+      } else {
+        await createReward(editingReward as Omit<Reward, 'id' | 'createdAt' | 'updatedAt'>)
+      }
+      setRewards(await fetchAllRewards())
+      setEditingReward(null)
+      alert('保存しました')
+    } finally {
+      stopLoading()
     }
-    setRewards(await fetchAllRewards())
-    setEditingReward(null)
-    alert('保存しました')
   }
 
   const TABS: { id: AdminTab; label: string }[] = [

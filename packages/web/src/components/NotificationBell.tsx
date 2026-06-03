@@ -61,6 +61,9 @@ function notifLabel(n: AppNotification): string {
         : 'ポイントが付与されました！'
     case 'reward_exchange_requested':
       return `${n.fromUserDisplayName}さんが「${n.rewardName ?? '景品'}」を申請しました`
+    case 'new_matched_sighting_after_edit':
+    case 'new_matched_protected_after_edit':
+      return '新たに目撃や保護情報が見つかりました'
     default:
       return 'お知らせがあります'
   }
@@ -75,6 +78,8 @@ function notifIcon(type: AppNotification['type']): string {
     case 'best_info_selected': return '⭐'
     case 'points_granted': return '🎉'
     case 'reward_exchange_requested': return '🎁'
+    case 'new_matched_sighting_after_edit':
+    case 'new_matched_protected_after_edit': return '🔔'
     default: return '💬'
   }
 }
@@ -92,6 +97,14 @@ function notifHref(n: AppNotification): string {
   }
   // found_nearby の sightingId は実際には保護投稿の petId
   if (n.sightingId && n.type === 'found_nearby') {
+    return `/posts/${n.sightingId}`
+  }
+  // 編集後再判定通知：sightingId が目撃情報 ID
+  if (n.sightingId && n.type === 'new_matched_sighting_after_edit') {
+    return `/sightings/${n.sightingId}`
+  }
+  // 編集後再判定通知：sightingId が保護投稿 ID
+  if (n.sightingId && n.type === 'new_matched_protected_after_edit') {
     return `/posts/${n.sightingId}`
   }
   return n.petId ? `/posts/${n.petId}` : '/mypage'

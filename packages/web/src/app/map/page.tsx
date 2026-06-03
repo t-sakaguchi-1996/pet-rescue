@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { fetchPets } from '@/lib/firestore'
 import { fetchSightings } from '@/lib/sightings'
 import type { Pet, Sighting } from '@pet-rescue/shared'
+import { useLoadingState } from '@/contexts/LoadingContext'
 
 const MapView = dynamic(() => import('@/components/MapView'), {
   ssr: false,
@@ -36,6 +37,7 @@ function parseFilter(raw: string | null): MapFilter {
 export default function MapPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { startLoading, stopLoading } = useLoadingState()
 
   const [pets, setPets] = useState<Pet[]>([])
   const [sightings, setSightings] = useState<Sighting[]>([])
@@ -46,6 +48,7 @@ export default function MapPage() {
   const [filter, setFilter] = useState<MapFilter>(() => parseFilter(searchParams.get('type')))
 
   useEffect(() => {
+    startLoading()
     Promise.all([
       fetchPets({ status: 'searching', limitCount: 200 }),
       fetchSightings(100),
@@ -55,7 +58,11 @@ export default function MapPage() {
         setSightings(sightingsResult)
       })
       .catch(console.error)
-      .finally(() => setDataLoading(false))
+      .finally(() => {
+        setDataLoading(false)
+        stopLoading()
+      })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleFilterChange = useCallback((next: MapFilter) => {
@@ -71,15 +78,18 @@ export default function MapPage() {
       return
     }
     setGettingLocation(true)
+    startLoading()
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude })
         setLocationState('granted')
         setGettingLocation(false)
+        stopLoading()
       },
       () => {
         setLocationState('error')
         setGettingLocation(false)
+        stopLoading()
       },
       { timeout: 10000 }
     )

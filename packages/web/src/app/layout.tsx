@@ -1,7 +1,11 @@
 import type { Metadata } from 'next'
+import { Suspense } from 'react'
 import './globals.css'
 import { AuthProvider } from '@/contexts/AuthContext'
+import { LoadingProvider } from '@/contexts/LoadingContext'
 import Header from '@/components/Header'
+import LoadingOverlay from '@/components/LoadingOverlay'
+import NavigationLoadingWatcher from '@/components/NavigationLoadingWatcher'
 
 export const metadata: Metadata = {
   title: 'ANIMAL GO - みんなで迷子ペットを探そう',
@@ -24,18 +28,24 @@ export default function RootLayout({
   return (
     <html lang="ja">
       <body>
-        <AuthProvider>
-          <Header />
-          <main className="min-h-[calc(100vh-56px)]">{children}</main>
-          <footer className="py-8 mt-12" style={{ background: '#C46B00' }}>
-            <div className="max-w-6xl mx-auto px-4 text-center">
-              <p className="text-2xl mb-1">🐾</p>
-              <p className="font-black text-white text-base mb-1">ANIMAL GO</p>
-              <p className="text-xs" style={{ color: '#FFD98A' }}>みんなで迷子ペットを探し、協力者にもポイントが貯まるプラットフォーム</p>
-              <p className="text-xs mt-4" style={{ color: '#E8A93A' }}>© 2025 ANIMAL GO</p>
-            </div>
-          </footer>
-        </AuthProvider>
+        <LoadingProvider>
+          <AuthProvider>
+            <Suspense>
+              <NavigationLoadingWatcher />
+            </Suspense>
+            <LoadingOverlay />
+            <Header />
+            <main className="min-h-[calc(100vh-56px)]">{children}</main>
+            <footer className="py-8 mt-12" style={{ background: '#C46B00' }}>
+              <div className="max-w-6xl mx-auto px-4 text-center">
+                <p className="text-2xl mb-1">🐾</p>
+                <p className="font-black text-white text-base mb-1">ANIMAL GO</p>
+                <p className="text-xs" style={{ color: '#FFD98A' }}>みんなで迷子ペットを探し、協力者にもポイントが貯まるプラットフォーム</p>
+                <p className="text-xs mt-4" style={{ color: '#E8A93A' }}>© 2025 ANIMAL GO</p>
+              </div>
+            </footer>
+          </AuthProvider>
+        </LoadingProvider>
       </body>
     </html>
   )

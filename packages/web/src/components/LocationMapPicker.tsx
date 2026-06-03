@@ -10,6 +10,7 @@ import {
 } from '@vis.gl/react-google-maps'
 import MapCircle from './MapCircle'
 import type { PetSpecies } from '@pet-rescue/shared'
+import { useLoadingState } from '@/contexts/LoadingContext'
 
 const DEFAULT_CENTER = { lat: 35.6812362, lng: 139.7671248 }
 
@@ -52,6 +53,7 @@ export default function LocationMapPicker({
 }: Props) {
   const map = useMap(mapInstanceId)
   const geocodingLib = useMapsLibrary('geocoding')
+  const { startLoading, stopLoading } = useLoadingState()
   const [geocoder, setGeocoder] = useState<google.maps.Geocoder | null>(null)
   const [gettingLocation, setGettingLocation] = useState(false)
   const autoDetectDone = useRef(false)
@@ -92,6 +94,7 @@ export default function LocationMapPicker({
         onPinChange({ ...pos, address: '', prefecture: '', city: '' })
         return
       }
+      startLoading()
       try {
         const result = await geocoder.geocode({ location: pos })
         if (result.results[0]) {
@@ -113,9 +116,11 @@ export default function LocationMapPicker({
         }
       } catch {
         onPinChange({ ...pos, address: '', prefecture: '', city: '' })
+      } finally {
+        stopLoading()
       }
     },
-    [geocoder, onPinChange]
+    [geocoder, onPinChange, startLoading, stopLoading]
   )
 
   const handleMapClick = useCallback(
@@ -131,6 +136,7 @@ export default function LocationMapPicker({
   const handleGetCurrentLocation = () => {
     if (!navigator.geolocation) return
     setGettingLocation(true)
+    startLoading()
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const newPos = { lat: pos.coords.latitude, lng: pos.coords.longitude }
@@ -138,8 +144,12 @@ export default function LocationMapPicker({
         map?.setZoom(15)
         void reverseGeocode(newPos)
         setGettingLocation(false)
+        stopLoading()
       },
-      () => setGettingLocation(false),
+      () => {
+        setGettingLocation(false)
+        stopLoading()
+      },
       { timeout: 10000 }
     )
   }

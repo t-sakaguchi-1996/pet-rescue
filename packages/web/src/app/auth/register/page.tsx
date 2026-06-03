@@ -4,10 +4,12 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
+import { useLoadingState } from '@/contexts/LoadingContext'
 
 export default function RegisterPage() {
   const router = useRouter()
   const { register } = useAuth()
+  const { startLoading, stopLoading } = useLoadingState()
   const [displayName, setDisplayName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -27,6 +29,7 @@ export default function RegisterPage() {
       return
     }
     setLoading(true)
+    startLoading()
     try {
       await register(email, password, displayName)
       router.push('/')
@@ -34,6 +37,7 @@ export default function RegisterPage() {
       setError('登録に失敗しました。別のメールアドレスをお試しください')
     } finally {
       setLoading(false)
+      stopLoading()
     }
   }
 

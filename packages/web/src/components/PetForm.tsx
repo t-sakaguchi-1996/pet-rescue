@@ -14,7 +14,12 @@ import { uploadPetImages } from '@/lib/storage'
 import { grantProtectedPostPoints } from '@/lib/points'
 import { checkAndAwardBadges } from '@/lib/titles'
 import { useAuth } from '@/contexts/AuthContext'
+import { useLoadingState } from '@/contexts/LoadingContext'
 import LocationMapPicker, { type LocationData } from './LocationMapPicker'
+import {
+  getMatchedPostCount,
+  createNewMatchedNotificationsAfterEdit,
+} from '@/lib/editMatchNotifications'
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? ''
 
@@ -60,9 +65,20 @@ interface FormData {
   searchRadiusKm: number
 }
 
+function matchMessageStyle(msg: string): { bg: string; text: string; icon: string } {
+  if (msg.startsWith('新たに')) {
+    return { bg: 'bg-orange-50 border border-orange-100', text: 'text-orange-700', icon: '🔔' }
+  }
+  if (msg.endsWith('はありません')) {
+    return { bg: 'bg-gray-50 border border-gray-200', text: 'text-gray-500', icon: 'ℹ️' }
+  }
+  return { bg: 'bg-blue-50 border border-blue-100', text: 'text-blue-700', icon: 'ℹ️' }
+}
+
 function FormInner({ userId, ownerDisplayName, defaultType = 'lost', pet }: Props) {
   const router = useRouter()
   const { user } = useAuth()
+  const { startLoading, stopLoading } = useLoadingState()
   const isEdit = Boolean(pet)
   const geocodingLib = useMapsLibrary('geocoding')
   const [geocoder, setGeocoder] = useState<google.maps.Geocoder | null>(null)
@@ -101,15 +117,100 @@ function FormInner({ userId, ownerDisplayName, defaultType = 'lost', pet }: Prop
     searchRadiusKm: pet?.searchRadiusKm ?? 5,
   })
 
+  // --- 周辺情報件数表示（編集モードのみ） ---
+  const [matchInfoMessage, setMatchInfoMessage] = useState<string | null>(null)
+  const [isFetchingCount, setIsFetchingCount] = useState(false)
+  const prevCountRef = useRef<number | null>(null)
+  const prevPinKeyRef = useRef<string>(
+    pet?.location
+      ? `${pet.location.lat.toFixed(6)},${pet.location.lng.toFixed(6)}`
+      : ''
+  )
+  const prevRadiusRef = useRef<number>(pet?.searchRadiusKm ?? 5)
+  const pinDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const radiusDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   useEffect(() => {
     if (geocodingLib) setGeocoder(new geocodingLib.Geocoder())
   }, [geocodingLib])
+
+  // 編集時：初回マウントで初期件数を取得（メッセージは表示しない）
+  useEffect(() => {
+    if (!isEdit || !pet?.location?.lat) return
+    getMatchedPostCount(
+      pet.location.lat, pet.location.lng, pet.searchRadiusKm ?? 5, pet.type, pet.id, pet.species,
+    ).then((count) => { prevCountRef.current = count }).catch(() => {})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // ピン位置が変わったとき：debounce 後に件数取得 → 「このエリアには○○件」表示
+  useEffect(() => {
+    if (!isEdit || !pinLocation) return
+    const key = `${pinLocation.lat.toFixed(6)},${pinLocation.lng.toFixed(6)}`
+    if (key === prevPinKeyRef.current) return
+    prevPinKeyRef.current = key
+
+    if (pinDebounceRef.current) clearTimeout(pinDebounceRef.current)
+    const captureLat = pinLocation.lat
+    const captureLng = pinLocation.lng
+    const captureRadius = form.searchRadiusKm
+
+    pinDebounceRef.current = setTimeout(() => {
+      setIsFetchingCount(true)
+      getMatchedPostCount(captureLat, captureLng, captureRadius, pet?.type, pet?.id, pet?.species)
+        .then((count) => {
+          setMatchInfoMessage(count > 0 ? `このエリアには${count}件の目撃や保護情報があります` : 'このエリアには目撃や保護情報はありません')
+          prevCountRef.current = count
+        })
+        .catch(() => setMatchInfoMessage(null))
+        .finally(() => setIsFetchingCount(false))
+    }, 500)
+
+    return () => { if (pinDebounceRef.current) clearTimeout(pinDebounceRef.current) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pinLocation])
+
+  // 探知範囲が変わったとき：debounce 後に件数取得 → 差分を表示
+  useEffect(() => {
+    if (!isEdit) return
+    if (form.searchRadiusKm === prevRadiusRef.current) return
+    prevRadiusRef.current = form.searchRadiusKm
+
+    if (radiusDebounceRef.current) clearTimeout(radiusDebounceRef.current)
+    if (!pinLocation) return
+
+    const captureLat = pinLocation.lat
+    const captureLng = pinLocation.lng
+    const captureRadius = form.searchRadiusKm
+
+    radiusDebounceRef.current = setTimeout(() => {
+      setIsFetchingCount(true)
+      getMatchedPostCount(captureLat, captureLng, captureRadius, pet?.type, pet?.id, pet?.species)
+        .then((newCount) => {
+          const prevCount = prevCountRef.current
+          if (prevCount !== null && newCount - prevCount > 0) {
+            setMatchInfoMessage(`新たに${newCount - prevCount}件の目撃や保護情報があります`)
+          } else if (newCount > 0) {
+            setMatchInfoMessage(`このエリアには${newCount}件の目撃や保護情報があります`)
+          } else {
+            setMatchInfoMessage('このエリアには目撃や保護情報はありません')
+          }
+          prevCountRef.current = newCount
+        })
+        .catch(() => setMatchInfoMessage(null))
+        .finally(() => setIsFetchingCount(false))
+    }, 500)
+
+    return () => { if (radiusDebounceRef.current) clearTimeout(radiusDebounceRef.current) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.searchRadiusKm])
 
   // Forward geocoding: address/city → pin
   const geocodeAddress = useCallback(
     async (addressStr: string) => {
       if (!geocoder || !addressStr.trim()) return
       setGeocoding(true)
+      startLoading()
       try {
         const result = await geocoder.geocode({ address: addressStr, region: 'JP' })
         if (result.results[0]) {
@@ -120,9 +221,10 @@ function FormInner({ userId, ownerDisplayName, defaultType = 'lost', pet }: Prop
         console.warn('Geocoding failed:', e)
       } finally {
         setGeocoding(false)
+        stopLoading()
       }
     },
-    [geocoder]
+    [geocoder, startLoading, stopLoading]
   )
 
   const handleChange = (
@@ -204,6 +306,7 @@ function FormInner({ userId, ownerDisplayName, defaultType = 'lost', pet }: Prop
       return
     }
     setSubmitting(true)
+    startLoading()
     try {
       const newUrls =
         newImageFiles.length > 0 ? await uploadPetImages(userId, newImageFiles) : []
@@ -233,6 +336,22 @@ function FormInner({ userId, ownerDisplayName, defaultType = 'lost', pet }: Prop
           contactPhone: form.contactPhone,
           searchRadiusKm: form.searchRadiusKm,
         })
+
+        // 位置・探知範囲の変更により新たに範囲内に入った目撃情報・保護投稿に通知（fire-and-forget）
+        createNewMatchedNotificationsAfterEdit({
+          targetPostType: pet.type,
+          targetPostId: pet.id,
+          targetPostName: pet.name || '名前不明',
+          targetPostUserId: pet.userId,
+          species: pet.species,
+          beforeLat: pet.location.lat,
+          beforeLng: pet.location.lng,
+          beforeRadiusKm: pet.searchRadiusKm ?? 5,
+          afterLat: pinLocation.lat,
+          afterLng: pinLocation.lng,
+          afterRadiusKm: form.searchRadiusKm,
+        }).catch(console.error)
+
         router.push(`/posts/${pet.id}`)
       } else {
         const newPetId = await createPet({
@@ -279,6 +398,7 @@ function FormInner({ userId, ownerDisplayName, defaultType = 'lost', pet }: Prop
       alert('保存に失敗しました。もう一度お試しください')
     } finally {
       setSubmitting(false)
+      stopLoading()
     }
   }
 
@@ -561,6 +681,21 @@ function FormInner({ userId, ownerDisplayName, defaultType = 'lost', pet }: Prop
             </option>
           ))}
         </select>
+
+        {/* 周辺情報件数メッセージ（編集モードのみ） */}
+        {isEdit && (
+          isFetchingCount ? (
+            <p className="text-xs text-gray-400 animate-pulse mt-3">周辺情報を検索中...</p>
+          ) : matchInfoMessage ? (() => {
+            const style = matchMessageStyle(matchInfoMessage)
+            return (
+              <div className={`mt-3 flex items-start gap-2 rounded-lg px-3 py-2 ${style.bg}`}>
+                <span className="text-sm shrink-0">{style.icon}</span>
+                <p className={`text-xs ${style.text}`}>{matchInfoMessage}</p>
+              </div>
+            )
+          })() : null
+        )}
       </div>
 
       {/* 連絡先 */}
