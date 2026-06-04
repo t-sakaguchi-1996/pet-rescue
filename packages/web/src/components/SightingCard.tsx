@@ -48,9 +48,11 @@ export default function SightingCard({ sighting }: Props) {
            style={{ color: '#3D2400' }}>
           {title}
         </p>
-        <p className="text-xs mb-1" style={{ color: '#8B6340' }}>
-          📍 {location.prefecture}{location.city ? ` ${location.city}` : ''}
-        </p>
+        {(location.prefecture || location.city || location.address) && (
+          <p className="text-xs mb-1" style={{ color: '#8B6340' }}>
+            📍 {[location.prefecture, location.city].filter(Boolean).join(' ') || location.address}
+          </p>
+        )}
         {description && (
           <p className="text-xs line-clamp-2 mb-1" style={{ color: '#9B8060' }}>
             {description}

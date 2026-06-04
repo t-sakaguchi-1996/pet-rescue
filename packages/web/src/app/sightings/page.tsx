@@ -65,56 +65,77 @@ export default function SightingsPage() {
       </div>
 
       {/* 検索フィルター */}
-      <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div>
-            <label className="label text-xs">都道府県</label>
-            <select
-              value={prefecture}
-              onChange={handlePrefectureChange}
-              className="select-field text-sm py-2"
+      <div className="rounded-2xl p-4 mb-6" style={{ background: 'white', border: '1.5px solid #FFE0A0' }}>
+        {/* 動物種チップ */}
+        <div className="flex flex-wrap gap-2 mb-3">
+          {([
+            { value: '' as const, label: 'すべて', emoji: '🐾' },
+            { value: 'dog' as PetSpecies, label: '犬', emoji: '🐕' },
+            { value: 'cat' as PetSpecies, label: '猫', emoji: '🐈' },
+            { value: 'rabbit' as PetSpecies, label: 'うさぎ', emoji: '🐇' },
+            { value: 'bird' as PetSpecies, label: '鳥', emoji: '🐦' },
+            { value: 'other' as PetSpecies, label: 'その他', emoji: '🐾' },
+          ] as const).map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => setSpecies(opt.value)}
+              className="flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-full transition-all"
+              style={{
+                background: species === opt.value ? '#C46B00' : '#FFF3DC',
+                color: species === opt.value ? '#fff' : '#7A4500',
+                border: `1.5px solid ${species === opt.value ? '#C46B00' : '#FFD98A'}`,
+              }}
             >
-              <option value="">すべて</option>
-              {PREFECTURES.map((pref) => (
-                <option key={pref} value={pref}>{pref}</option>
-              ))}
-            </select>
-          </div>
+              <span>{opt.emoji}</span>
+              <span>{opt.label}</span>
+            </button>
+          ))}
+        </div>
 
-          <div>
-            <label className="label text-xs">市区町村</label>
-            <input
-              type="text"
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-              placeholder={prefecture ? '例: 新宿区' : '都道府県を先に選択'}
-              disabled={!prefecture}
-              className="input-field text-sm py-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            />
-          </div>
+        {/* 場所フィルター */}
+        <div className="flex gap-2 items-center flex-wrap">
+          <select
+            value={prefecture}
+            onChange={handlePrefectureChange}
+            className="text-sm rounded-full px-3 py-1.5 font-semibold"
+            style={{
+              background: prefecture ? '#C46B00' : '#FFF3DC',
+              color: prefecture ? '#fff' : '#7A4500',
+              border: `1.5px solid ${prefecture ? '#C46B00' : '#FFD98A'}`,
+              outline: 'none',
+            }}
+          >
+            <option value="">都道府県</option>
+            {PREFECTURES.map((pref) => (
+              <option key={pref} value={pref}>{pref}</option>
+            ))}
+          </select>
 
-          <div>
-            <label className="label text-xs">動物種</label>
-            <select
-              value={species}
-              onChange={(e) => setSpecies(e.target.value as PetSpecies | '')}
-              className="select-field text-sm py-2"
-            >
-              <option value="">すべて</option>
-              {(Object.entries(SPECIES_LABELS) as [PetSpecies, string][]).map(([val, label]) => (
-                <option key={val} value={val}>{label}</option>
-              ))}
-            </select>
-          </div>
+          <input
+            type="text"
+            value={city}
+            onChange={(e) => setCity(e.target.value)}
+            placeholder={prefecture ? '市区町村' : '都道府県を先に選択'}
+            disabled={!prefecture}
+            className="text-sm rounded-full px-3 py-1.5 flex-1 min-w-[120px]"
+            style={{
+              background: '#FFF3DC',
+              border: '1.5px solid #FFD98A',
+              color: '#3D2400',
+              outline: 'none',
+              opacity: prefecture ? 1 : 0.5,
+            }}
+          />
 
-          <div className="flex items-end">
+          {(prefecture || city || species) && (
             <button
               onClick={handleReset}
-              className="btn-secondary text-sm py-2 px-4 w-full"
+              className="text-xs font-semibold px-3 py-1.5 rounded-full transition-all"
+              style={{ background: '#FEE2E2', color: '#991B1B', border: '1.5px solid #FCA5A5' }}
             >
-              リセット
+              × リセット
             </button>
-          </div>
+          )}
         </div>
       </div>
 

@@ -35,7 +35,16 @@ function toSighting(id: string, data: Record<string, unknown>): Sighting {
     species: data.species as PetSpecies | undefined,
     title: (data.title as string) ?? '',
     photos: (data.photos as string[]) ?? [],
-    location: data.location as SightingLocation,
+    location: (() => {
+      const loc = (data.location ?? {}) as Record<string, unknown>
+      return {
+        address: (loc.address as string) ?? '',
+        city: (loc.city as string) ?? '',
+        prefecture: (loc.prefecture as string) ?? '',
+        lat: loc.lat as number | undefined,
+        lng: loc.lng as number | undefined,
+      }
+    })(),
     description: data.description as string | undefined,
     userId: data.userId as string | undefined,
     guestEmail: data.guestEmail as string | undefined,

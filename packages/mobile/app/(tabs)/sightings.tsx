@@ -9,6 +9,8 @@ import {
   ActivityIndicator,
   Image,
   ScrollView,
+  Modal,
+  Pressable,
 } from 'react-native'
 import { useRouter } from 'expo-router'
 import { fetchSightingsFiltered } from '../../src/lib/firestore'
@@ -16,18 +18,14 @@ import { SPECIES_LABELS, PREFECTURES, type Sighting, type PetSpecies } from '../
 import { format } from 'date-fns'
 import { ja } from 'date-fns/locale'
 
-const SPECIES_OPTIONS: { value: PetSpecies | ''; label: string }[] = [
-  { value: '', label: 'すべて' },
-  { value: 'dog', label: '犬' },
-  { value: 'cat', label: '猫' },
-  { value: 'rabbit', label: 'うさぎ' },
-  { value: 'bird', label: '鳥' },
-  { value: 'other', label: 'その他' },
+const SPECIES_OPTIONS: { value: PetSpecies | ''; label: string; emoji: string }[] = [
+  { value: '', label: 'すべて', emoji: '🐾' },
+  { value: 'dog', label: '犬', emoji: '🐕' },
+  { value: 'cat', label: '猫', emoji: '🐈' },
+  { value: 'rabbit', label: 'うさぎ', emoji: '🐇' },
+  { value: 'bird', label: '鳥', emoji: '🐦' },
+  { value: 'other', label: 'その他', emoji: '🐾' },
 ]
-
-const SPECIES_EMOJI: Record<string, string> = {
-  dog: '🐕', cat: '🐈', rabbit: '🐇', bird: '🐦', other: '🐾',
-}
 
 export default function SightingsScreen() {
   const router = useRouter()
@@ -36,8 +34,7 @@ export default function SightingsScreen() {
   const [prefecture, setPrefecture] = useState('')
   const [city, setCity] = useState('')
   const [species, setSpecies] = useState<PetSpecies | ''>('')
-  const [showPrefPicker, setShowPrefPicker] = useState(false)
-  const [showSpeciesPicker, setShowSpeciesPicker] = useState(false)
+  const [prefModal, setPrefModal] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -62,19 +59,23 @@ export default function SightingsScreen() {
     setSpecies('')
   }
 
+  const locationText = (item: Sighting) => {
+    const parts = [item.location.prefecture, item.location.city].filter(Boolean)
+    return parts.join(' ') || item.location.address || ''
+  }
+
   const renderItem = ({ item }: { item: Sighting }) => (
     <TouchableOpacity
       style={styles.card}
       onPress={() => router.push(`/sightings/${item.id}`)}
       activeOpacity={0.85}
     >
-      {/* 写真またはプレースホルダー */}
       {item.photos.length > 0 ? (
         <Image source={{ uri: item.photos[0] }} style={styles.cardImage} />
       ) : (
         <View style={styles.cardImagePlaceholder}>
           <Text style={styles.cardImageEmoji}>
-            {item.species ? (SPECIES_EMOJI[item.species] ?? '👁️') : '👁️'}
+            {item.species ? (item.species === 'dog' ? '🐕' : item.species === 'cat' ? '🐈' : '👁️') : '👁️'}
           </Text>
         </View>
       )}
@@ -93,15 +94,17 @@ export default function SightingsScreen() {
           )}
         </View>
         <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
-        <Text style={styles.cardLocation} numberOfLines={1}>
-          📍 {item.location.prefecture} {item.location.city}
-        </Text>
+        {locationText(item) ? (
+          <Text style={styles.cardLocation} numberOfLines={1}>📍 {locationText(item)}</Text>
+        ) : null}
         <Text style={styles.cardMeta}>
           {item.posterName} · {format(new Date(item.createdAt), 'M/d', { locale: ja })}
         </Text>
       </View>
     </TouchableOpacity>
   )
+
+  const isFiltered = !!(prefecture || city || species)
 
   return (
     <View style={styles.container}>
@@ -111,113 +114,106 @@ export default function SightingsScreen() {
           <Text style={styles.headerTitle}>👁️ 目撃情報一覧</Text>
           <Text style={styles.headerSub}>みんなが投稿した目撃情報</Text>
         </View>
-        <TouchableOpacity
-          style={styles.postBtn}
-          onPress={() => router.push('/sightings/new')}
-        >
+        <TouchableOpacity style={styles.postBtn} onPress={() => router.push('/sightings/new')}>
           <Text style={styles.postBtnText}>＋ 投稿（+2pt）</Text>
         </TouchableOpacity>
       </View>
 
-      {/* フィルター */}
-      <View style={styles.filterBar}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
+      {/* 検索フィルターパネル */}
+      <View style={styles.filterPanel}>
+        {/* 動物種チップ */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.speciesRow}
+        >
+          {SPECIES_OPTIONS.map((opt) => (
+            <TouchableOpacity
+              key={opt.value}
+              style={[styles.speciesChip, species === opt.value && styles.speciesChipActive]}
+              onPress={() => setSpecies(opt.value)}
+            >
+              <Text style={styles.speciesEmoji}>{opt.emoji}</Text>
+              <Text style={[styles.speciesLabel, species === opt.value && styles.speciesLabelActive]}>
+                {opt.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {/* 場所フィルター */}
+        <View style={styles.locationRow}>
           {/* 都道府県 */}
           <TouchableOpacity
-            style={[styles.filterChip, prefecture && styles.filterChipActive]}
-            onPress={() => setShowPrefPicker(!showPrefPicker)}
+            style={[styles.prefBtn, prefecture && styles.prefBtnActive]}
+            onPress={() => setPrefModal(true)}
           >
-            <Text style={[styles.filterChipText, prefecture && styles.filterChipTextActive]}>
+            <Text style={[styles.prefBtnText, prefecture && styles.prefBtnTextActive]} numberOfLines={1}>
               {prefecture || '都道府県'}
             </Text>
+            <Text style={styles.prefArrow}>▼</Text>
           </TouchableOpacity>
 
           {/* 市区町村 */}
           <TextInput
-            style={[styles.filterInput, city && styles.filterChipActive]}
-            placeholder="市区町村"
+            style={[styles.cityInput, !prefecture && styles.cityInputDisabled]}
+            placeholder={prefecture ? '市区町村' : '都道府県を先に選択'}
             placeholderTextColor="#B08050"
             value={city}
             onChangeText={setCity}
             editable={!!prefecture}
           />
 
-          {/* 動物種 */}
-          <TouchableOpacity
-            style={[styles.filterChip, species && styles.filterChipActive]}
-            onPress={() => setShowSpeciesPicker(!showSpeciesPicker)}
-          >
-            <Text style={[styles.filterChipText, species && styles.filterChipTextActive]}>
-              {species ? SPECIES_LABELS[species] : '動物種'}
-            </Text>
-          </TouchableOpacity>
-
           {/* リセット */}
-          {(prefecture || city || species) && (
-            <TouchableOpacity style={styles.resetChip} onPress={handleReset}>
-              <Text style={styles.resetChipText}>× リセット</Text>
+          {isFiltered && (
+            <TouchableOpacity style={styles.resetBtn} onPress={handleReset}>
+              <Text style={styles.resetBtnText}>✕</Text>
             </TouchableOpacity>
           )}
-        </ScrollView>
+        </View>
       </View>
 
-      {/* 都道府県ピッカー */}
-      {showPrefPicker && (
-        <View style={styles.pickerOverlay}>
-          <View style={styles.pickerBox}>
-            <View style={styles.pickerHeader}>
-              <Text style={styles.pickerHeaderText}>都道府県を選択</Text>
-              <TouchableOpacity onPress={() => setShowPrefPicker(false)}>
-                <Text style={styles.pickerClose}>✕</Text>
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.pickerList}>
-              <TouchableOpacity style={styles.pickerItem} onPress={() => { setPrefecture(''); setCity(''); setShowPrefPicker(false) }}>
-                <Text style={styles.pickerItemText}>すべて</Text>
+      {/* 都道府県 Modal */}
+      <Modal visible={prefModal} transparent animationType="slide" onRequestClose={() => setPrefModal(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setPrefModal(false)}>
+          <Pressable style={styles.modalPanel} onPress={() => {}}>
+            <Text style={styles.modalTitle}>都道府県を選択</Text>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <TouchableOpacity
+                style={[styles.modalOption, !prefecture && styles.modalOptionActive]}
+                onPress={() => { setPrefecture(''); setCity(''); setPrefModal(false) }}
+              >
+                <Text style={[styles.modalOptionText, !prefecture && styles.modalOptionTextActive]}>
+                  すべての都道府県
+                </Text>
               </TouchableOpacity>
               {PREFECTURES.map((p) => (
-                <TouchableOpacity key={p} style={[styles.pickerItem, prefecture === p && styles.pickerItemActive]}
-                  onPress={() => { setPrefecture(p); setCity(''); setShowPrefPicker(false) }}>
-                  <Text style={[styles.pickerItemText, prefecture === p && styles.pickerItemTextActive]}>{p}</Text>
+                <TouchableOpacity
+                  key={p}
+                  style={[styles.modalOption, prefecture === p && styles.modalOptionActive]}
+                  onPress={() => { setPrefecture(p); setCity(''); setPrefModal(false) }}
+                >
+                  <Text style={[styles.modalOptionText, prefecture === p && styles.modalOptionTextActive]}>
+                    {p}
+                  </Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
-          </View>
-        </View>
-      )}
-
-      {/* 動物種ピッカー */}
-      {showSpeciesPicker && (
-        <View style={styles.pickerOverlay}>
-          <View style={[styles.pickerBox, styles.pickerBoxSmall]}>
-            <View style={styles.pickerHeader}>
-              <Text style={styles.pickerHeaderText}>動物種を選択</Text>
-              <TouchableOpacity onPress={() => setShowSpeciesPicker(false)}>
-                <Text style={styles.pickerClose}>✕</Text>
-              </TouchableOpacity>
-            </View>
-            {SPECIES_OPTIONS.map((opt) => (
-              <TouchableOpacity key={opt.value}
-                style={[styles.pickerItem, species === opt.value && styles.pickerItemActive]}
-                onPress={() => { setSpecies(opt.value); setShowSpeciesPicker(false) }}>
-                <Text style={[styles.pickerItemText, species === opt.value && styles.pickerItemTextActive]}>{opt.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      )}
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* リスト */}
       {loading ? (
-        <View style={styles.loadingContainer}>
+        <View style={styles.center}>
           <ActivityIndicator color="#C46B00" size="large" />
           <Text style={styles.loadingText}>読み込み中...</Text>
         </View>
       ) : sightings.length === 0 ? (
-        <View style={styles.emptyContainer}>
+        <View style={styles.center}>
           <Text style={styles.emptyEmoji}>👁️</Text>
           <Text style={styles.emptyText}>
-            {prefecture || city || species ? '条件に一致する目撃情報がありません' : 'まだ目撃情報はありません'}
+            {isFiltered ? '条件に一致する目撃情報がありません' : 'まだ目撃情報はありません'}
           </Text>
           <TouchableOpacity style={styles.postBtnLarge} onPress={() => router.push('/sightings/new')}>
             <Text style={styles.postBtnLargeText}>最初の目撃情報を投稿する</Text>
@@ -240,6 +236,12 @@ export default function SightingsScreen() {
   )
 }
 
+const W = '#3D2400'
+const M = '#7A4500'
+const A = '#FFC96B'
+const BG = '#FFF3DC'
+const BR = '#FFD98A'
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9fafb' },
 
@@ -248,66 +250,84 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 12,
     borderBottomWidth: 1, borderBottomColor: '#f3f4f6',
   },
-  headerTitle: { fontSize: 17, fontWeight: '900', color: '#3D2400' },
+  headerTitle: { fontSize: 17, fontWeight: '900', color: W },
   headerSub: { fontSize: 12, color: '#8B6340', marginTop: 2 },
-  postBtn: {
-    backgroundColor: '#FFC96B', paddingHorizontal: 12, paddingVertical: 7,
-    borderRadius: 20,
-  },
-  postBtnText: { fontSize: 12, fontWeight: 'bold', color: '#3D2400' },
+  postBtn: { backgroundColor: A, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20 },
+  postBtnText: { fontSize: 12, fontWeight: 'bold', color: W },
 
-  filterBar: { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  filterScroll: { padding: 10, gap: 8, flexDirection: 'row', alignItems: 'center' },
-  filterChip: {
-    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
-    backgroundColor: '#FFF3DC', borderWidth: 1.5, borderColor: '#FFD98A',
+  // Filter panel
+  filterPanel: {
+    backgroundColor: '#fff',
+    paddingTop: 10,
+    borderBottomWidth: 1.5,
+    borderBottomColor: BR,
   },
-  filterChipActive: { backgroundColor: '#C46B00', borderColor: '#C46B00' },
-  filterChipText: { fontSize: 12, fontWeight: '600', color: '#8B5E1A' },
-  filterChipTextActive: { color: '#fff' },
-  filterInput: {
-    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, minWidth: 90,
-    backgroundColor: '#FFF3DC', borderWidth: 1.5, borderColor: '#FFD98A',
-    fontSize: 12, color: '#3D2400',
+  speciesRow: {
+    paddingHorizontal: 12,
+    paddingBottom: 10,
+    gap: 6,
+    flexDirection: 'row',
   },
-  resetChip: {
-    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
-    backgroundColor: '#FEE2E2', borderWidth: 1.5, borderColor: '#FCA5A5',
+  speciesChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20,
+    backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e5e7eb',
   },
-  resetChipText: { fontSize: 12, fontWeight: '600', color: '#991B1B' },
+  speciesChipActive: { backgroundColor: BG, borderColor: A },
+  speciesEmoji: { fontSize: 14 },
+  speciesLabel: { fontSize: 12, color: '#6b7280', fontWeight: '500' },
+  speciesLabelActive: { color: M, fontWeight: 'bold' },
 
-  pickerOverlay: {
-    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.4)', zIndex: 100,
-    justifyContent: 'center', alignItems: 'center',
+  locationRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 12, paddingBottom: 10,
   },
-  pickerBox: {
-    backgroundColor: '#fff', borderRadius: 16, width: '85%', maxHeight: '70%',
-    overflow: 'hidden',
+  prefBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20,
+    backgroundColor: BG, borderWidth: 1.5, borderColor: BR,
+    maxWidth: 130,
   },
-  pickerBoxSmall: { maxHeight: '50%' },
-  pickerHeader: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    padding: 14, borderBottomWidth: 1, borderBottomColor: '#f3f4f6',
-  },
-  pickerHeaderText: { fontSize: 14, fontWeight: 'bold', color: '#3D2400' },
-  pickerClose: { fontSize: 18, color: '#9ca3af' },
-  pickerList: { flex: 1 },
-  pickerItem: { padding: 13, borderBottomWidth: 1, borderBottomColor: '#f9fafb' },
-  pickerItemActive: { backgroundColor: '#FFF3DC' },
-  pickerItemText: { fontSize: 14, color: '#374151' },
-  pickerItemTextActive: { color: '#C46B00', fontWeight: 'bold' },
+  prefBtnActive: { backgroundColor: '#C46B00', borderColor: '#C46B00' },
+  prefBtnText: { fontSize: 12, fontWeight: '600', color: M, flex: 1 },
+  prefBtnTextActive: { color: '#fff' },
+  prefArrow: { fontSize: 9, color: '#B08050' },
 
-  loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
+  cityInput: {
+    flex: 1, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20,
+    backgroundColor: BG, borderWidth: 1.5, borderColor: BR,
+    fontSize: 12, color: W,
+  },
+  cityInputDisabled: { opacity: 0.5 },
+
+  resetBtn: {
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: '#FEE2E2', borderWidth: 1, borderColor: '#FCA5A5',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  resetBtnText: { fontSize: 13, fontWeight: 'bold', color: '#991B1B' },
+
+  // Modal
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  modalPanel: {
+    backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    maxHeight: '70%', paddingBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 16, fontWeight: 'bold', color: W, textAlign: 'center',
+    padding: 16, borderBottomWidth: 1, borderBottomColor: '#f3f4f6',
+  },
+  modalOption: { paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f9fafb' },
+  modalOptionActive: { backgroundColor: BG },
+  modalOptionText: { fontSize: 15, color: '#374151' },
+  modalOptionTextActive: { color: '#C46B00', fontWeight: 'bold' },
+
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 },
   loadingText: { color: '#7A4500', fontSize: 14 },
-
-  emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
-  emptyEmoji: { fontSize: 48, marginBottom: 12 },
-  emptyText: { color: '#6b7280', fontSize: 14, textAlign: 'center', marginBottom: 20 },
-  postBtnLarge: {
-    backgroundColor: '#FFC96B', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 24,
-  },
-  postBtnLargeText: { fontWeight: 'bold', color: '#3D2400', fontSize: 14 },
+  emptyEmoji: { fontSize: 48 },
+  emptyText: { color: '#6b7280', fontSize: 14, textAlign: 'center' },
+  postBtnLarge: { backgroundColor: A, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 24 },
+  postBtnLargeText: { fontWeight: 'bold', color: W, fontSize: 14 },
 
   countText: { fontSize: 12, color: '#B08050', paddingHorizontal: 4, marginBottom: 8 },
   list: { padding: 12 },
@@ -326,11 +346,11 @@ const styles = StyleSheet.create({
   cardImageEmoji: { fontSize: 36 },
   cardBody: { padding: 10 },
   cardBadges: { flexDirection: 'row', gap: 4, marginBottom: 4, flexWrap: 'wrap' },
-  speciesBadge: { backgroundColor: '#FFF3DC', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 },
-  speciesBadgeText: { fontSize: 10, fontWeight: 'bold', color: '#7A4500' },
+  speciesBadge: { backgroundColor: BG, borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 },
+  speciesBadgeText: { fontSize: 10, fontWeight: 'bold', color: M },
   bestBadge: { backgroundColor: '#FFF9C4', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 },
   bestBadgeText: { fontSize: 10, fontWeight: 'bold', color: '#7A5800' },
-  cardTitle: { fontSize: 13, fontWeight: 'bold', color: '#3D2400', marginBottom: 4 },
+  cardTitle: { fontSize: 13, fontWeight: 'bold', color: W, marginBottom: 4 },
   cardLocation: { fontSize: 11, color: '#8B6340', marginBottom: 2 },
   cardMeta: { fontSize: 11, color: '#B08050' },
 })
