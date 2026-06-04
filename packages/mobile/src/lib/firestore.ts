@@ -130,6 +130,7 @@ export interface PetFilter {
   species?: PetSpecies
   status?: PetStatus
   prefecture?: string
+  city?: string
   limitCount?: number
 }
 
@@ -139,6 +140,7 @@ export async function fetchPets(filter: PetFilter = {}): Promise<Pet[]> {
   if (filter.species) constraints.push(where('species', '==', filter.species))
   if (filter.status) constraints.push(where('status', '==', filter.status))
   if (filter.prefecture) constraints.push(where('location.prefecture', '==', filter.prefecture))
+  if (filter.city) constraints.push(where('location.city', '==', filter.city))
   if (filter.limitCount) constraints.push(limit(filter.limitCount))
 
   const snap = await withTimeout(getDocs(query(collection(db, PETS), ...constraints)), FETCH_TIMEOUT_MS)

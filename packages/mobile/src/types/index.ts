@@ -280,3 +280,31 @@ export interface User {
   points?: number
   createdAt: string
 }
+
+export type NotificationType =
+  | 'comment'
+  | 'reply'
+  | 'sighting_nearby'
+  | 'found_nearby'
+  | 'prefecture_sighting'
+  | 'best_info_selected'
+  | 'points_granted'
+  | 'discovery_bonus'
+  | 'reward_exchange_requested'
+  | 'new_matched_sighting_after_edit'
+  | 'new_matched_protected_after_edit'
+
+export interface AppNotification {
+  id: string
+  userId: string
+  type: NotificationType
+  petId: string
+  petName: string
+  fromUserId?: string
+  fromUserDisplayName?: string
+  sightingId?: string
+  amount?: number
+  rewardName?: string
+  isRead: boolean
+  createdAt: string
+}

@@ -9,14 +9,17 @@ import {
   Image,
   Alert,
   Switch,
+  Modal,
+  Pressable,
 } from 'react-native'
 import * as ImagePicker from 'expo-image-picker'
-import * as Location from 'expo-location'
 import { useRouter } from 'expo-router'
 import { getAuth } from 'firebase/auth'
 import { createPet, updatePet } from '../lib/firestore'
 import { uploadPetImages } from '../lib/storage'
+import LocationMapPicker, { type LocationData } from './LocationMapPicker'
 import type { Pet } from '../types'
+import { PREFECTURES } from '../types'
 
 const SEARCH_RADIUS_OPTIONS = [
   { value: 5, label: '5km' },
@@ -38,15 +41,15 @@ export default function PostForm({ userId, initialPet }: Props) {
   const [images, setImages] = useState<string[]>([])
   const [existingImages, setExistingImages] = useState<string[]>(initialPet?.images ?? [])
   const [isLost, setIsLost] = useState(initialPet ? initialPet.type === 'lost' : true)
-  const [pinLocation, setPinLocation] = useState<{ latitude: number; longitude: number } | null>(
+  const [pinLocation, setPinLocation] = useState<{ lat: number; lng: number } | null>(
     initialPet?.location.lat && initialPet?.location.lng
-      ? { latitude: initialPet.location.lat, longitude: initialPet.location.lng }
-      : null
+      ? { lat: initialPet.location.lat, lng: initialPet.location.lng }
+      : null,
   )
-
   const [searchRadiusKm, setSearchRadiusKm] = useState<number>(initialPet?.searchRadiusKm ?? 5)
   const [useUserInfo, setUseUserInfo] = useState(false)
   const [emailBeforeAutoFill, setEmailBeforeAutoFill] = useState('')
+  const [prefModal, setPrefModal] = useState(false)
   const [form, setForm] = useState({
     species: (initialPet?.species ?? 'dog') as Pet['species'],
     name: initialPet?.name ?? '',
@@ -66,9 +69,7 @@ export default function PostForm({ userId, initialPet }: Props) {
   })
 
   const currentUser = getAuth().currentUser
-
-  const set = (key: string, value: string) =>
-    setForm((prev) => ({ ...prev, [key]: value }))
+  const set = (key: string, value: string) => setForm((prev) => ({ ...prev, [key]: value }))
 
   const handleUseUserInfo = (checked: boolean) => {
     setUseUserInfo(checked)
@@ -81,33 +82,23 @@ export default function PostForm({ userId, initialPet }: Props) {
     }
   }
 
+  const handlePinChange = (loc: LocationData) => {
+    setPinLocation({ lat: loc.lat, lng: loc.lng })
+    if (loc.prefecture) set('prefecture', loc.prefecture)
+    if (loc.city) set('city', loc.city)
+    if (loc.address) set('address', loc.address)
+  }
+
   const pickImages = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
-    if (status !== 'granted') {
-      Alert.alert('権限エラー', '写真へのアクセス権限が必要です')
-      return
-    }
+    if (status !== 'granted') { Alert.alert('権限エラー', '写真へのアクセス権限が必要です'); return }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsMultipleSelection: true,
       quality: 0.8,
       selectionLimit: 5,
     })
-    if (!result.canceled) {
-      setImages(result.assets.map((a) => a.uri).slice(0, 5))
-    }
-  }
-
-  const useCurrentLocation = async () => {
-    const { status } = await Location.requestForegroundPermissionsAsync()
-    if (status !== 'granted') {
-      Alert.alert('位置情報エラー', '位置情報へのアクセス権限が必要です')
-      return
-    }
-    const loc = await Location.getCurrentPositionAsync({})
-    const { latitude, longitude } = loc.coords
-    setPinLocation({ latitude, longitude })
-    Alert.alert('位置設定完了', `現在地を設定しました`)
+    if (!result.canceled) setImages(result.assets.map((a) => a.uri).slice(0, 5))
   }
 
   const handleSubmit = async () => {
@@ -116,13 +107,20 @@ export default function PostForm({ userId, initialPet }: Props) {
       return
     }
     if (!pinLocation) {
-      Alert.alert('場所未設定', '「現在地を使う」ボタンで場所を設定してください')
+      Alert.alert('場所未設定', '地図をタップするか「現在地」ボタンで場所を設定してください')
       return
     }
     setSubmitting(true)
     try {
       const newImageUrls = images.length > 0 ? await uploadPetImages(userId, images) : []
       const allImages = [...existingImages, ...newImageUrls]
+      const locationData = {
+        lat: pinLocation.lat,
+        lng: pinLocation.lng,
+        address: form.address,
+        prefecture: form.prefecture,
+        city: form.city,
+      }
 
       if (isEditMode && initialPet) {
         await updatePet(initialPet.id, {
@@ -135,21 +133,13 @@ export default function PostForm({ userId, initialPet }: Props) {
           age: form.age,
           description: form.description,
           images: allImages,
-          location: {
-            lat: pinLocation.latitude,
-            lng: pinLocation.longitude,
-            address: form.address,
-            prefecture: form.prefecture,
-            city: form.city,
-          },
+          location: locationData,
           lostDate: form.lostDate,
           contactEmail: form.contactEmail,
           contactPhone: form.contactPhone,
           searchRadiusKm,
         })
-        Alert.alert('更新完了', '投稿を更新しました', [
-          { text: 'OK', onPress: () => router.back() },
-        ])
+        Alert.alert('更新完了', '投稿を更新しました', [{ text: 'OK', onPress: () => router.back() }])
       } else {
         await createPet({
           type: isLost ? 'lost' : 'found',
@@ -161,13 +151,7 @@ export default function PostForm({ userId, initialPet }: Props) {
           age: form.age,
           description: form.description,
           images: allImages,
-          location: {
-            lat: pinLocation.latitude,
-            lng: pinLocation.longitude,
-            address: form.address,
-            prefecture: form.prefecture,
-            city: form.city,
-          },
+          location: locationData,
           lostDate: form.lostDate,
           status: 'searching',
           userId,
@@ -175,9 +159,7 @@ export default function PostForm({ userId, initialPet }: Props) {
           contactPhone: form.contactPhone,
           searchRadiusKm,
         })
-        Alert.alert('投稿完了', '投稿しました', [
-          { text: 'OK', onPress: () => router.replace('/(tabs)') },
-        ])
+        Alert.alert('投稿完了', '投稿しました', [{ text: 'OK', onPress: () => router.replace('/(tabs)') }])
       }
     } catch {
       Alert.alert('エラー', `${isEditMode ? '更新' : '投稿'}に失敗しました。もう一度お試しください`)
@@ -191,16 +173,23 @@ export default function PostForm({ userId, initialPet }: Props) {
       {/* 種別トグル */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>種別</Text>
-        <View style={styles.toggleRow}>
-          <Text style={styles.toggleLabel}>
-            {isLost ? '🔍 迷子になった' : '🤝 保護した'}
-          </Text>
-          <Switch
-            value={!isLost}
-            onValueChange={(v) => setIsLost(!v)}
-            trackColor={{ false: '#fca5a5', true: '#93c5fd' }}
-            thumbColor={isLost ? '#ef4444' : '#3b82f6'}
-          />
+        <View style={styles.typeToggle}>
+          <TouchableOpacity
+            style={[styles.typeBtn, isLost && styles.typeBtnLost]}
+            onPress={() => setIsLost(true)}
+          >
+            <Text style={[styles.typeBtnText, isLost && styles.typeBtnTextActive]}>
+              🔍 迷子になった
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.typeBtn, !isLost && styles.typeBtnFound]}
+            onPress={() => setIsLost(false)}
+          >
+            <Text style={[styles.typeBtnText, !isLost && styles.typeBtnTextActive]}>
+              🤝 保護した
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -210,7 +199,7 @@ export default function PostForm({ userId, initialPet }: Props) {
         <Text style={styles.label}>動物種</Text>
         <View style={styles.chipRow}>
           {(['dog', 'cat', 'rabbit', 'bird', 'other'] as Pet['species'][]).map((s) => {
-            const labels = { dog: '犬', cat: '猫', rabbit: 'うさぎ', bird: '鳥', other: 'その他' }
+            const labels = { dog: '🐕 犬', cat: '🐈 猫', rabbit: '🐇 うさぎ', bird: '🐦 鳥', other: '🐾 その他' }
             return (
               <TouchableOpacity
                 key={s}
@@ -283,21 +272,25 @@ export default function PostForm({ userId, initialPet }: Props) {
       {/* 場所 */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>場所情報</Text>
-        <Field label="市区町村 *" value={form.city} onChange={(v) => set('city', v)} placeholder="例: 新宿区" />
-        <Field label="詳細場所・目印" value={form.address} onChange={(v) => set('address', v)} placeholder="例: ○○公園付近" />
+        <Text style={styles.mapDesc}>地図をタップして場所を指定してください</Text>
 
-        <TouchableOpacity style={styles.locationBtn} onPress={useCurrentLocation}>
-          <Text style={styles.locationBtnText}>📍 現在地を使う</Text>
+        <LocationMapPicker
+          pinLocation={pinLocation}
+          onPinChange={handlePinChange}
+          showRadiusCircle
+          searchRadiusKm={searchRadiusKm}
+        />
+
+        <Text style={styles.label}>都道府県 *</Text>
+        <TouchableOpacity style={styles.prefSelector} onPress={() => setPrefModal(true)}>
+          <Text style={form.prefecture ? styles.prefText : styles.prefPlaceholder}>
+            {form.prefecture || '都道府県を選択'}
+          </Text>
+          <Text style={styles.prefArrow}>▼</Text>
         </TouchableOpacity>
 
-        <View style={styles.locationStatus}>
-          {pinLocation ? (
-            <Text style={styles.locationSet}>✓ 位置設定済み</Text>
-          ) : (
-            <Text style={styles.locationUnset}>⚠ 「現在地を使う」ボタンで場所を設定してください（必須）</Text>
-          )}
-        </View>
-
+        <Field label="市区町村 *" value={form.city} onChange={(v) => set('city', v)} placeholder="例: 新宿区" />
+        <Field label="詳細場所・目印" value={form.address} onChange={(v) => set('address', v)} placeholder="例: ○○公園付近" />
       </View>
 
       {/* 探知範囲 */}
@@ -349,6 +342,28 @@ export default function PostForm({ userId, initialPet }: Props) {
       </TouchableOpacity>
 
       <View style={{ height: 40 }} />
+
+      {/* 都道府県モーダル */}
+      <Modal visible={prefModal} transparent animationType="slide" onRequestClose={() => setPrefModal(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setPrefModal(false)}>
+          <Pressable style={styles.prefModalPanel} onPress={() => {}}>
+            <Text style={styles.prefModalTitle}>都道府県を選択</Text>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {PREFECTURES.map((pref) => (
+                <TouchableOpacity
+                  key={pref}
+                  style={[styles.prefOption, form.prefecture === pref && styles.prefOptionActive]}
+                  onPress={() => { set('prefecture', pref); setPrefModal(false) }}
+                >
+                  <Text style={[styles.prefOptionText, form.prefecture === pref && styles.prefOptionTextActive]}>
+                    {pref}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </ScrollView>
   )
 }
@@ -380,87 +395,57 @@ function Field({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9fafb' },
-  section: {
-    backgroundColor: '#fff',
-    marginTop: 8,
-    padding: 16,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: '#f3f4f6',
-  },
+  section: { backgroundColor: '#fff', marginTop: 8, padding: 16, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#f3f4f6' },
   sectionTitle: { fontSize: 15, fontWeight: 'bold', color: '#374151', marginBottom: 12 },
-  toggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#f9fafb',
-    borderRadius: 10,
-    padding: 12,
-  },
-  toggleLabel: { fontSize: 15, fontWeight: '600', color: '#374151' },
+
+  typeToggle: { flexDirection: 'row', gap: 8 },
+  typeBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center', borderWidth: 2, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
+  typeBtnLost: { borderColor: '#ef4444', backgroundColor: '#fef2f2' },
+  typeBtnFound: { borderColor: '#3b82f6', backgroundColor: '#eff6ff' },
+  typeBtnText: { fontSize: 14, fontWeight: '600', color: '#6b7280' },
+  typeBtnTextActive: { fontWeight: 'bold', color: '#374151' },
+
   label: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6, marginTop: 12 },
   radiusHint: { fontSize: 12, color: '#6b7280', marginBottom: 10, marginTop: -4 },
+  mapDesc: { fontSize: 12, color: '#8B6340', marginBottom: 10, marginTop: -4 },
   checkboxRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  checkbox: {
-    width: 20, height: 20, borderRadius: 4, borderWidth: 1.5, borderColor: '#d1d5db',
-    alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff',
-  },
+  checkbox: { width: 20, height: 20, borderRadius: 4, borderWidth: 1.5, borderColor: '#d1d5db', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
   checkboxChecked: { backgroundColor: '#ef4444', borderColor: '#ef4444' },
   checkboxMark: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
   checkboxLabel: { fontSize: 13, color: '#374151' },
+
   chipRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  chip: {
-    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
-    backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e5e7eb',
-  },
-  chipActive: { backgroundColor: '#fee2e2', borderColor: '#ef4444' },
+  chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e5e7eb' },
+  chipActive: { backgroundColor: '#FFF3DC', borderColor: '#FFC96B' },
   chipText: { fontSize: 13, color: '#6b7280' },
-  chipTextActive: { color: '#ef4444', fontWeight: '600' },
+  chipTextActive: { color: '#7A4500', fontWeight: '600' },
+
   fieldWrapper: {},
-  input: {
-    backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb',
-    borderRadius: 8, padding: 10, fontSize: 14, color: '#111827',
-  },
-  textarea: {
-    backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb',
-    borderRadius: 8, padding: 10, fontSize: 14, color: '#111827',
-    height: 96, textAlignVertical: 'top',
-  },
-  photoBtn: {
-    borderWidth: 2, borderColor: '#e5e7eb', borderStyle: 'dashed',
-    borderRadius: 10, padding: 16, alignItems: 'center',
-  },
+  input: { backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, padding: 10, fontSize: 14, color: '#111827' },
+  textarea: { backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, padding: 10, fontSize: 14, color: '#111827', height: 96, textAlignVertical: 'top' },
+
+  photoBtn: { borderWidth: 2, borderColor: '#e5e7eb', borderStyle: 'dashed', borderRadius: 10, padding: 16, alignItems: 'center' },
   photoBtnText: { color: '#6b7280', fontWeight: '600' },
   imageRow: { marginTop: 8 },
   thumbnailWrapper: { position: 'relative', marginRight: 8 },
   thumbnail: { width: 72, height: 72, borderRadius: 8 },
-  removeImageBtn: {
-    position: 'absolute', top: -6, right: -6,
-    width: 20, height: 20, borderRadius: 10,
-    backgroundColor: '#ef4444', alignItems: 'center', justifyContent: 'center',
-  },
+  removeImageBtn: { position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: 10, backgroundColor: '#ef4444', alignItems: 'center', justifyContent: 'center' },
   removeImageBtnText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
-  locationBtn: {
-    backgroundColor: '#f3f4f6', borderRadius: 8, padding: 10,
-    alignItems: 'center', marginTop: 8,
-  },
-  locationBtnText: { color: '#374151', fontWeight: '600' },
-  locationStatus: {
-    marginTop: 10, padding: 10, backgroundColor: '#f9fafb',
-    borderRadius: 8, borderWidth: 1, borderColor: '#e5e7eb',
-  },
-  locationSet: { fontSize: 12, color: '#10b981', fontWeight: '600' },
-  locationUnset: { fontSize: 12, color: '#f59e0b', fontWeight: '600' },
-  mapHint: { fontSize: 13, color: '#6b7280', marginTop: 10, marginBottom: 6 },
-  mapWrapper: {
-    height: 220, borderRadius: 10, overflow: 'hidden',
-    borderWidth: 1, borderColor: '#e5e7eb',
-  },
-  map: { flex: 1 },
-  submitBtn: {
-    backgroundColor: '#ef4444', margin: 16, borderRadius: 12,
-    padding: 16, alignItems: 'center',
-  },
+
+  prefSelector: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, padding: 10, backgroundColor: '#f9fafb' },
+  prefText: { fontSize: 14, color: '#111827' },
+  prefPlaceholder: { fontSize: 14, color: '#9ca3af' },
+  prefArrow: { fontSize: 10, color: '#9ca3af' },
+
+  submitBtn: { backgroundColor: '#C46B00', margin: 16, borderRadius: 12, padding: 16, alignItems: 'center' },
   submitBtnDisabled: { opacity: 0.6 },
   submitBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  prefModalPanel: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '70%', paddingBottom: 20 },
+  prefModalTitle: { fontSize: 16, fontWeight: 'bold', color: '#3D2400', textAlign: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  prefOption: { paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f9fafb' },
+  prefOptionActive: { backgroundColor: '#FFF3DC' },
+  prefOptionText: { fontSize: 15, color: '#374151' },
+  prefOptionTextActive: { color: '#C46B00', fontWeight: 'bold' },
 })

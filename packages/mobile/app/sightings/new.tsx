@@ -17,8 +17,8 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { storage } from '../../src/lib/firebase'
 import { createSighting } from '../../src/lib/firestore'
 import { useAuth } from '../../src/contexts/AuthContext'
+import LocationMapPicker, { type LocationData } from '../../src/components/LocationMapPicker'
 import type { PetSpecies } from '../../src/types'
-import { PREFECTURES } from '../../src/types'
 
 const SPECIES_OPTIONS: { value: PetSpecies; label: string; emoji: string }[] = [
   { value: 'dog', label: '犬', emoji: '🐕' },
@@ -38,19 +38,24 @@ export default function NewSightingScreen() {
   const [species, setSpecies] = useState<PetSpecies>(defaultSpecies)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [prefecture, setPrefecture] = useState('東京都')
+  const [prefecture, setPrefecture] = useState('')
   const [city, setCity] = useState('')
   const [address, setAddress] = useState('')
+  const [pinLocation, setPinLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [guestEmail, setGuestEmail] = useState('')
   const [photos, setPhotos] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
 
+  const handlePinChange = (loc: LocationData) => {
+    setPinLocation({ lat: loc.lat, lng: loc.lng })
+    if (loc.prefecture) setPrefecture(loc.prefecture)
+    if (loc.city) setCity(loc.city)
+    if (loc.address) setAddress(loc.address)
+  }
+
   const pickImage = async () => {
-    if (photos.length >= 3) {
-      Alert.alert('最大3枚まで追加できます')
-      return
-    }
+    if (photos.length >= 3) { Alert.alert('最大3枚まで追加できます'); return }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       quality: 0.8,
@@ -61,9 +66,7 @@ export default function NewSightingScreen() {
     }
   }
 
-  const removePhoto = (index: number) => {
-    setPhotos((prev) => prev.filter((_, i) => i !== index))
-  }
+  const removePhoto = (index: number) => setPhotos((prev) => prev.filter((_, i) => i !== index))
 
   const handleSubmit = async () => {
     if (!title.trim()) { Alert.alert('エラー', 'タイトルを入力してください'); return }
@@ -72,7 +75,6 @@ export default function NewSightingScreen() {
 
     setSubmitting(true)
     try {
-      // Upload photos to Firebase Storage
       const photoUrls: string[] = []
       for (const uri of photos) {
         const ownerKey = user?.uid ?? `guest_${Date.now()}`
@@ -90,7 +92,13 @@ export default function NewSightingScreen() {
         species,
         title: title.trim(),
         description: description.trim() || undefined,
-        location: { prefecture, city: city.trim(), address: address.trim() },
+        location: {
+          prefecture: prefecture.trim(),
+          city: city.trim(),
+          address: address.trim(),
+          lat: pinLocation?.lat,
+          lng: pinLocation?.lng,
+        },
         photos: photoUrls,
         userId: user?.uid,
         guestEmail: !user ? guestEmail.trim() : undefined,
@@ -122,10 +130,7 @@ export default function NewSightingScreen() {
             <Text style={styles.registerPromptDesc}>
               この投稿をあなたのアカウントに紐づけると +2pt 受け取れます。
             </Text>
-            <TouchableOpacity
-              style={styles.registerBtn}
-              onPress={() => router.replace('/auth/register')}
-            >
+            <TouchableOpacity style={styles.registerBtn} onPress={() => router.replace('/auth/register')}>
               <Text style={styles.registerBtnText}>今すぐ登録してポイントを受け取る</Text>
             </TouchableOpacity>
           </View>
@@ -189,30 +194,22 @@ export default function NewSightingScreen() {
             />
           </View>
 
+          {/* 場所（地図） */}
+          <View style={styles.field}>
+            <Text style={styles.label}>見かけた場所 <Text style={styles.required}>*</Text></Text>
+            <Text style={styles.fieldHint}>地図をタップして場所を指定してください</Text>
+            <LocationMapPicker
+              pinLocation={pinLocation}
+              onPinChange={handlePinChange}
+            />
+          </View>
+
           {/* 都道府県 */}
           <View style={styles.field}>
             <Text style={styles.label}>都道府県 <Text style={styles.required}>*</Text></Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.prefScroll}
-              contentContainerStyle={styles.prefRow}
-            >
-              {PREFECTURES.slice(0, 15).map((pref) => (
-                <TouchableOpacity
-                  key={pref}
-                  style={[styles.prefChip, prefecture === pref && styles.prefChipActive]}
-                  onPress={() => setPrefecture(pref)}
-                >
-                  <Text style={[styles.prefText, prefecture === pref && styles.prefTextActive]}>
-                    {pref}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
             <TextInput
               style={styles.input}
-              placeholder="都道府県を直接入力"
+              placeholder="例: 東京都（地図から自動入力）"
               placeholderTextColor="#9ca3af"
               value={prefecture}
               onChangeText={setPrefecture}
@@ -224,7 +221,7 @@ export default function NewSightingScreen() {
             <Text style={styles.label}>市区町村 <Text style={styles.required}>*</Text></Text>
             <TextInput
               style={styles.input}
-              placeholder="例: 渋谷区"
+              placeholder="例: 渋谷区（地図から自動入力）"
               placeholderTextColor="#9ca3af"
               value={city}
               onChangeText={setCity}
@@ -325,10 +322,7 @@ const styles = StyleSheet.create({
   header: { backgroundColor: '#fff', padding: 16, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
   headerTitle: { fontSize: 20, fontWeight: '900', color: WARM_DARK, marginBottom: 4 },
   headerDesc: { fontSize: 13, color: '#8B6340', marginBottom: 10 },
-  pointBanner: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: 10, padding: 12,
-    backgroundColor: WARM_BG, borderRadius: 12, borderWidth: 1, borderColor: WARM_BORDER,
-  },
+  pointBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, padding: 12, backgroundColor: WARM_BG, borderRadius: 12, borderWidth: 1, borderColor: WARM_BORDER },
   pointBannerEmoji: { fontSize: 24 },
   pointBannerTitle: { fontSize: 12, fontWeight: 'bold', color: WARM_MID },
   pointBannerDesc: { fontSize: 11, color: '#A06830', marginTop: 2 },
@@ -338,41 +332,22 @@ const styles = StyleSheet.create({
   label: { fontSize: 14, fontWeight: 'bold', color: '#374151', marginBottom: 6 },
   required: { color: '#ef4444' },
   fieldHint: { fontSize: 11, color: '#9ca3af', marginBottom: 6 },
-  input: {
-    borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, padding: 12,
-    fontSize: 14, color: '#374151', backgroundColor: '#fff',
-  },
+  input: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, padding: 12, fontSize: 14, color: '#374151', backgroundColor: '#fff' },
   textarea: { minHeight: 100 },
 
   speciesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  speciesChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 8,
-    borderRadius: 20, backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e5e7eb',
-  },
+  speciesChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e5e7eb' },
   speciesChipActive: { backgroundColor: WARM_BG, borderColor: WARM_ACCENT },
   speciesEmoji: { fontSize: 16 },
   speciesLabel: { fontSize: 13, color: '#6b7280', fontWeight: '500' },
   speciesLabelActive: { color: WARM_MID, fontWeight: 'bold' },
 
-  prefScroll: { marginBottom: 8 },
-  prefRow: { flexDirection: 'row', gap: 6, paddingBottom: 4 },
-  prefChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 14, backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e5e7eb' },
-  prefChipActive: { backgroundColor: WARM_BG, borderColor: WARM_ACCENT },
-  prefText: { fontSize: 11, color: '#6b7280' },
-  prefTextActive: { color: WARM_MID, fontWeight: 'bold' },
-
   photoRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   photoThumb: { width: 80, height: 80, borderRadius: 8, overflow: 'hidden', position: 'relative' },
   photoThumbImage: { width: '100%', height: '100%' },
-  photoRemove: {
-    position: 'absolute', top: 2, right: 2, width: 20, height: 20, borderRadius: 10,
-    backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center',
-  },
+  photoRemove: { position: 'absolute', top: 2, right: 2, width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' },
   photoRemoveText: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
-  photoAdd: {
-    width: 80, height: 80, borderRadius: 8, borderWidth: 1.5, borderColor: '#e5e7eb',
-    borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f9fafb',
-  },
+  photoAdd: { width: 80, height: 80, borderRadius: 8, borderWidth: 1.5, borderColor: '#e5e7eb', borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f9fafb' },
   photoAddIcon: { fontSize: 22 },
   photoAddText: { fontSize: 10, color: '#9ca3af', marginTop: 2 },
 
@@ -380,28 +355,17 @@ const styles = StyleSheet.create({
   btnDisabled: { opacity: 0.5 },
   submitBtnText: { color: WARM_DARK, fontWeight: 'bold', fontSize: 16 },
 
-  // Success
   successContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: '#fff' },
   successEmoji: { fontSize: 64, marginBottom: 12 },
   successTitle: { fontSize: 20, fontWeight: '900', color: WARM_DARK, marginBottom: 8, textAlign: 'center' },
   successDesc: { fontSize: 14, color: '#8B6340', marginBottom: 20, textAlign: 'center' },
-  pointsBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 20, paddingVertical: 10,
-    backgroundColor: WARM_BG, borderRadius: 20, borderWidth: 1.5, borderColor: WARM_BORDER, marginBottom: 20,
-  },
+  pointsBadge: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 20, paddingVertical: 10, backgroundColor: WARM_BG, borderRadius: 20, borderWidth: 1.5, borderColor: WARM_BORDER, marginBottom: 20 },
   pointsBadgeText: { fontSize: 15, fontWeight: 'bold', color: '#C46B00' },
-  registerPrompt: {
-    width: '100%', padding: 16, backgroundColor: WARM_BG, borderRadius: 16,
-    borderWidth: 1.5, borderColor: WARM_BORDER, marginBottom: 16,
-  },
+  registerPrompt: { width: '100%', padding: 16, backgroundColor: WARM_BG, borderRadius: 16, borderWidth: 1.5, borderColor: WARM_BORDER, marginBottom: 16 },
   registerPromptTitle: { fontSize: 14, fontWeight: '900', color: WARM_MID, marginBottom: 6 },
   registerPromptDesc: { fontSize: 12, color: '#8B5E1A', marginBottom: 12 },
-  registerBtn: {
-    backgroundColor: WARM_ACCENT, borderRadius: 20, padding: 12, alignItems: 'center',
-  },
+  registerBtn: { backgroundColor: WARM_ACCENT, borderRadius: 20, padding: 12, alignItems: 'center' },
   registerBtnText: { color: WARM_DARK, fontWeight: 'bold', fontSize: 13 },
-  backBtn: {
-    borderWidth: 1, borderColor: WARM_BORDER, borderRadius: 20, paddingHorizontal: 24, paddingVertical: 10,
-  },
+  backBtn: { borderWidth: 1, borderColor: WARM_BORDER, borderRadius: 20, paddingHorizontal: 24, paddingVertical: 10 },
   backBtnText: { color: WARM_MID, fontWeight: '600', fontSize: 14 },
 })

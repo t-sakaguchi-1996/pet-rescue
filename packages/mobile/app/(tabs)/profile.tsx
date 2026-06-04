@@ -436,7 +436,7 @@ export default function ProfileScreen() {
               return (
                 <View key={badge.id} style={[styles.badgeCard, !earned && styles.badgeCardLocked]}>
                   <Text style={styles.badgeCardEmoji}>{badge.emoji}</Text>
-                  <Text style={[styles.badgeCardName, !earned && styles.badgeCardNameLocked]}>{badge.name}</Text>
+                  <Text style={[styles.badgeCardName, !earned && styles.badgeCardNameLocked]} numberOfLines={2}>{badge.name}</Text>
                   {!earned && <Text style={styles.badgeCardNotYet}>未取得</Text>}
                 </View>
               )
@@ -602,8 +602,8 @@ const styles = StyleSheet.create({
   profileInfo: { flex: 1, minWidth: 0 },
   displayName: { fontSize: 16, fontWeight: 'bold', color: '#111827' },
   email: { fontSize: 12, color: '#6b7280', marginTop: 1 },
-  titleBadge: { backgroundColor: BG, borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2, marginTop: 3, alignSelf: 'flex-start', borderWidth: 1, borderColor: BR },
-  titleBadgeText: { fontSize: 11, color: M, fontWeight: 'bold' },
+  titleBadge: { backgroundColor: BG, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, marginTop: 3, alignSelf: 'flex-start', borderWidth: 1, borderColor: BR, maxWidth: '100%' },
+  titleBadgeText: { fontSize: 11, color: M, fontWeight: 'bold', flexShrink: 1 },
   badgeRow: { flexDirection: 'row', gap: 3, marginTop: 3, flexWrap: 'wrap' },
   badgeEmoji: { fontSize: 16 },
   badgeMore: { fontSize: 11, color: '#B08050' },
@@ -683,12 +683,12 @@ const styles = StyleSheet.create({
   saveTitleBtn: { backgroundColor: '#C46B00', borderRadius: 12, padding: 13, alignItems: 'center', marginTop: 8, marginBottom: 4 },
   saveTitleBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 14 },
   badgeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  badgeCard: { width: '30%', padding: 10, backgroundColor: '#fff', borderRadius: 14, borderWidth: 1.5, borderColor: '#FFE0A0', alignItems: 'center' },
+  badgeCard: { width: '30%', minHeight: 90, padding: 8, backgroundColor: '#fff', borderRadius: 14, borderWidth: 1.5, borderColor: '#FFE0A0', alignItems: 'center', justifyContent: 'center' },
   badgeCardLocked: { opacity: 0.4, backgroundColor: '#F5F5F5', borderColor: '#E0E0E0' },
-  badgeCardEmoji: { fontSize: 28, marginBottom: 4 },
-  badgeCardName: { fontSize: 11, fontWeight: 'bold', color: W, textAlign: 'center' },
+  badgeCardEmoji: { fontSize: 26, marginBottom: 4 },
+  badgeCardName: { fontSize: 10, fontWeight: 'bold', color: W, textAlign: 'center', lineHeight: 14 },
   badgeCardNameLocked: { color: '#999' },
-  badgeCardNotYet: { fontSize: 10, color: '#CCC', marginTop: 2 },
+  badgeCardNotYet: { fontSize: 9, color: '#CCC', marginTop: 2 },
 
   // Rewards tab
   rewardsTabHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },

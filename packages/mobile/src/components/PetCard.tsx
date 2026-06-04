@@ -7,7 +7,7 @@ import {
   Dimensions,
 } from 'react-native'
 import type { Pet } from '../types'
-import { SPECIES_LABELS, TYPE_LABELS, STATUS_LABELS } from '../types'
+import { SPECIES_LABELS, STATUS_LABELS } from '../types'
 import { format } from 'date-fns'
 import { ja } from 'date-fns/locale'
 
@@ -20,59 +20,43 @@ interface Props {
 }
 
 export default function PetCard({ pet, onPress }: Props) {
+  const isLost = pet.type === 'lost'
+
   const statusBg =
-    pet.status === 'searching'
-      ? '#fef3c7'
-      : pet.status === 'protected'
-        ? '#d1fae5'
-        : '#f3f4f6'
+    pet.status === 'searching' ? '#fef3c7'
+    : pet.status === 'protected' ? '#d1fae5'
+    : '#f3f4f6'
 
   const statusColor =
-    pet.status === 'searching'
-      ? '#92400e'
-      : pet.status === 'protected'
-        ? '#065f46'
-        : '#6b7280'
+    pet.status === 'searching' ? '#92400e'
+    : pet.status === 'protected' ? '#065f46'
+    : '#6b7280'
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
       <View style={styles.imageWrapper}>
         {pet.images.length > 0 ? (
-          <Image
-            source={{ uri: pet.images[0] }}
-            style={styles.image}
-            resizeMode="cover"
-          />
+          <Image source={{ uri: pet.images[0] }} style={styles.image} resizeMode="cover" />
         ) : (
           <View style={[styles.image, styles.noImage]}>
             <Text style={styles.noImageEmoji}>
-              {pet.species === 'dog'
-                ? '🐕'
-                : pet.species === 'cat'
-                  ? '🐈'
-                  : '🐾'}
+              {pet.species === 'dog' ? '🐕' : pet.species === 'cat' ? '🐈' : '🐾'}
             </Text>
           </View>
         )}
-        <View
-          style={[
-            styles.typeBadge,
-            {
-              backgroundColor:
-                pet.type === 'lost' ? '#ef4444' : '#3b82f6',
-            },
-          ]}
-        >
-          <Text style={styles.typeBadgeText}>{TYPE_LABELS[pet.type]}</Text>
+
+        {/* 種別バナー（下部オーバーレイ） */}
+        <View style={[styles.typeBanner, isLost ? styles.typeBannerLost : styles.typeBannerFound]}>
+          <Text style={styles.typeBannerText}>
+            {isLost ? '🔍 迷子' : '🤝 保護'}
+          </Text>
         </View>
       </View>
 
       <View style={styles.body}>
         <Text style={styles.name} numberOfLines={1}>
           {pet.name || '名前不明'}
-          <Text style={styles.species}>
-            {' '}({SPECIES_LABELS[pet.species]})
-          </Text>
+          <Text style={styles.species}> ({SPECIES_LABELS[pet.species]})</Text>
         </Text>
         <Text style={styles.location} numberOfLines={1}>
           📍 {pet.location.prefecture} {pet.location.city}
@@ -105,37 +89,28 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   imageWrapper: { position: 'relative' },
-  image: {
-    width: '100%',
-    height: CARD_WIDTH,
-    backgroundColor: '#f3f4f6',
-  },
+  image: { width: '100%', height: CARD_WIDTH, backgroundColor: '#f3f4f6' },
   noImage: { alignItems: 'center', justifyContent: 'center' },
   noImageEmoji: { fontSize: 40 },
-  typeBadge: {
+
+  typeBanner: {
     position: 'absolute',
-    top: 6,
-    left: 6,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 10,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingVertical: 5,
+    alignItems: 'center',
   },
-  typeBadgeText: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
+  typeBannerLost: { backgroundColor: 'rgba(239,68,68,0.88)' },
+  typeBannerFound: { backgroundColor: 'rgba(37,99,235,0.88)' },
+  typeBannerText: { color: '#fff', fontSize: 12, fontWeight: '900', letterSpacing: 0.5 },
+
   body: { padding: 8 },
   name: { fontSize: 13, fontWeight: 'bold', color: '#111827' },
   species: { fontSize: 11, fontWeight: 'normal', color: '#6b7280' },
   location: { fontSize: 11, color: '#6b7280', marginTop: 2 },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 6,
-  },
-  statusBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
-  },
+  footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 },
+  statusBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
   statusText: { fontSize: 10, fontWeight: '600' },
   date: { fontSize: 10, color: '#9ca3af' },
 })
