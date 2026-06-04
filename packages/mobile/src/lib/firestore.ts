@@ -8,8 +8,10 @@ import {
   where,
   orderBy,
   limit,
+  onSnapshot,
   Timestamp,
   type QueryConstraint,
+  type Unsubscribe,
 } from 'firebase/firestore'
 import { db } from './firebase'
 import type {
@@ -17,9 +19,16 @@ import type {
   PetSpecies,
   PetType,
   PetStatus,
+  Comment,
+  Sighting,
+  SightingLocation,
+  UserProfile,
 } from '../types'
 
 const PETS = 'pets'
+const COMMENTS = 'comments'
+const SIGHTINGS = 'sightings'
+const USERS = 'users'
 const FETCH_TIMEOUT_MS = 10000
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
@@ -56,12 +65,62 @@ function toPet(id: string, data: Record<string, unknown>): Pet {
     lostDate: lostDate instanceof Timestamp ? lostDate.toDate().toISOString() : (lostDate ?? ''),
     status: data.status as Pet['status'],
     userId: (data.userId as string) ?? '',
+    ownerDisplayName: data.ownerDisplayName as string | undefined,
     contactEmail: (data.contactEmail as string) ?? '',
     contactPhone: (data.contactPhone as string) ?? '',
+    searchRadiusKm: data.searchRadiusKm as number | undefined,
+    bestInfoId: data.bestInfoId as string | undefined,
+    bestInfoType: data.bestInfoType as Pet['bestInfoType'],
+    bestInfoPointGranted: data.bestInfoPointGranted as boolean | undefined,
+    discoveryBonusGranted: data.discoveryBonusGranted as boolean | undefined,
     createdAt: createdAt instanceof Timestamp ? createdAt.toDate().toISOString() : (createdAt ?? ''),
     updatedAt: updatedAt instanceof Timestamp ? updatedAt.toDate().toISOString() : (updatedAt ?? ''),
   }
 }
+
+function toComment(id: string, data: Record<string, unknown>): Comment {
+  const createdAt = data.createdAt as Timestamp | string
+  const updatedAt = data.updatedAt as Timestamp | string
+  return {
+    id,
+    petId: data.petId as string,
+    userId: data.userId as string | undefined,
+    guestEmail: data.guestEmail as string | undefined,
+    userDisplayName: (data.userDisplayName as string) ?? '未登録ユーザー',
+    userPhotoURL: data.userPhotoURL as string | undefined,
+    text: (data.text as string) ?? '',
+    imageUrls: (data.imageUrls as string[]) ?? [],
+    parentId: data.parentId as string | undefined,
+    isBestInfo: Boolean(data.isBestInfo),
+    bestInfoPointGranted: Boolean(data.bestInfoPointGranted),
+    createdAt: createdAt instanceof Timestamp ? createdAt.toDate().toISOString() : (createdAt ?? ''),
+    updatedAt: updatedAt instanceof Timestamp ? updatedAt.toDate().toISOString() : (updatedAt ?? ''),
+  }
+}
+
+function toSighting(id: string, data: Record<string, unknown>): Sighting {
+  const createdAt = data.createdAt as Timestamp | string
+  const updatedAt = data.updatedAt as Timestamp | string
+  return {
+    id,
+    species: data.species as PetSpecies | undefined,
+    title: (data.title as string) ?? '',
+    photos: (data.photos as string[]) ?? [],
+    location: data.location as SightingLocation,
+    description: data.description as string | undefined,
+    userId: data.userId as string | undefined,
+    guestEmail: data.guestEmail as string | undefined,
+    posterName: (data.posterName as string) ?? '未登録ユーザー',
+    pointGranted: Boolean(data.pointGranted),
+    emailVerified: Boolean(data.emailVerified),
+    isBestInfo: Boolean(data.isBestInfo),
+    bestInfoPetId: data.bestInfoPetId as string | undefined,
+    createdAt: createdAt instanceof Timestamp ? createdAt.toDate().toISOString() : (createdAt ?? ''),
+    updatedAt: updatedAt instanceof Timestamp ? updatedAt.toDate().toISOString() : (updatedAt ?? ''),
+  }
+}
+
+// ──────────────── Pet ────────────────
 
 export interface PetFilter {
   type?: PetType
@@ -119,4 +178,114 @@ export async function fetchUserPets(userId: string): Promise<Pet[]> {
   return snap.docs.map((d) => toPet(d.id, d.data()))
 }
 
-export type { Pet, PetSpecies, PetType, PetStatus }
+// ──────────────── Comments ────────────────
+
+export function subscribeComments(
+  petId: string,
+  callback: (comments: Comment[]) => void
+): Unsubscribe {
+  const orderedQ = query(
+    collection(db, PETS, petId, COMMENTS),
+    orderBy('createdAt', 'asc')
+  )
+  const fallbackQ = query(collection(db, PETS, petId, COMMENTS))
+
+  let unsubscribe = onSnapshot(
+    orderedQ,
+    (snap) => callback(snap.docs.map((d) => toComment(d.id, d.data()))),
+    (err) => {
+      if (err.code === 'failed-precondition') {
+        unsubscribe = onSnapshot(fallbackQ, (snap) => {
+          const sorted = snap.docs
+            .map((d) => toComment(d.id, d.data()))
+            .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+          callback(sorted)
+        })
+      }
+    }
+  )
+  return unsubscribe
+}
+
+export async function createComment(
+  petId: string,
+  userId: string,
+  userDisplayName: string,
+  text: string,
+  parentId?: string
+): Promise<string> {
+  const now = Timestamp.now()
+  const ref = await addDoc(collection(db, PETS, petId, COMMENTS), {
+    petId,
+    userId,
+    userDisplayName,
+    text,
+    imageUrls: [],
+    parentId: parentId ?? null,
+    isBestInfo: false,
+    bestInfoPointGranted: false,
+    createdAt: now,
+    updatedAt: now,
+  })
+  return ref.id
+}
+
+// ──────────────── Sightings ────────────────
+
+export async function fetchRecentSightings(limitCount = 50): Promise<Sighting[]> {
+  const snap = await withTimeout(
+    getDocs(query(collection(db, SIGHTINGS), orderBy('createdAt', 'desc'), limit(limitCount))),
+    FETCH_TIMEOUT_MS
+  )
+  return snap.docs.map((d) => toSighting(d.id, d.data()))
+}
+
+export async function createSighting(data: {
+  species?: PetSpecies
+  title: string
+  description?: string
+  location: SightingLocation
+  photos: string[]
+  userId?: string
+  guestEmail?: string
+  posterName: string
+}): Promise<string> {
+  const now = Timestamp.now()
+  const ref = await addDoc(collection(db, SIGHTINGS), stripUndefined({
+    ...data,
+    pointGranted: false,
+    emailVerified: false,
+    isBestInfo: false,
+    createdAt: now,
+    updatedAt: now,
+  }))
+  return ref.id
+}
+
+// ──────────────── User ────────────────
+
+export async function fetchUserProfile(uid: string): Promise<UserProfile | null> {
+  const snap = await withTimeout(getDoc(doc(db, USERS, uid)), FETCH_TIMEOUT_MS)
+  if (!snap.exists()) return null
+  const data = snap.data()
+  const createdAt = data.createdAt as Timestamp | string
+  return {
+    id: snap.id,
+    email: (data.email as string) ?? '',
+    displayName: (data.displayName as string) ?? '',
+    photoURL: data.photoURL as string | undefined,
+    points: data.points as number | undefined,
+    totalPointsEarned: data.totalPointsEarned as number | undefined,
+    sightingCount: data.sightingCount as number | undefined,
+    protectedPostCount: data.protectedPostCount as number | undefined,
+    bestInfoCount: data.bestInfoCount as number | undefined,
+    discoveryCount: data.discoveryCount as number | undefined,
+    selectedTitle: data.selectedTitle as string | undefined,
+    titles: (data.titles as string[]) ?? [],
+    badges: (data.badges as string[]) ?? [],
+    showInRanking: Boolean(data.showInRanking),
+    createdAt: createdAt instanceof Timestamp ? createdAt.toDate().toISOString() : (createdAt ?? ''),
+  }
+}
+
+export type { Pet, PetSpecies, PetType, PetStatus, Comment, Sighting, UserProfile }

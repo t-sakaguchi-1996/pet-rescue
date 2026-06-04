@@ -21,6 +21,10 @@ export default function RootLayout() {
           name="auth/register"
           options={{ title: '新規登録', headerBackTitle: '戻る' }}
         />
+        <Stack.Screen
+          name="sightings/new"
+          options={{ title: '目撃情報を投稿', headerBackTitle: '戻る' }}
+        />
       </Stack>
     </AuthProvider>
   )

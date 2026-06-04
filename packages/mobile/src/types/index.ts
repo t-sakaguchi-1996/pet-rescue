@@ -38,6 +38,66 @@ export interface Pet {
   updatedAt: string
 }
 
+export interface Comment {
+  id: string
+  petId: string
+  userId?: string
+  guestEmail?: string
+  userDisplayName: string
+  userPhotoURL?: string
+  text: string
+  imageUrls: string[]
+  parentId?: string
+  isBestInfo: boolean
+  bestInfoPointGranted: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface SightingLocation {
+  address: string
+  city: string
+  prefecture: string
+  lat?: number
+  lng?: number
+}
+
+export interface Sighting {
+  id: string
+  species?: PetSpecies
+  title: string
+  photos: string[]
+  location: SightingLocation
+  description?: string
+  userId?: string
+  guestEmail?: string
+  posterName: string
+  pointGranted: boolean
+  emailVerified: boolean
+  isBestInfo: boolean
+  bestInfoPetId?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface UserProfile {
+  id: string
+  email: string
+  displayName: string
+  photoURL?: string
+  points?: number
+  totalPointsEarned?: number
+  sightingCount?: number
+  protectedPostCount?: number
+  bestInfoCount?: number
+  discoveryCount?: number
+  selectedTitle?: string
+  titles?: string[]
+  badges?: string[]
+  showInRanking?: boolean
+  createdAt: string
+}
+
 export const SPECIES_LABELS: Record<PetSpecies, string> = {
   dog: '犬',
   cat: '猫',
@@ -62,6 +122,16 @@ export const TYPE_LABELS: Record<PetType, string> = {
   lost: '迷子',
   found: '保護',
 }
+
+export const PREFECTURES = [
+  '北海道', '青森県', '岩手県', '宮城県', '秋田県', '山形県', '福島県',
+  '茨城県', '栃木県', '群馬県', '埼玉県', '千葉県', '東京都', '神奈川県',
+  '新潟県', '富山県', '石川県', '福井県', '山梨県', '長野県', '岐阜県',
+  '静岡県', '愛知県', '三重県', '滋賀県', '京都府', '大阪府', '兵庫県',
+  '奈良県', '和歌山県', '鳥取県', '島根県', '岡山県', '広島県', '山口県',
+  '徳島県', '香川県', '愛媛県', '高知県', '福岡県', '佐賀県', '長崎県',
+  '熊本県', '大分県', '宮崎県', '鹿児島県', '沖縄県',
+]
 
 export interface User {
   id: string

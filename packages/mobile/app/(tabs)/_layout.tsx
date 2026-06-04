@@ -11,7 +11,7 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#ef4444',
+        tabBarActiveTintColor: '#C46B00',
         tabBarInactiveTintColor: '#9ca3af',
         tabBarStyle: {
           borderTopWidth: 1,
@@ -32,7 +32,7 @@ export default function TabLayout() {
           tabBarIcon: ({ focused }) => (
             <TabIcon emoji="🏠" active={focused} />
           ),
-          headerTitle: '🐾 ペットレスキュー',
+          headerTitle: '🐾 ANIMAL GO',
         }}
       />
       <Tabs.Screen
