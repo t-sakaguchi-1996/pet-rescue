@@ -336,23 +336,32 @@ export default function PetDetailScreen() {
           {/* 連絡先 */}
           <View style={styles.card}>
             <Text style={styles.cardTitle}>連絡先</Text>
-            <Text style={styles.contactNote}>情報をお持ちの方はご連絡ください</Text>
-            {pet.contactEmail ? (
-              <TouchableOpacity
-                style={styles.contactBtn}
-                onPress={() => Linking.openURL(`mailto:${pet.contactEmail}`)}
-              >
-                <Text style={styles.contactBtnText}>📧 メールで連絡する</Text>
-              </TouchableOpacity>
-            ) : null}
-            {pet.contactPhone ? (
-              <TouchableOpacity
-                style={[styles.contactBtn, styles.contactBtnPhone]}
-                onPress={() => Linking.openURL(`tel:${pet.contactPhone}`)}
-              >
-                <Text style={styles.contactBtnText}>📞 電話で連絡する</Text>
-              </TouchableOpacity>
-            ) : null}
+            {isPetOwner ? (
+              <>
+                <Text style={styles.contactOwnerNote}>あなたにのみ表示されています</Text>
+                {pet.contactEmail ? (
+                  <TouchableOpacity
+                    style={styles.contactBtn}
+                    onPress={() => Linking.openURL(`mailto:${pet.contactEmail}`)}
+                  >
+                    <Text style={styles.contactBtnText}>📧 {pet.contactEmail}</Text>
+                  </TouchableOpacity>
+                ) : null}
+                {pet.contactPhone ? (
+                  <TouchableOpacity
+                    style={[styles.contactBtn, styles.contactBtnPhone]}
+                    onPress={() => Linking.openURL(`tel:${pet.contactPhone}`)}
+                  >
+                    <Text style={styles.contactBtnText}>📞 {pet.contactPhone}</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </>
+            ) : (
+              <Text style={styles.contactNote}>
+                連絡先は投稿者本人にのみ表示されます。{'\n'}
+                情報をお持ちの方は下のコメント欄からご連絡ください。
+              </Text>
+            )}
           </View>
 
           {/* 発見確認ボタン（オーナー向け・最有力情報が選ばれている場合） */}
@@ -542,6 +551,8 @@ export default function PetDetailScreen() {
                   onChangeText={setCommentText}
                   multiline
                   maxLength={500}
+                  underlineColorAndroid="transparent"
+                  textAlignVertical="top"
                 />
                 <TouchableOpacity
                   style={[styles.commentSubmitBtn, (!commentText.trim() || submittingComment) && styles.btnDisabled]}
@@ -619,13 +630,14 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 15, fontWeight: 'bold', color: '#374151', marginBottom: 10 },
   infoRow: { flexDirection: 'row', paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: '#f9fafb' },
   infoLabel: { width: 100, fontSize: 13, color: '#9ca3af' },
-  infoValue: { flex: 1, fontSize: 13, color: '#111827', fontWeight: '500' },
+  infoValue: { flex: 1, fontSize: 13, color: '#111827' },
   highlight: { color: '#C46B00' },
   description: { fontSize: 14, color: '#374151', lineHeight: 22 },
-  contactNote: { fontSize: 12, color: '#9ca3af', marginBottom: 10 },
-  contactBtn: { backgroundColor: '#ef4444', borderRadius: 10, padding: 12, alignItems: 'center', marginBottom: 8 },
-  contactBtnPhone: { backgroundColor: '#3b82f6' },
-  contactBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 14 },
+  contactNote: { fontSize: 13, color: '#6b7280', lineHeight: 20 },
+  contactOwnerNote: { fontSize: 11, color: '#9ca3af', marginBottom: 10 },
+  contactBtn: { backgroundColor: '#f9fafb', borderRadius: 10, padding: 12, alignItems: 'flex-start', marginBottom: 8, borderWidth: 1, borderColor: '#e5e7eb' },
+  contactBtnPhone: { backgroundColor: '#eff6ff', borderColor: '#bfdbfe' },
+  contactBtnText: { color: '#374151', fontWeight: 'bold', fontSize: 14 },
 
   // Discovery confirm
   discoveryCard: {
@@ -655,7 +667,7 @@ const styles = StyleSheet.create({
   sightingCtaBody: { flex: 1 },
   sightingCtaTitle: { fontSize: 13, fontWeight: 'bold', color: WARM_MID },
   sightingCtaDesc: { fontSize: 11, color: '#B08050', marginTop: 2 },
-  sightingCtaArrow: { fontSize: 14, fontWeight: '900', color: '#C46B00' },
+  sightingCtaArrow: { fontSize: 14, fontWeight: 'bold', color: '#C46B00' },
 
   // Sightings section
   sightingsSection: { marginBottom: 12 },
@@ -706,7 +718,7 @@ const styles = StyleSheet.create({
   commentDate: { fontSize: 11, color: '#9ca3af' },
   commentText: { fontSize: 14, color: '#374151', lineHeight: 20 },
   bestInfoBtnSmall: { marginTop: 8, paddingVertical: 5 },
-  bestInfoBtnSmallText: { fontSize: 12, color: '#9B8060', fontWeight: '600' },
+  bestInfoBtnSmallText: { fontSize: 12, color: '#9B8060', fontWeight: 'bold' },
   commentInput: { marginTop: 8, gap: 8 },
   commentTextField: {
     borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, padding: 12,
@@ -721,6 +733,6 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: WARM_BORDER, borderRadius: 10, padding: 12,
     alignItems: 'center', marginTop: 8, backgroundColor: WARM_BG,
   },
-  loginPromptText: { color: WARM_MID, fontWeight: '600', fontSize: 14 },
+  loginPromptText: { color: WARM_MID, fontWeight: 'bold', fontSize: 14 },
   postedAt: { fontSize: 12, color: '#9ca3af', textAlign: 'center', marginTop: 8, marginBottom: 32 },
 })

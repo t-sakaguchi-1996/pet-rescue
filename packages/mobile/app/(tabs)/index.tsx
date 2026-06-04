@@ -11,6 +11,7 @@ import {
   Pressable,
   Image,
   Dimensions,
+  Platform,
 } from 'react-native'
 import { useRouter } from 'expo-router'
 import { fetchPets, fetchRecentSightings, fetchSightingsFiltered } from '../../src/lib/firestore'
@@ -132,7 +133,7 @@ const sCard = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(245,158,11,0.88)',
   },
-  bannerText: { color: '#fff', fontSize: 12, fontWeight: '900', letterSpacing: 0.5 },
+  bannerText: { color: '#fff', fontSize: 12, fontWeight: 'bold', letterSpacing: 0.5 },
   body: { padding: 8 },
   title: { fontSize: 13, fontWeight: 'bold', color: '#111827' },
   location: { fontSize: 11, color: '#6b7280', marginTop: 2 },
@@ -546,7 +547,7 @@ const styles = StyleSheet.create({
   heroContent: { padding: 20, alignItems: 'center' },
   heroBadge: { backgroundColor: 'rgba(255,255,255,0.65)', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 4, marginBottom: 10 },
   heroBadgeText: { fontSize: 10, fontWeight: 'bold', color: M, textAlign: 'center' },
-  heroTitle: { fontSize: 28, fontWeight: '900', color: W, textAlign: 'center' },
+  heroTitle: { fontSize: 28, fontWeight: 'bold', color: W, textAlign: 'center' },
   heroSubtitle: { fontSize: 15, fontWeight: 'bold', color: M, marginTop: 4, textAlign: 'center' },
   heroDesc: { fontSize: 12, color: '#6B4200', marginTop: 8, textAlign: 'center', lineHeight: 18 },
   heroCta: { flexDirection: 'column', gap: 8, marginTop: 14, width: '100%' },
@@ -557,12 +558,12 @@ const styles = StyleSheet.create({
 
   // Point system
   pointSection: { margin: 12, marginTop: 0, padding: 16, borderRadius: 20, backgroundColor: BG, borderWidth: 1.5, borderColor: BR },
-  pointTitle: { fontSize: 14, fontWeight: '900', color: W, textAlign: 'center', marginBottom: 12 },
+  pointTitle: { fontSize: 14, fontWeight: 'bold', color: W, textAlign: 'center', marginBottom: 12 },
   pointCards: { flexDirection: 'row', gap: 8 },
   pointCard: { flex: 1, backgroundColor: '#fff', borderRadius: 14, padding: 10, alignItems: 'center', borderWidth: 1, borderColor: '#FFE8A0' },
   pointCardEmoji: { fontSize: 22, marginBottom: 4 },
   pointBadge: { backgroundColor: A, borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2, marginBottom: 4 },
-  pointBadgeText: { fontSize: 10, fontWeight: '900', color: W },
+  pointBadgeText: { fontSize: 10, fontWeight: 'bold', color: W },
   pointCardTitle: { fontSize: 10, fontWeight: 'bold', color: W, textAlign: 'center', marginBottom: 2 },
   pointCardDesc: { fontSize: 9, color: '#8B6340', textAlign: 'center', lineHeight: 12 },
 
@@ -572,7 +573,7 @@ const styles = StyleSheet.create({
   filterRow: { paddingHorizontal: 12, paddingVertical: 10, gap: 8, flexDirection: 'row' },
   filterChip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e5e7eb' },
   filterChipActive: { backgroundColor: BG, borderColor: A },
-  filterText: { fontSize: 13, color: '#6b7280', fontWeight: '500' },
+  filterText: { fontSize: 13, color: '#6b7280' },
   filterTextActive: { color: M, fontWeight: 'bold' },
 
   detailBtn: { paddingHorizontal: 12, paddingVertical: 6, marginRight: 10, borderRadius: 16, backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e5e7eb' },
@@ -603,9 +604,9 @@ const styles = StyleSheet.create({
 
   // Prefecture modal
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  prefModalPanel: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '70%', paddingBottom: 20 },
+  prefModalPanel: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '70%', paddingBottom: Platform.OS === 'ios' ? 34 : 20 },
   prefModalTitle: { fontSize: 16, fontWeight: 'bold', color: W, textAlign: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  prefOption: { paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f9fafb' },
+  prefOption: { paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f9fafb' },
   prefOptionActive: { backgroundColor: BG },
   prefOptionText: { fontSize: 15, color: '#374151' },
   prefOptionTextActive: { color: '#C46B00', fontWeight: 'bold' },

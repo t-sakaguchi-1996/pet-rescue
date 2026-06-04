@@ -256,6 +256,7 @@ export default function NewSightingScreen() {
               value={title}
               onChangeText={setTitle}
               maxLength={100}
+              underlineColorAndroid="transparent"
             />
           </View>
 
@@ -303,6 +304,7 @@ export default function NewSightingScreen() {
               placeholderTextColor="#9ca3af"
               value={address}
               onChangeText={setAddress}
+              underlineColorAndroid="transparent"
             />
           </View>
 
@@ -319,6 +321,7 @@ export default function NewSightingScreen() {
               numberOfLines={4}
               textAlignVertical="top"
               maxLength={500}
+              underlineColorAndroid="transparent"
             />
           </View>
 
@@ -356,6 +359,7 @@ export default function NewSightingScreen() {
                 onChangeText={setGuestEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
+                underlineColorAndroid="transparent"
               />
             </View>
           )}
@@ -382,70 +386,200 @@ const WARM_ACCENT = '#FFC96B'
 const WARM_BG = '#FFF3DC'
 const WARM_BORDER = '#FFD98A'
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
+const cardShadow = Platform.select({
+  ios: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.07,
+    shadowRadius: 3,
+  },
+  android: {
+    elevation: 2,
+  },
+})
 
-  header: { backgroundColor: '#fff', padding: 16, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  headerTitle: { fontSize: 20, fontWeight: '900', color: WARM_DARK, marginBottom: 4 },
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#f3f4f6' },
+
+  header: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 16,
+    ...cardShadow,
+  },
+  headerTitle: { fontSize: 20, fontWeight: 'bold', color: WARM_DARK, marginBottom: 4 },
   headerDesc: { fontSize: 13, color: '#8B6340', marginBottom: 10 },
-  pointBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, padding: 12, backgroundColor: WARM_BG, borderRadius: 12, borderWidth: 1, borderColor: WARM_BORDER },
+  pointBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    padding: 12,
+    backgroundColor: WARM_BG,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: WARM_BORDER,
+  },
   pointBannerEmoji: { fontSize: 24 },
   pointBannerTitle: { fontSize: 12, fontWeight: 'bold', color: WARM_MID },
   pointBannerDesc: { fontSize: 11, color: '#A06830', marginTop: 2 },
 
-  form: { padding: 16 },
-  field: { marginBottom: 16 },
-  label: { fontSize: 14, fontWeight: 'bold', color: '#374151', marginBottom: 6 },
+  form: { padding: 12 },
+  field: {
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingTop: 14,
+    paddingBottom: 16,
+    marginBottom: 10,
+    ...cardShadow,
+  },
+  label: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6 },
   required: { color: '#ef4444' },
-  fieldHint: { fontSize: 11, color: '#9ca3af', marginBottom: 6 },
-  input: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, padding: 12, fontSize: 14, color: '#374151', backgroundColor: '#fff' },
-  textarea: { minHeight: 100 },
+  fieldHint: { fontSize: 11, color: '#9ca3af', marginBottom: 8 },
+  input: {
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: Platform.OS === 'android' ? 10 : 11,
+    fontSize: 14,
+    color: '#374151',
+    backgroundColor: '#f9fafb',
+  },
+  textarea: { minHeight: 100, textAlignVertical: 'top' },
 
   speciesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  speciesChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e5e7eb' },
+  speciesChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#f3f4f6',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
   speciesChipActive: { backgroundColor: WARM_BG, borderColor: WARM_ACCENT },
   speciesEmoji: { fontSize: 16 },
-  speciesLabel: { fontSize: 13, color: '#6b7280', fontWeight: '500' },
+  speciesLabel: { fontSize: 13, color: '#6b7280' },
   speciesLabelActive: { color: WARM_MID, fontWeight: 'bold' },
 
   photoRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   photoThumb: { width: 80, height: 80, borderRadius: 8, overflow: 'hidden', position: 'relative' },
   photoThumbImage: { width: '100%', height: '100%' },
-  photoRemove: { position: 'absolute', top: 2, right: 2, width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' },
-  photoRemoveText: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
-  photoAdd: { width: 80, height: 80, borderRadius: 8, borderWidth: 1.5, borderColor: '#e5e7eb', borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f9fafb' },
+  photoRemove: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoRemoveText: { color: '#fff', fontSize: 11, fontWeight: 'bold' },
+  photoAdd: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: '#e5e7eb',
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f9fafb',
+  },
   photoAddIcon: { fontSize: 22 },
   photoAddText: { fontSize: 10, color: '#9ca3af', marginTop: 2 },
 
-  selector: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, padding: 12, backgroundColor: '#fff' },
+  selector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: Platform.OS === 'android' ? 10 : 11,
+    backgroundColor: '#f9fafb',
+  },
   selectorText: { fontSize: 14, color: '#374151', flex: 1 },
-  selectorPlaceholder: { color: '#9ca3af' },
+  selectorPlaceholder: { fontSize: 14, color: '#9ca3af', flex: 1 },
   selectorArrow: { fontSize: 10, color: '#9ca3af', marginLeft: 4 },
 
-  submitBtn: { backgroundColor: WARM_ACCENT, borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 8 },
+  submitBtn: {
+    backgroundColor: '#C46B00',
+    borderRadius: 14,
+    paddingVertical: 18,
+    alignItems: 'center',
+    marginTop: 6,
+    marginBottom: 4,
+  },
   btnDisabled: { opacity: 0.5 },
-  submitBtnText: { color: WARM_DARK, fontWeight: 'bold', fontSize: 16 },
+  submitBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 17 },
 
   successContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: '#fff' },
   successEmoji: { fontSize: 64, marginBottom: 12 },
-  successTitle: { fontSize: 20, fontWeight: '900', color: WARM_DARK, marginBottom: 8, textAlign: 'center' },
+  successTitle: { fontSize: 20, fontWeight: 'bold', color: WARM_DARK, marginBottom: 8, textAlign: 'center' },
   successDesc: { fontSize: 14, color: '#8B6340', marginBottom: 20, textAlign: 'center' },
-  pointsBadge: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 20, paddingVertical: 10, backgroundColor: WARM_BG, borderRadius: 20, borderWidth: 1.5, borderColor: WARM_BORDER, marginBottom: 20 },
+  pointsBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: WARM_BG,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: WARM_BORDER,
+    marginBottom: 20,
+  },
   pointsBadgeText: { fontSize: 15, fontWeight: 'bold', color: '#C46B00' },
-  registerPrompt: { width: '100%', padding: 16, backgroundColor: WARM_BG, borderRadius: 16, borderWidth: 1.5, borderColor: WARM_BORDER, marginBottom: 16 },
-  registerPromptTitle: { fontSize: 14, fontWeight: '900', color: WARM_MID, marginBottom: 6 },
+  registerPrompt: {
+    width: '100%',
+    padding: 16,
+    backgroundColor: WARM_BG,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: WARM_BORDER,
+    marginBottom: 16,
+  },
+  registerPromptTitle: { fontSize: 14, fontWeight: 'bold', color: WARM_MID, marginBottom: 6 },
   registerPromptDesc: { fontSize: 12, color: '#8B5E1A', marginBottom: 12 },
   registerBtn: { backgroundColor: WARM_ACCENT, borderRadius: 20, padding: 12, alignItems: 'center' },
   registerBtnText: { color: WARM_DARK, fontWeight: 'bold', fontSize: 13 },
-  backBtn: { borderWidth: 1, borderColor: WARM_BORDER, borderRadius: 20, paddingHorizontal: 24, paddingVertical: 10 },
+  backBtn: {
+    borderWidth: 1,
+    borderColor: WARM_BORDER,
+    borderRadius: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+  },
   backBtnText: { color: WARM_MID, fontWeight: '600', fontSize: 14 },
 })
 
 const modalStyles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  panel: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '70%', paddingBottom: 20 },
-  title: { fontSize: 16, fontWeight: 'bold', color: '#3D2400', textAlign: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  option: { paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f9fafb' },
+  panel: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '70%',
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#3D2400',
+    textAlign: 'center',
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  option: { paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f9fafb' },
   optionActive: { backgroundColor: '#FFF3DC' },
   optionText: { fontSize: 15, color: '#374151' },
   optionTextActive: { color: '#C46B00', fontWeight: 'bold' },

@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Image,
+  Platform,
 } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useAuth } from '../../src/contexts/AuthContext'
@@ -219,14 +220,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 12,
     borderBottomWidth: 1, borderBottomColor: '#f3f4f6',
   },
-  headerTitle: { fontSize: 17, fontWeight: '900', color: '#3D2400' },
+  headerTitle: { fontSize: 17, fontWeight: 'bold', color: '#3D2400' },
   headerSub: { fontSize: 12, color: '#8B6340', marginTop: 2 },
 
   myRankCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12, margin: 12, padding: 14,
     borderRadius: 16, backgroundColor: '#FFF3DC', borderWidth: 2, borderColor: '#FFD98A',
   },
-  myRankNum: { fontSize: 28, fontWeight: '900', color: '#C46B00' },
+  myRankNum: { fontSize: 28, fontWeight: 'bold', color: '#C46B00' },
   myRankLabel: { fontSize: 12, fontWeight: 'bold', color: '#7A4500' },
   myRankType: { fontSize: 11, color: '#B08050', marginTop: 1 },
   myRankEmpty: {
@@ -237,10 +238,10 @@ const styles = StyleSheet.create({
   myRankEmptyText: { fontSize: 12, color: '#B08050', textAlign: 'center' },
   myRankLink: { color: '#C46B00', textDecorationLine: 'underline' },
 
-  tabScroll: { maxHeight: 44, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  tabContent: { paddingHorizontal: 12, paddingVertical: 6, gap: 6 },
+  tabScroll: { height: 58, maxHeight: 58, minHeight: 58, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  tabContent: { paddingHorizontal: 12, paddingVertical: 0, gap: 6, alignItems: 'center' },
   tab: {
-    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 9999,
     backgroundColor: '#FFF3DC', borderWidth: 1.5, borderColor: '#FFD98A',
   },
   tabActive: { backgroundColor: '#C46B00', borderColor: '#C46B00' },
@@ -292,7 +293,7 @@ const styles = StyleSheet.create({
   prefText: { fontSize: 10, color: '#B08050' },
 
   scoreCell: { alignItems: 'flex-end', flexShrink: 0 },
-  score: { fontSize: 16, fontWeight: '900', color: '#C46B00' },
+  score: { fontSize: 16, fontWeight: 'bold', color: '#C46B00' },
   scoreUnit: { fontSize: 11, color: '#B08050', marginTop: 1 },
 
   ctaCard: {

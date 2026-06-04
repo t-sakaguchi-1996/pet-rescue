@@ -389,7 +389,7 @@ const styles = StyleSheet.create({
   noPhotoEmoji: { fontSize: 52 },
 
   body: { padding: 16 },
-  title: { fontSize: 20, fontWeight: '900', color: '#3D2400', marginBottom: 16 },
+  title: { fontSize: 20, fontWeight: 'bold', color: '#3D2400', marginBottom: 16 },
 
   infoBox: {
     backgroundColor: '#fff', borderRadius: 14, padding: 14,
@@ -397,7 +397,7 @@ const styles = StyleSheet.create({
   },
   infoRow: { flexDirection: 'row', gap: 12 },
   infoLabel: { fontSize: 13, color: '#9B8060', width: 60, flexShrink: 0 },
-  infoValue: { fontSize: 13, fontWeight: '600', color: '#3D2400', flex: 1 },
+  infoValue: { fontSize: 13, fontWeight: 'bold', color: '#3D2400', flex: 1 },
 
   descBox: {
     backgroundColor: '#FFFAF0', borderRadius: 12, padding: 14,

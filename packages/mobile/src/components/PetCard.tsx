@@ -103,7 +103,7 @@ const styles = StyleSheet.create({
   },
   typeBannerLost: { backgroundColor: 'rgba(239,68,68,0.88)' },
   typeBannerFound: { backgroundColor: 'rgba(37,99,235,0.88)' },
-  typeBannerText: { color: '#fff', fontSize: 12, fontWeight: '900', letterSpacing: 0.5 },
+  typeBannerText: { color: '#fff', fontSize: 12, fontWeight: 'bold', letterSpacing: 0.5 },
 
   body: { padding: 8 },
   name: { fontSize: 13, fontWeight: 'bold', color: '#111827' },

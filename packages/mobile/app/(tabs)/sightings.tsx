@@ -10,6 +10,7 @@ import {
   ScrollView,
   Modal,
   Pressable,
+  Platform,
 } from 'react-native'
 import { useRouter } from 'expo-router'
 import { fetchSightingsFiltered } from '../../src/lib/firestore'
@@ -281,7 +282,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 12,
     borderBottomWidth: 1, borderBottomColor: '#f3f4f6',
   },
-  headerTitle: { fontSize: 17, fontWeight: '900', color: W },
+  headerTitle: { fontSize: 17, fontWeight: 'bold', color: W },
   headerSub: { fontSize: 12, color: '#8B6340', marginTop: 2 },
   postBtn: { backgroundColor: A, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20 },
   postBtnText: { fontSize: 12, fontWeight: 'bold', color: W },
@@ -306,7 +307,7 @@ const styles = StyleSheet.create({
   },
   speciesChipActive: { backgroundColor: BG, borderColor: A },
   speciesEmoji: { fontSize: 14 },
-  speciesLabel: { fontSize: 12, color: '#6b7280', fontWeight: '500' },
+  speciesLabel: { fontSize: 12, color: '#6b7280' },
   speciesLabelActive: { color: M, fontWeight: 'bold' },
 
   locationRow: {
@@ -320,7 +321,7 @@ const styles = StyleSheet.create({
     maxWidth: 130,
   },
   prefBtnActive: { backgroundColor: '#C46B00', borderColor: '#C46B00' },
-  prefBtnText: { fontSize: 12, fontWeight: '600', color: M, flex: 1 },
+  prefBtnText: { fontSize: 12, fontWeight: 'bold', color: M, flex: 1 },
   prefBtnTextActive: { color: '#fff' },
   prefArrow: { fontSize: 9, color: '#B08050' },
 
@@ -341,14 +342,14 @@ const styles = StyleSheet.create({
   // Modal
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   modalPanel: {
-    backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20,
-    maxHeight: '70%', paddingBottom: 20,
+    backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    maxHeight: '70%', paddingBottom: Platform.OS === 'ios' ? 34 : 20,
   },
   modalTitle: {
     fontSize: 16, fontWeight: 'bold', color: W, textAlign: 'center',
-    padding: 16, borderBottomWidth: 1, borderBottomColor: '#f3f4f6',
+    paddingVertical: 16, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: '#f3f4f6',
   },
-  modalOption: { paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f9fafb' },
+  modalOption: { paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f9fafb' },
   modalOptionActive: { backgroundColor: BG },
   modalOptionText: { fontSize: 15, color: '#374151' },
   modalOptionTextActive: { color: '#C46B00', fontWeight: 'bold' },

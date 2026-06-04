@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
   content: { padding: 16, paddingBottom: 40 },
 
   pageHeader: { alignItems: 'center', marginBottom: 16 },
-  pageTitle: { fontSize: 22, fontWeight: '900', color: '#3D2400', marginBottom: 4 },
+  pageTitle: { fontSize: 22, fontWeight: 'bold', color: '#3D2400', marginBottom: 4 },
   pageSub: { fontSize: 13, color: '#8B6340', textAlign: 'center' },
 
   pointsCard: {
@@ -342,7 +342,7 @@ const styles = StyleSheet.create({
   },
   pointsEmoji: { fontSize: 32 },
   pointsLabel: { fontSize: 12, fontWeight: 'bold', color: '#7A4500' },
-  pointsValue: { fontSize: 24, fontWeight: '900', color: '#C46B00' },
+  pointsValue: { fontSize: 24, fontWeight: 'bold', color: '#C46B00' },
   pointsUnit: { fontSize: 14, color: '#C46B00' },
 
   loginPrompt: {
@@ -384,7 +384,7 @@ const styles = StyleSheet.create({
   monthlyBadgeText: { fontSize: 10, fontWeight: 'bold', color: '#3D2400' },
   rewardDesc: { fontSize: 12, color: '#8B6340', marginBottom: 6 },
   rewardFooter: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  rewardPoints: { fontSize: 18, fontWeight: '900', color: '#C46B00' },
+  rewardPoints: { fontSize: 18, fontWeight: 'bold', color: '#C46B00' },
   rewardPointsLabel: { fontSize: 11, color: '#B08050' },
   stockText: { fontSize: 12, color: '#8B6340' },
   stockLow: { color: '#CC3333' },

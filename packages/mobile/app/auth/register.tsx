@@ -62,6 +62,7 @@ export default function RegisterScreen() {
             onChangeText={setDisplayName}
             placeholder="太郎"
             placeholderTextColor="#9ca3af"
+            underlineColorAndroid="transparent"
           />
         </View>
 
@@ -75,6 +76,7 @@ export default function RegisterScreen() {
             autoCapitalize="none"
             placeholder="example@email.com"
             placeholderTextColor="#9ca3af"
+            underlineColorAndroid="transparent"
           />
         </View>
 
@@ -87,6 +89,7 @@ export default function RegisterScreen() {
             secureTextEntry
             placeholder="パスワード"
             placeholderTextColor="#9ca3af"
+            underlineColorAndroid="transparent"
           />
         </View>
 
@@ -146,14 +149,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#d1d5db',
     borderRadius: 10,
-    padding: 12,
+    paddingHorizontal: 12,
+    paddingVertical: Platform.OS === 'android' ? 10 : 12,
     fontSize: 15,
     color: '#111827',
   },
   btn: {
     backgroundColor: '#ef4444',
     borderRadius: 10,
-    padding: 14,
+    paddingVertical: 16,
     alignItems: 'center',
     marginTop: 8,
   },

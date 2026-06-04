@@ -8,9 +8,9 @@ import {
   StyleSheet,
   Image,
   Alert,
-  Switch,
   Modal,
   Pressable,
+  Platform,
 } from 'react-native'
 import * as ImagePicker from 'expo-image-picker'
 import { useRouter } from 'expo-router'
@@ -49,8 +49,6 @@ export default function PostForm({ userId, initialPet }: Props) {
       : null,
   )
   const [searchRadiusKm, setSearchRadiusKm] = useState<number>(initialPet?.searchRadiusKm ?? 5)
-  const [useUserInfo, setUseUserInfo] = useState(false)
-  const [emailBeforeAutoFill, setEmailBeforeAutoFill] = useState('')
   const [prefModal, setPrefModal] = useState(false)
   const [cityModal, setCityModal] = useState(false)
   const [form, setForm] = useState({
@@ -67,7 +65,6 @@ export default function PostForm({ userId, initialPet }: Props) {
     prefecture: initialPet?.location.prefecture ?? '東京都',
     city: initialPet?.location.city ?? '',
     address: initialPet?.location.address ?? '',
-    contactEmail: initialPet?.contactEmail ?? '',
     contactPhone: initialPet?.contactPhone ?? '',
   })
 
@@ -86,17 +83,6 @@ export default function PostForm({ userId, initialPet }: Props) {
       }
     } catch {
       // silent fail
-    }
-  }
-
-  const handleUseUserInfo = (checked: boolean) => {
-    setUseUserInfo(checked)
-    if (checked && currentUser) {
-      setEmailBeforeAutoFill(form.contactEmail)
-      set('contactEmail', currentUser.email ?? '')
-    } else if (!checked) {
-      set('contactEmail', emailBeforeAutoFill)
-      setEmailBeforeAutoFill('')
     }
   }
 
@@ -123,8 +109,8 @@ export default function PostForm({ userId, initialPet }: Props) {
   }
 
   const handleSubmit = async () => {
-    if (!form.color || !form.description || !form.city || !form.contactEmail) {
-      Alert.alert('入力エラー', '必須項目を入力してください（毛色・説明・市区町村・メール）')
+    if (!form.color || !form.description || !form.city) {
+      Alert.alert('入力エラー', '必須項目を入力してください（毛色・説明・市区町村）')
       return
     }
     if (!pinLocation) {
@@ -132,6 +118,7 @@ export default function PostForm({ userId, initialPet }: Props) {
       return
     }
     setSubmitting(true)
+    const contactEmail = currentUser?.email ?? ''
     try {
       const newImageUrls = images.length > 0 ? await uploadPetImages(userId, images) : []
       const allImages = [...existingImages, ...newImageUrls]
@@ -156,7 +143,7 @@ export default function PostForm({ userId, initialPet }: Props) {
           images: allImages,
           location: locationData,
           lostDate: form.lostDate,
-          contactEmail: form.contactEmail,
+          contactEmail,
           contactPhone: form.contactPhone,
           searchRadiusKm,
         })
@@ -176,7 +163,7 @@ export default function PostForm({ userId, initialPet }: Props) {
           lostDate: form.lostDate,
           status: 'searching',
           userId,
-          contactEmail: form.contactEmail,
+          contactEmail,
           contactPhone: form.contactPhone,
           searchRadiusKm,
         })
@@ -192,12 +179,13 @@ export default function PostForm({ userId, initialPet }: Props) {
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* 種別トグル */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>種別</Text>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>種別</Text>
         <View style={styles.typeToggle}>
           <TouchableOpacity
             style={[styles.typeBtn, isLost && styles.typeBtnLost]}
             onPress={() => setIsLost(true)}
+            activeOpacity={0.75}
           >
             <Text style={[styles.typeBtnText, isLost && styles.typeBtnTextActive]}>
               🔍 迷子になった
@@ -206,6 +194,7 @@ export default function PostForm({ userId, initialPet }: Props) {
           <TouchableOpacity
             style={[styles.typeBtn, !isLost && styles.typeBtnFound]}
             onPress={() => setIsLost(false)}
+            activeOpacity={0.75}
           >
             <Text style={[styles.typeBtnText, !isLost && styles.typeBtnTextActive]}>
               🤝 保護した
@@ -215,8 +204,8 @@ export default function PostForm({ userId, initialPet }: Props) {
       </View>
 
       {/* 基本情報 */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>基本情報</Text>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>基本情報</Text>
         <Text style={styles.label}>動物種</Text>
         <View style={styles.chipRow}>
           {(['dog', 'cat', 'rabbit', 'bird', 'other'] as Pet['species'][]).map((s) => {
@@ -226,6 +215,7 @@ export default function PostForm({ userId, initialPet }: Props) {
                 key={s}
                 style={[styles.chip, form.species === s && styles.chipActive]}
                 onPress={() => set('species', s)}
+                activeOpacity={0.75}
               >
                 <Text style={[styles.chipText, form.species === s && styles.chipTextActive]}>
                   {labels[s]}
@@ -254,12 +244,14 @@ export default function PostForm({ userId, initialPet }: Props) {
           placeholderTextColor="#9ca3af"
           multiline
           numberOfLines={4}
+          textAlignVertical="top"
+          underlineColorAndroid="transparent"
         />
       </View>
 
       {/* 写真 */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>写真（最大5枚）</Text>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>写真（最大5枚）</Text>
         {existingImages.length > 0 && (
           <>
             <Text style={styles.label}>現在の写真</Text>
@@ -278,7 +270,7 @@ export default function PostForm({ userId, initialPet }: Props) {
             </ScrollView>
           </>
         )}
-        <TouchableOpacity style={styles.photoBtn} onPress={pickImages}>
+        <TouchableOpacity style={styles.photoBtn} onPress={pickImages} activeOpacity={0.75}>
           <Text style={styles.photoBtnText}>📷 写真を追加する</Text>
         </TouchableOpacity>
         {images.length > 0 && (
@@ -291,9 +283,9 @@ export default function PostForm({ userId, initialPet }: Props) {
       </View>
 
       {/* 場所 */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>場所情報</Text>
-        <Text style={styles.mapDesc}>地図をタップして場所を指定してください</Text>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>場所情報</Text>
+        <Text style={styles.hint}>地図をタップして場所を指定してください</Text>
 
         <LocationMapPicker
           pinLocation={pinLocation}
@@ -302,37 +294,39 @@ export default function PostForm({ userId, initialPet }: Props) {
           searchRadiusKm={searchRadiusKm}
         />
 
-        <Text style={styles.label}>都道府県 *</Text>
-        <TouchableOpacity style={styles.prefSelector} onPress={() => setPrefModal(true)}>
-          <Text style={form.prefecture ? styles.prefText : styles.prefPlaceholder}>
+        <Text style={[styles.label, { marginTop: 16 }]}>都道府県 *</Text>
+        <TouchableOpacity style={styles.selector} onPress={() => setPrefModal(true)} activeOpacity={0.75}>
+          <Text style={form.prefecture ? styles.selectorText : styles.selectorPlaceholder}>
             {form.prefecture || '都道府県を選択'}
           </Text>
-          <Text style={styles.prefArrow}>▼</Text>
+          <Text style={styles.selectorArrow}>▼</Text>
         </TouchableOpacity>
 
         <Text style={styles.label}>市区町村 *</Text>
         <TouchableOpacity
-          style={[styles.prefSelector, !form.prefecture && { opacity: 0.5 }]}
+          style={[styles.selector, !form.prefecture && { opacity: 0.5 }]}
           onPress={() => form.prefecture && setCityModal(true)}
+          activeOpacity={0.75}
         >
-          <Text style={form.city ? styles.prefText : styles.prefPlaceholder}>
+          <Text style={form.city ? styles.selectorText : styles.selectorPlaceholder}>
             {form.city || (form.prefecture ? '市区町村を選択' : '都道府県を先に選択')}
           </Text>
-          <Text style={styles.prefArrow}>▼</Text>
+          <Text style={styles.selectorArrow}>▼</Text>
         </TouchableOpacity>
         <Field label="詳細場所・目印" value={form.address} onChange={(v) => set('address', v)} placeholder="例: ○○公園付近" />
       </View>
 
       {/* 探知範囲 */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>目撃情報の探知範囲</Text>
-        <Text style={styles.radiusHint}>この範囲内で目撃情報が投稿された場合に通知します</Text>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>目撃情報の探知範囲</Text>
+        <Text style={styles.hint}>この範囲内で目撃情報が投稿された場合に通知します</Text>
         <View style={styles.chipRow}>
           {SEARCH_RADIUS_OPTIONS.map((opt) => (
             <TouchableOpacity
               key={opt.value}
               style={[styles.chip, searchRadiusKm === opt.value && styles.chipActive]}
               onPress={() => setSearchRadiusKm(opt.value)}
+              activeOpacity={0.75}
             >
               <Text style={[styles.chipText, searchRadiusKm === opt.value && styles.chipTextActive]}>
                 {opt.label}
@@ -342,50 +336,32 @@ export default function PostForm({ userId, initialPet }: Props) {
         </View>
       </View>
 
-      {/* 連絡先 */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>連絡先</Text>
-        {currentUser ? (
-          <TouchableOpacity
-            style={styles.checkboxRow}
-            onPress={() => handleUseUserInfo(!useUserInfo)}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.checkbox, useUserInfo && styles.checkboxChecked]}>
-              {useUserInfo && <Text style={styles.checkboxMark}>✓</Text>}
-            </View>
-            <Text style={styles.checkboxLabel}>会員情報と同じものを使用する</Text>
-          </TouchableOpacity>
-        ) : null}
-        <Field label="メールアドレス *" value={form.contactEmail} onChange={(v) => set('contactEmail', v)} placeholder="example@email.com" keyboardType="email-address" />
-        <Field label="電話番号" value={form.contactPhone} onChange={(v) => set('contactPhone', v)} placeholder="090-0000-0000" keyboardType="phone-pad" />
-      </View>
-
       <TouchableOpacity
         style={[styles.submitBtn, submitting && styles.submitBtnDisabled]}
         onPress={handleSubmit}
         disabled={submitting}
+        activeOpacity={0.8}
       >
         <Text style={styles.submitBtnText}>
           {submitting ? (isEditMode ? '更新中...' : '投稿中...') : (isEditMode ? '更新する' : '投稿する')}
         </Text>
       </TouchableOpacity>
 
-      <View style={{ height: 40 }} />
+      <View style={{ height: 48 }} />
 
       {/* 都道府県モーダル */}
       <Modal visible={prefModal} transparent animationType="slide" onRequestClose={() => setPrefModal(false)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setPrefModal(false)}>
-          <Pressable style={styles.prefModalPanel} onPress={() => {}}>
-            <Text style={styles.prefModalTitle}>都道府県を選択</Text>
+          <Pressable style={styles.modalPanel} onPress={() => {}}>
+            <Text style={styles.modalTitle}>都道府県を選択</Text>
             <ScrollView showsVerticalScrollIndicator={false}>
               {PREFECTURES.map((pref) => (
                 <TouchableOpacity
                   key={pref}
-                  style={[styles.prefOption, form.prefecture === pref && styles.prefOptionActive]}
+                  style={[styles.modalOption, form.prefecture === pref && styles.modalOptionActive]}
                   onPress={() => { set('prefecture', pref); set('city', ''); setPrefModal(false); void forwardGeocode(pref) }}
                 >
-                  <Text style={[styles.prefOptionText, form.prefecture === pref && styles.prefOptionTextActive]}>
+                  <Text style={[styles.modalOptionText, form.prefecture === pref && styles.modalOptionTextActive]}>
                     {pref}
                   </Text>
                 </TouchableOpacity>
@@ -398,16 +374,16 @@ export default function PostForm({ userId, initialPet }: Props) {
       {/* 市区町村モーダル */}
       <Modal visible={cityModal} transparent animationType="slide" onRequestClose={() => setCityModal(false)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setCityModal(false)}>
-          <Pressable style={styles.prefModalPanel} onPress={() => {}}>
-            <Text style={styles.prefModalTitle}>市区町村を選択</Text>
+          <Pressable style={styles.modalPanel} onPress={() => {}}>
+            <Text style={styles.modalTitle}>市区町村を選択</Text>
             <ScrollView showsVerticalScrollIndicator={false}>
               {(CITIES_BY_PREFECTURE[form.prefecture] ?? []).map((c) => (
                 <TouchableOpacity
                   key={c}
-                  style={[styles.prefOption, form.city === c && styles.prefOptionActive]}
+                  style={[styles.modalOption, form.city === c && styles.modalOptionActive]}
                   onPress={() => { set('city', c); setCityModal(false); void forwardGeocode(`${form.prefecture}${c}`) }}
                 >
-                  <Text style={[styles.prefOptionText, form.city === c && styles.prefOptionTextActive]}>
+                  <Text style={[styles.modalOptionText, form.city === c && styles.modalOptionTextActive]}>
                     {c}
                   </Text>
                 </TouchableOpacity>
@@ -440,64 +416,166 @@ function Field({
         placeholderTextColor="#9ca3af"
         keyboardType={keyboardType ?? 'default'}
         autoCapitalize="none"
+        underlineColorAndroid="transparent"
       />
     </View>
   )
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
-  section: { backgroundColor: '#fff', marginTop: 8, padding: 16, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#f3f4f6' },
-  sectionTitle: { fontSize: 15, fontWeight: 'bold', color: '#374151', marginBottom: 12 },
+const cardShadow = Platform.select({
+  ios: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.07,
+    shadowRadius: 3,
+  },
+  android: {
+    elevation: 2,
+  },
+})
 
-  typeToggle: { flexDirection: 'row', gap: 8 },
-  typeBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center', borderWidth: 2, borderColor: '#e5e7eb', backgroundColor: '#f9fafb' },
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#f3f4f6' },
+
+  card: {
+    backgroundColor: '#fff',
+    marginHorizontal: 12,
+    marginTop: 12,
+    borderRadius: 16,
+    padding: 18,
+    ...cardShadow,
+  },
+  cardTitle: { fontSize: 15, fontWeight: 'bold', color: '#374151', marginBottom: 14 },
+
+  typeToggle: { flexDirection: 'row', gap: 10 },
+  typeBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+    backgroundColor: '#f9fafb',
+  },
   typeBtnLost: { borderColor: '#ef4444', backgroundColor: '#fef2f2' },
   typeBtnFound: { borderColor: '#3b82f6', backgroundColor: '#eff6ff' },
   typeBtnText: { fontSize: 14, fontWeight: '600', color: '#6b7280' },
   typeBtnTextActive: { fontWeight: 'bold', color: '#374151' },
 
-  label: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6, marginTop: 12 },
-  radiusHint: { fontSize: 12, color: '#6b7280', marginBottom: 10, marginTop: -4 },
-  mapDesc: { fontSize: 12, color: '#8B6340', marginBottom: 10, marginTop: -4 },
-  checkboxRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  checkbox: { width: 20, height: 20, borderRadius: 4, borderWidth: 1.5, borderColor: '#d1d5db', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
-  checkboxChecked: { backgroundColor: '#ef4444', borderColor: '#ef4444' },
-  checkboxMark: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
-  checkboxLabel: { fontSize: 13, color: '#374151' },
+  label: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6, marginTop: 14 },
+  hint: { fontSize: 12, color: '#6b7280', marginBottom: 12, marginTop: -8 },
 
   chipRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e5e7eb' },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#f3f4f6',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
   chipActive: { backgroundColor: '#FFF3DC', borderColor: '#FFC96B' },
   chipText: { fontSize: 13, color: '#6b7280' },
-  chipTextActive: { color: '#7A4500', fontWeight: '600' },
+  chipTextActive: { color: '#7A4500', fontWeight: 'bold' },
 
   fieldWrapper: {},
-  input: { backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, padding: 10, fontSize: 14, color: '#111827' },
-  textarea: { backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, padding: 10, fontSize: 14, color: '#111827', height: 96, textAlignVertical: 'top' },
+  input: {
+    backgroundColor: '#f9fafb',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: Platform.OS === 'android' ? 10 : 11,
+    fontSize: 14,
+    color: '#111827',
+  },
+  textarea: {
+    backgroundColor: '#f9fafb',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#111827',
+    minHeight: 96,
+  },
 
-  photoBtn: { borderWidth: 2, borderColor: '#e5e7eb', borderStyle: 'dashed', borderRadius: 10, padding: 16, alignItems: 'center' },
-  photoBtnText: { color: '#6b7280', fontWeight: '600' },
-  imageRow: { marginTop: 8 },
+  photoBtn: {
+    borderWidth: 1.5,
+    borderColor: '#e5e7eb',
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    paddingVertical: 18,
+    alignItems: 'center',
+  },
+  photoBtnText: { color: '#6b7280', fontWeight: '600', fontSize: 14 },
+  imageRow: { marginTop: 10 },
   thumbnailWrapper: { position: 'relative', marginRight: 8 },
   thumbnail: { width: 72, height: 72, borderRadius: 8 },
-  removeImageBtn: { position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: 10, backgroundColor: '#ef4444', alignItems: 'center', justifyContent: 'center' },
+  removeImageBtn: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#ef4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   removeImageBtnText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
 
-  prefSelector: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, padding: 10, backgroundColor: '#f9fafb' },
-  prefText: { fontSize: 14, color: '#111827' },
-  prefPlaceholder: { fontSize: 14, color: '#9ca3af' },
-  prefArrow: { fontSize: 10, color: '#9ca3af' },
+  selector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: Platform.OS === 'android' ? 10 : 11,
+    backgroundColor: '#f9fafb',
+  },
+  selectorText: { fontSize: 14, color: '#111827', flex: 1 },
+  selectorPlaceholder: { fontSize: 14, color: '#9ca3af', flex: 1 },
+  selectorArrow: { fontSize: 10, color: '#9ca3af' },
 
-  submitBtn: { backgroundColor: '#C46B00', margin: 16, borderRadius: 12, padding: 16, alignItems: 'center' },
+  submitBtn: {
+    backgroundColor: '#C46B00',
+    marginHorizontal: 12,
+    marginTop: 20,
+    borderRadius: 14,
+    paddingVertical: 18,
+    alignItems: 'center',
+  },
   submitBtnDisabled: { opacity: 0.6 },
-  submitBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  submitBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 17 },
 
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  prefModalPanel: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '70%', paddingBottom: 20 },
-  prefModalTitle: { fontSize: 16, fontWeight: 'bold', color: '#3D2400', textAlign: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  prefOption: { paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f9fafb' },
-  prefOptionActive: { backgroundColor: '#FFF3DC' },
-  prefOptionText: { fontSize: 15, color: '#374151' },
-  prefOptionTextActive: { color: '#C46B00', fontWeight: 'bold' },
+  modalPanel: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '70%',
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#3D2400',
+    textAlign: 'center',
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  modalOption: {
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f9fafb',
+  },
+  modalOptionActive: { backgroundColor: '#FFF3DC' },
+  modalOptionText: { fontSize: 15, color: '#374151' },
+  modalOptionTextActive: { color: '#C46B00', fontWeight: 'bold' },
 })

@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  FlatList,
   StyleSheet,
   Alert,
   ScrollView,
@@ -27,8 +26,7 @@ import { requestNotificationPermission } from '../../src/lib/notifications'
 import PetCard from '../../src/components/PetCard'
 import type { Pet, UserProfile, PointTransaction, RewardExchange } from '../../src/types'
 import { TITLE_DEFINITIONS, BADGE_DEFINITIONS, TRANSACTION_TYPE_LABELS } from '../../src/types'
-import { format } from 'date-fns'
-import { ja } from 'date-fns/locale'
+
 
 // EXCHANGE_STATUS_LABEL is not exported from types — define it here
 const STATUS_LABEL: Record<string, string> = {
@@ -73,10 +71,9 @@ export default function ProfileScreen() {
   const [savingTitle, setSavingTitle] = useState(false)
   const [activeTab, setActiveTab] = useState<ProfileTab>('overview')
   const [notifEnabled, setNotifEnabled] = useState(false)
-  const [dataLoading, setDataLoading] = useState(true)
 
   useEffect(() => {
-    if (!user) { setDataLoading(false); return }
+    if (!user) return
 
     const loadAll = async () => {
       const [p, userPets, txs, exs] = await Promise.all([
@@ -91,7 +88,6 @@ export default function ProfileScreen() {
       setExchanges(exs)
       setSelectedTitleEdit(p?.selectedTitle ?? null)
 
-      // ランキング順位（バックグラウンド）
       Promise.all([
         fetchRanking('total_points', user.uid),
         fetchRanking('monthly_points', user.uid),
@@ -99,8 +95,6 @@ export default function ProfileScreen() {
         setTotalRank(findUserRank(total, user.uid))
         setMonthlyRank(findUserRank(monthly, user.uid))
       }).catch(() => {})
-
-      setDataLoading(false)
     }
     void loadAll()
   }, [user])
@@ -187,7 +181,7 @@ export default function ProfileScreen() {
     .reduce((s, t) => s + t.amount, 0)
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.containerContent}>
       {/* プロフィールヘッダー */}
       <View style={styles.profileHeader}>
         <View style={styles.avatarWrapper}>
@@ -282,7 +276,7 @@ export default function ProfileScreen() {
 
       {/* タブコンテンツ */}
       {activeTab === 'overview' && (
-        <ScrollView style={styles.tabBody}>
+        <View style={styles.tabBody}>
           {/* 目撃情報CTA */}
           <TouchableOpacity style={styles.ctaItem} onPress={() => router.push('/sightings/new')}>
             <Text style={styles.ctaItemEmoji}>👁️</Text>
@@ -340,11 +334,11 @@ export default function ProfileScreen() {
               ))
             )}
           </View>
-        </ScrollView>
+        </View>
       )}
 
       {activeTab === 'points' && (
-        <ScrollView style={styles.tabBody}>
+        <View style={styles.tabBody}>
           <View style={styles.pointsSummaryCard}>
             <View style={styles.pointsSummaryRow}>
               {[
@@ -387,11 +381,11 @@ export default function ProfileScreen() {
               </View>
             ))
           )}
-        </ScrollView>
+        </View>
       )}
 
       {activeTab === 'titles' && (
-        <ScrollView style={styles.tabBody}>
+        <View style={styles.tabBody}>
           <Text style={styles.sectionTitle}>🎖️ 取得済み称号</Text>
           {TITLE_DEFINITIONS.map((title) => {
             const earned = earnedTitles.includes(title.id)
@@ -442,11 +436,11 @@ export default function ProfileScreen() {
               )
             })}
           </View>
-        </ScrollView>
+        </View>
       )}
 
       {activeTab === 'rewards' && (
-        <ScrollView style={styles.tabBody}>
+        <View style={styles.tabBody}>
           <View style={styles.rewardsTabHeader}>
             <Text style={styles.sectionTitle}>🎁 景品交換履歴</Text>
             <TouchableOpacity onPress={() => router.push('/rewards')}>
@@ -489,33 +483,18 @@ export default function ProfileScreen() {
               )
             })
           )}
-        </ScrollView>
+        </View>
       )}
 
       {activeTab === 'posts' && (
-        <FlatList
-          data={pets}
-          keyExtractor={(item) => item.id}
-          numColumns={2}
-          columnWrapperStyle={styles.row}
-          contentContainerStyle={styles.list}
-          ListHeaderComponent={
-            <View style={styles.postsHeader}>
-              <Text style={styles.postsHeaderTitle}>自分の投稿 ({pets.length}件)</Text>
-              <TouchableOpacity style={styles.newPostBtn} onPress={() => router.push('/(tabs)/post')}>
-                <Text style={styles.newPostBtnText}>新規投稿</Text>
-              </TouchableOpacity>
-            </View>
-          }
-          renderItem={({ item }) => (
-            <View style={styles.petCardWrapper}>
-              <PetCard pet={item} onPress={() => router.push(`/pet/${item.id}`)} />
-              <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDeletePet(item.id)}>
-                <Text style={styles.deleteBtnText}>削除</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-          ListEmptyComponent={
+        <View style={styles.tabBody}>
+          <View style={styles.postsHeader}>
+            <Text style={styles.postsHeaderTitle}>自分の投稿 ({pets.length}件)</Text>
+            <TouchableOpacity style={styles.newPostBtn} onPress={() => router.push('/(tabs)/post')}>
+              <Text style={styles.newPostBtnText}>新規投稿</Text>
+            </TouchableOpacity>
+          </View>
+          {pets.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyEmoji}>📋</Text>
               <Text style={styles.emptyText}>まだ投稿がありません</Text>
@@ -523,12 +502,23 @@ export default function ProfileScreen() {
                 <Text style={styles.primaryBtnText}>最初の投稿をする</Text>
               </TouchableOpacity>
             </View>
-          }
-        />
+          ) : (
+            <View style={styles.petGrid}>
+              {pets.map((item) => (
+                <View key={item.id} style={styles.petCardWrapper}>
+                  <PetCard pet={item} onPress={() => router.push(`/pet/${item.id}`)} />
+                  <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDeletePet(item.id)}>
+                    <Text style={styles.deleteBtnText}>削除</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
       )}
 
       {activeTab === 'settings' && (
-        <ScrollView style={styles.tabBody}>
+        <View style={styles.tabBody}>
           {/* ランキング表示設定 */}
           <View style={styles.settingCard}>
             <Text style={styles.settingCardTitle}>🏆 ランキング表示設定</Text>
@@ -572,9 +562,9 @@ export default function ProfileScreen() {
           <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
             <Text style={styles.logoutText}>ログアウト</Text>
           </TouchableOpacity>
-        </ScrollView>
+        </View>
       )}
-    </View>
+    </ScrollView>
   )
 }
 
@@ -586,13 +576,14 @@ const BR = '#FFD98A'
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9fafb' },
+  containerContent: { flexGrow: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   emoji: { fontSize: 48, marginBottom: 16 },
   message: { color: '#6b7280', fontSize: 16, textAlign: 'center', marginBottom: 24 },
   primaryBtn: { backgroundColor: A, paddingHorizontal: 32, paddingVertical: 12, borderRadius: 10, marginBottom: 10, width: '100%', alignItems: 'center' },
   primaryBtnText: { color: W, fontWeight: 'bold', fontSize: 15 },
   secondaryBtn: { backgroundColor: '#fff', paddingHorizontal: 32, paddingVertical: 12, borderRadius: 10, width: '100%', alignItems: 'center', borderWidth: 1, borderColor: '#e5e7eb' },
-  secondaryBtnText: { color: '#374151', fontWeight: '600', fontSize: 15 },
+  secondaryBtnText: { color: '#374151', fontWeight: 'bold', fontSize: 15 },
 
   profileHeader: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 14, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', gap: 10 },
   avatarWrapper: { width: 52, height: 52, borderRadius: 26, overflow: 'hidden', flexShrink: 0 },
@@ -615,18 +606,18 @@ const styles = StyleSheet.create({
   summaryCardLight: { backgroundColor: '#FFF9F0' },
   summaryEmoji: { fontSize: 16, marginBottom: 2 },
   summaryLabel: { fontSize: 10, color: '#B08050', marginBottom: 2, textAlign: 'center' },
-  summaryValue: { fontSize: 13, fontWeight: '900' },
-  summaryValueDark: { fontSize: 13, fontWeight: '900', color: '#5A3A1A' },
+  summaryValue: { fontSize: 13, fontWeight: 'bold' },
+  summaryValueDark: { fontSize: 13, fontWeight: 'bold', color: '#5A3A1A' },
   summaryUnit: { fontSize: 10, fontWeight: 'normal' },
 
-  tabScroll: { maxHeight: 44, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  tabContent: { paddingHorizontal: 10, paddingVertical: 6, gap: 6 },
-  tab: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, backgroundColor: BG, borderWidth: 1.5, borderColor: BR },
+  tabScroll: { height: 58, maxHeight: 58, minHeight: 58,backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  tabContent: { paddingHorizontal: 12, paddingVertical: 0, gap: 6, alignItems: 'center' },
+  tab: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 9999, backgroundColor: BG, borderWidth: 1.5, borderColor: BR },
   tabActive: { backgroundColor: '#C46B00', borderColor: '#C46B00' },
-  tabText: { fontSize: 11, fontWeight: 'bold', color: '#8B5E1A' },
+  tabText: { fontSize: 12, fontWeight: 'bold', color: '#8B5E1A' },
   tabTextActive: { color: '#fff' },
 
-  tabBody: { flex: 1, padding: 12 },
+  tabBody: { padding: 12 },
 
   // Overview
   ctaItem: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, backgroundColor: '#fff', borderRadius: 14, borderWidth: 1.5, borderColor: BR, borderStyle: 'dashed', marginBottom: 10 },
@@ -642,7 +633,7 @@ const styles = StyleSheet.create({
   rankGrid: { flexDirection: 'row', gap: 8 },
   rankCard: { flex: 1, padding: 10, backgroundColor: '#FFF9F0', borderRadius: 10, borderWidth: 1, borderColor: '#FFE0A0', alignItems: 'center' },
   rankCardLabel: { fontSize: 11, color: '#B08050', marginBottom: 4 },
-  rankCardValue: { fontSize: 22, fontWeight: '900', color: '#C46B00' },
+  rankCardValue: { fontSize: 22, fontWeight: 'bold', color: '#C46B00' },
   rankCardValueEmpty: { color: '#CCC' },
   txRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 8, borderRadius: 8, backgroundColor: '#FFF9F0', marginBottom: 4 },
   txRowCancelled: { opacity: 0.5 },
@@ -655,7 +646,7 @@ const styles = StyleSheet.create({
   pointsSummaryRow: { flexDirection: 'row', justifyContent: 'space-around' },
   pointsSummaryItem: { alignItems: 'center' },
   pointsSummaryLabel: { fontSize: 11, fontWeight: 'bold', color: M, marginBottom: 2 },
-  pointsSummaryValue: { fontSize: 20, fontWeight: '900' },
+  pointsSummaryValue: { fontSize: 20, fontWeight: 'bold' },
   pointsPt: { fontSize: 12, fontWeight: 'normal' },
   rewardsLink: { padding: 12, borderRadius: 14, backgroundColor: BG, borderWidth: 1.5, borderColor: BR, borderStyle: 'dashed', alignItems: 'center', marginBottom: 12 },
   rewardsLinkText: { fontSize: 13, fontWeight: 'bold', color: M },
@@ -665,7 +656,7 @@ const styles = StyleSheet.create({
   txCancelledTag: { fontSize: 11, color: '#CC3333' },
   txCardDesc: { fontSize: 11, color: '#B08050', marginTop: 2 },
   txCardDate: { fontSize: 11, color: '#C8A87A', marginTop: 2 },
-  txCardAmount: { fontSize: 16, fontWeight: '900' },
+  txCardAmount: { fontSize: 16, fontWeight: 'bold' },
 
   // Titles tab
   sectionTitle: { fontSize: 14, fontWeight: 'bold', color: '#5A3A1A', marginBottom: 10 },
@@ -691,7 +682,7 @@ const styles = StyleSheet.create({
   badgeCardNotYet: { fontSize: 9, color: '#CCC', marginTop: 2 },
 
   // Rewards tab
-  rewardsTabHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  rewardsTabHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   exchangeCard: { backgroundColor: '#fff', borderRadius: 14, padding: 14, borderWidth: 1.5, borderColor: '#FFE0A0', marginBottom: 8 },
   exchangeCardRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 },
   exchangeCardInfo: { flex: 1 },
@@ -708,9 +699,8 @@ const styles = StyleSheet.create({
   postsHeaderTitle: { fontSize: 14, fontWeight: 'bold', color: '#5A3A1A' },
   newPostBtn: { backgroundColor: '#C46B00', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
   newPostBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 12 },
-  list: { padding: 4 },
-  row: { gap: 10, marginBottom: 10 },
-  petCardWrapper: { flex: 1, position: 'relative' },
+  petGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  petCardWrapper: { width: '48%', position: 'relative' },
   deleteBtn: { position: 'absolute', bottom: 4, right: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.9)' },
   deleteBtnText: { fontSize: 11, color: '#9ca3af' },
 
@@ -723,10 +713,10 @@ const styles = StyleSheet.create({
   settingCardTitle: { fontSize: 13, fontWeight: 'bold', color: '#5A3A1A', marginBottom: 6 },
   settingCardDesc: { fontSize: 12, color: '#8B6340', marginBottom: 10 },
   settingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  settingRowLabel: { fontSize: 14, fontWeight: '600', color: '#374151' },
+  settingRowLabel: { fontSize: 14, fontWeight: 'bold', color: '#374151' },
   settingBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 10, borderTopWidth: 1, borderTopColor: '#f3f4f6' },
-  settingBtnText: { fontSize: 14, color: '#374151', fontWeight: '500' },
+  settingBtnText: { fontSize: 14, color: '#374151' },
   settingBtnArrow: { fontSize: 20, color: '#9ca3af' },
   logoutBtn: { margin: 4, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, padding: 12, alignItems: 'center', marginTop: 8 },
-  logoutText: { color: '#6b7280', fontWeight: '600' },
+  logoutText: { color: '#6b7280', fontWeight: 'bold' },
 })
