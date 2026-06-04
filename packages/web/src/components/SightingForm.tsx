@@ -1,8 +1,8 @@
 'use client'
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
-import { APIProvider } from '@vis.gl/react-google-maps'
+import { APIProvider, useMapsLibrary } from '@vis.gl/react-google-maps'
 import { useAuth } from '@/contexts/AuthContext'
 import { useLoadingState } from '@/contexts/LoadingContext'
 import { createSighting, uploadSightingImage } from '@/lib/sightings'
@@ -45,6 +45,38 @@ function SightingFormInner({ onSuccess, defaultSpecies }: Props) {
   const [city, setCity] = useState('')
   const [prefecture, setPrefecture] = useState('東京都')
   const [pinLocation, setPinLocation] = useState<{ lat: number; lng: number } | null>(null)
+
+  const geocodingLib = useMapsLibrary('geocoding')
+  const [geocoder, setGeocoder] = useState<google.maps.Geocoder | null>(null)
+  useEffect(() => {
+    if (geocodingLib) setGeocoder(new geocodingLib.Geocoder())
+  }, [geocodingLib])
+
+  const geocodeAddress = useCallback(async (q: string) => {
+    if (!geocoder || !q.trim()) return
+    try {
+      const result = await geocoder.geocode({ address: q, region: 'JP' })
+      if (result.results[0]) {
+        const loc = result.results[0].geometry.location
+        setPinLocation({ lat: loc.lat(), lng: loc.lng() })
+      }
+    } catch (e) {
+      console.warn('Geocoding failed:', e)
+    }
+  }, [geocoder])
+
+  const handlePrefectureChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newPref = e.target.value
+    setPrefecture(newPref)
+    setCity('')
+    void geocodeAddress(newPref)
+  }
+
+  const handleCityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newCity = e.target.value
+    setCity(newCity)
+    if (newCity) void geocodeAddress(`${prefecture}${newCity}`)
+  }
   const [photos, setPhotos] = useState<File[]>([])
   const [previews, setPreviews] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
@@ -242,7 +274,7 @@ function SightingFormInner({ onSuccess, defaultSpecies }: Props) {
         <div className="grid grid-cols-2 gap-2 mt-3">
           <select
             value={prefecture}
-            onChange={(e) => setPrefecture(e.target.value)}
+            onChange={handlePrefectureChange}
             className="input-field"
           >
             {PREFECTURES.map((p) => (
@@ -251,7 +283,7 @@ function SightingFormInner({ onSuccess, defaultSpecies }: Props) {
           </select>
           <select
             value={city}
-            onChange={(e) => setCity(e.target.value)}
+            onChange={handleCityChange}
             className="select-field"
             disabled={!prefecture}
           >

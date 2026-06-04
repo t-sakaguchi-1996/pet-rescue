@@ -21,6 +21,8 @@ import LocationMapPicker, { type LocationData } from './LocationMapPicker'
 import type { Pet } from '../types'
 import { PREFECTURES, CITIES_BY_PREFECTURE } from '../types'
 
+const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? ''
+
 const SEARCH_RADIUS_OPTIONS = [
   { value: 5, label: '5km' },
   { value: 10, label: '10km' },
@@ -71,6 +73,21 @@ export default function PostForm({ userId, initialPet }: Props) {
 
   const currentUser = getAuth().currentUser
   const set = (key: string, value: string) => setForm((prev) => ({ ...prev, [key]: value }))
+
+  const forwardGeocode = async (query: string) => {
+    if (!GOOGLE_MAPS_API_KEY || !query.trim()) return
+    try {
+      const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(query)}&key=${GOOGLE_MAPS_API_KEY}&language=ja&region=JP`
+      const res = await fetch(url)
+      const data = (await res.json()) as { results: { geometry: { location: { lat: number; lng: number } } }[] }
+      if (data.results?.[0]) {
+        const { lat, lng } = data.results[0].geometry.location
+        setPinLocation({ lat, lng })
+      }
+    } catch {
+      // silent fail
+    }
+  }
 
   const handleUseUserInfo = (checked: boolean) => {
     setUseUserInfo(checked)
@@ -366,7 +383,7 @@ export default function PostForm({ userId, initialPet }: Props) {
                 <TouchableOpacity
                   key={pref}
                   style={[styles.prefOption, form.prefecture === pref && styles.prefOptionActive]}
-                  onPress={() => { set('prefecture', pref); set('city', ''); setPrefModal(false) }}
+                  onPress={() => { set('prefecture', pref); set('city', ''); setPrefModal(false); void forwardGeocode(pref) }}
                 >
                   <Text style={[styles.prefOptionText, form.prefecture === pref && styles.prefOptionTextActive]}>
                     {pref}
@@ -388,7 +405,7 @@ export default function PostForm({ userId, initialPet }: Props) {
                 <TouchableOpacity
                   key={c}
                   style={[styles.prefOption, form.city === c && styles.prefOptionActive]}
-                  onPress={() => { set('city', c); setCityModal(false) }}
+                  onPress={() => { set('city', c); setCityModal(false); void forwardGeocode(`${form.prefecture}${c}`) }}
                 >
                   <Text style={[styles.prefOptionText, form.city === c && styles.prefOptionTextActive]}>
                     {c}

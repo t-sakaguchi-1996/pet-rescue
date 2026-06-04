@@ -23,6 +23,8 @@ import LocationMapPicker, { type LocationData } from '../../src/components/Locat
 import type { PetSpecies } from '../../src/types'
 import { PREFECTURES, CITIES_BY_PREFECTURE } from '../../src/types'
 
+const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? ''
+
 const SPECIES_OPTIONS: { value: PetSpecies; label: string; emoji: string }[] = [
   { value: 'dog', label: '犬', emoji: '🐕' },
   { value: 'cat', label: '猫', emoji: '🐈' },
@@ -51,6 +53,21 @@ export default function NewSightingScreen() {
   const [photos, setPhotos] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+
+  const forwardGeocode = async (query: string) => {
+    if (!GOOGLE_MAPS_API_KEY || !query.trim()) return
+    try {
+      const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(query)}&key=${GOOGLE_MAPS_API_KEY}&language=ja&region=JP`
+      const res = await fetch(url)
+      const data = (await res.json()) as { results: { geometry: { location: { lat: number; lng: number } } }[] }
+      if (data.results?.[0]) {
+        const { lat, lng } = data.results[0].geometry.location
+        setPinLocation({ lat, lng })
+      }
+    } catch {
+      // silent fail
+    }
+  }
 
   const handlePinChange = (loc: LocationData) => {
     setPinLocation({ lat: loc.lat, lng: loc.lng })
@@ -165,7 +182,7 @@ export default function NewSightingScreen() {
                 <TouchableOpacity
                   key={p}
                   style={[modalStyles.option, prefecture === p && modalStyles.optionActive]}
-                  onPress={() => { setPrefecture(p); setCity(''); setPrefModal(false) }}
+                  onPress={() => { setPrefecture(p); setCity(''); setPrefModal(false); void forwardGeocode(p) }}
                 >
                   <Text style={[modalStyles.optionText, prefecture === p && modalStyles.optionTextActive]}>{p}</Text>
                 </TouchableOpacity>
@@ -185,7 +202,7 @@ export default function NewSightingScreen() {
                 <TouchableOpacity
                   key={c}
                   style={[modalStyles.option, city === c && modalStyles.optionActive]}
-                  onPress={() => { setCity(c); setCityModal(false) }}
+                  onPress={() => { setCity(c); setCityModal(false); void forwardGeocode(`${prefecture}${c}`) }}
                 >
                   <Text style={[modalStyles.optionText, city === c && modalStyles.optionTextActive]}>{c}</Text>
                 </TouchableOpacity>

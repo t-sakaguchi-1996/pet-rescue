@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { PREFECTURES } from '@pet-rescue/shared'
+import { PREFECTURES, CITIES_BY_PREFECTURE } from '@pet-rescue/shared'
 
 interface Props {
   currentParams: {
@@ -110,14 +110,17 @@ export default function SearchFilter({ currentParams }: Props) {
 
         <div>
           <label className="label text-xs">市区町村</label>
-          <input
-            type="text"
+          <select
             value={city}
             onChange={(e) => setCity(e.target.value)}
-            placeholder={prefecture ? '例: 新宿区' : '都道府県を先に選択'}
             disabled={!prefecture}
-            className="input-field text-sm py-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          />
+            className="select-field text-sm py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <option value="">{prefecture ? 'すべて' : '都道府県を先に選択'}</option>
+            {(CITIES_BY_PREFECTURE[prefecture] ?? []).map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
         </div>
       </div>
 

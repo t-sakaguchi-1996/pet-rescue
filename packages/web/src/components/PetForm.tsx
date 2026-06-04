@@ -243,8 +243,10 @@ function FormInner({ userId, ownerDisplayName, defaultType = 'lost', pet }: Prop
     void geocodeAddress(`${newPref}${form.city}`)
   }
 
-  const handleCityBlur = () => {
-    if (form.city) void geocodeAddress(`${form.prefecture}${form.city}`)
+  const handleCityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const { value } = e.target
+    setForm((prev) => ({ ...prev, city: value }))
+    if (value) void geocodeAddress(`${form.prefecture}${value}`)
   }
 
   const handleAddressBlur = () => {
@@ -634,7 +636,7 @@ function FormInner({ userId, ownerDisplayName, defaultType = 'lost', pet }: Prop
             <select
               name="city"
               value={form.city}
-              onChange={handleChange}
+              onChange={handleCityChange}
               className="select-field"
               required
               disabled={!form.prefecture}
