@@ -10,20 +10,27 @@ import {
   TextInput,
   Modal,
   Pressable,
+  Image,
+  Dimensions,
 } from 'react-native'
 import { useRouter } from 'expo-router'
-import { fetchPets } from '../../src/lib/firestore'
+import { fetchPets, fetchRecentSightings, fetchSightingsFiltered } from '../../src/lib/firestore'
 import PetCard from '../../src/components/PetCard'
-import type { Pet, PetType, PetSpecies, PetStatus } from '../../src/types'
-import { PREFECTURES } from '../../src/types'
+import type { Pet, PetType, PetSpecies, PetStatus, Sighting } from '../../src/types'
+import { PREFECTURES, SPECIES_LABELS } from '../../src/types'
+import { format } from 'date-fns'
+import { ja } from 'date-fns/locale'
+
+const { width } = Dimensions.get('window')
+const CARD_WIDTH = (width - 12 * 2 - 10) / 2
 
 // ─── Quick filter chips ────────────────────────────────────────────────────────
-type QuickFilter = 'all' | 'lost_dog' | 'lost_cat' | 'found'
+type QuickFilter = 'all' | 'lost' | 'found' | 'sighting'
 const QUICK_FILTERS: { key: QuickFilter; label: string }[] = [
-  { key: 'all', label: 'すべて' },
-  { key: 'lost_dog', label: '🐕 迷子犬' },
-  { key: 'lost_cat', label: '🐈 迷子猫' },
-  { key: 'found', label: '🤝 保護犬猫' },
+  { key: 'all',      label: 'すべて' },
+  { key: 'lost',     label: '🔍 迷子' },
+  { key: 'found',    label: '🤝 保護' },
+  { key: 'sighting', label: '👁️ 目撃' },
 ]
 
 // ─── Detail search state ───────────────────────────────────────────────────────
@@ -60,22 +67,86 @@ const STATUS_OPTIONS = [
 // ─── Build fetchPets params ────────────────────────────────────────────────────
 function buildParams(quick: QuickFilter, detail: DetailSearch) {
   const p: Parameters<typeof fetchPets>[0] = { limitCount: 50 }
-  if (detail.type) { p.type = detail.type }
-  else if (quick === 'lost_dog') { p.type = 'lost'; p.species = 'dog' }
-  else if (quick === 'lost_cat') { p.type = 'lost'; p.species = 'cat' }
+  if (detail.type)        { p.type = detail.type }
+  else if (quick === 'lost')  { p.type = 'lost' }
   else if (quick === 'found') { p.type = 'found' }
 
-  if (detail.species) p.species = detail.species
-  if (detail.status) p.status = detail.status
-  else p.status = 'searching'
+  if (detail.species)   p.species = detail.species
+  if (detail.status)    p.status = detail.status
+  else                  p.status = 'searching'
   if (detail.prefecture) p.prefecture = detail.prefecture
   if (detail.city.trim()) p.city = detail.city.trim()
   return p
 }
 
+// ─── Sighting card (inline) ────────────────────────────────────────────────────
+function SightingItem({ item, onPress }: { item: Sighting; onPress: () => void }) {
+  const emoji = item.species === 'dog' ? '🐕' : item.species === 'cat' ? '🐈' : '👁️'
+  return (
+    <TouchableOpacity style={sCard.card} onPress={onPress} activeOpacity={0.8}>
+      <View style={sCard.imageWrapper}>
+        {item.photos.length > 0 ? (
+          <Image source={{ uri: item.photos[0] }} style={sCard.image} resizeMode="cover" />
+        ) : (
+          <View style={[sCard.image, sCard.noImage]}>
+            <Text style={sCard.noImageEmoji}>{emoji}</Text>
+          </View>
+        )}
+        <View style={sCard.banner}>
+          <Text style={sCard.bannerText}>👁️ 目撃</Text>
+        </View>
+      </View>
+      <View style={sCard.body}>
+        <Text style={sCard.title} numberOfLines={2}>{item.title}</Text>
+        <Text style={sCard.location} numberOfLines={1}>
+          📍 {item.location.prefecture} {item.location.city}
+        </Text>
+        <View style={sCard.footer}>
+          <Text style={sCard.species}>{SPECIES_LABELS[item.species ?? 'other']}</Text>
+          <Text style={sCard.date}>{format(new Date(item.createdAt), 'M/d', { locale: ja })}</Text>
+        </View>
+      </View>
+    </TouchableOpacity>
+  )
+}
+
+const sCard = StyleSheet.create({
+  card: {
+    width: CARD_WIDTH,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  imageWrapper: { position: 'relative' },
+  image: { width: '100%', height: CARD_WIDTH, backgroundColor: '#f3f4f6' },
+  noImage: { alignItems: 'center', justifyContent: 'center' },
+  noImageEmoji: { fontSize: 40 },
+  banner: {
+    position: 'absolute',
+    bottom: 0, left: 0, right: 0,
+    paddingVertical: 5,
+    alignItems: 'center',
+    backgroundColor: 'rgba(245,158,11,0.88)',
+  },
+  bannerText: { color: '#fff', fontSize: 12, fontWeight: '900', letterSpacing: 0.5 },
+  body: { padding: 8 },
+  title: { fontSize: 13, fontWeight: 'bold', color: '#111827' },
+  location: { fontSize: 11, color: '#6b7280', marginTop: 2 },
+  footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 },
+  species: { fontSize: 10, color: '#6b7280' },
+  date: { fontSize: 10, color: '#9ca3af' },
+})
+
+// ─── Home screen ───────────────────────────────────────────────────────────────
 export default function HomeScreen() {
   const router = useRouter()
   const [pets, setPets] = useState<Pet[]>([])
+  const [sightings, setSightings] = useState<Sighting[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
@@ -86,21 +157,35 @@ export default function HomeScreen() {
   const [prefModal, setPrefModal] = useState(false)
 
   const isDetailActive = Object.values(appliedDetail).some(Boolean)
+  const isSightingMode = quickFilter === 'sighting'
 
   const load = useCallback(async () => {
     setError('')
     try {
-      const params = buildParams(quickFilter, appliedDetail)
-      const data = await fetchPets(params)
-      setPets(data)
+      if (isSightingMode) {
+        const filter = {
+          species: appliedDetail.species || undefined,
+          prefecture: appliedDetail.prefecture || undefined,
+          city: appliedDetail.city.trim() || undefined,
+          limitCount: 50,
+        }
+        const data = await fetchSightingsFiltered(filter)
+        setSightings(data)
+        setPets([])
+      } else {
+        const params = buildParams(quickFilter, appliedDetail)
+        const data = await fetchPets(params)
+        setPets(data)
+        setSightings([])
+      }
     } catch (e) {
-      console.error('fetchPets error:', e)
+      console.error('fetch error:', e)
       setError('データの取得に失敗しました。\nネットワーク接続を確認してください。')
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [quickFilter, appliedDetail])
+  }, [quickFilter, appliedDetail, isSightingMode])
 
   useEffect(() => {
     setLoading(true)
@@ -120,7 +205,10 @@ export default function HomeScreen() {
     setShowDetail(false)
   }
 
-  // ─── List header ──────────────────────────────────────────────────────────────
+  const resultCount = isSightingMode ? sightings.length : pets.length
+  const isEmpty = resultCount === 0
+
+  // ─── List header ────────────────────────────────────────────────────────────
   const ListHeader = (
     <View>
       {/* ── ヒーローバナー ── */}
@@ -201,21 +289,25 @@ export default function HomeScreen() {
       {/* ── 詳細検索パネル ── */}
       {showDetail && (
         <View style={styles.detailPanel}>
-          {/* 種別 */}
-          <Text style={styles.filterLabel}>種別</Text>
-          <View style={styles.chipRow}>
-            {TYPE_OPTIONS.map((o) => (
-              <TouchableOpacity
-                key={o.value}
-                style={[styles.smallChip, detail.type === o.value && styles.smallChipActive]}
-                onPress={() => setDetail((p) => ({ ...p, type: o.value }))}
-              >
-                <Text style={[styles.smallChipText, detail.type === o.value && styles.smallChipTextActive]}>
-                  {o.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          {/* 種別（目撃モードでは非表示） */}
+          {!isSightingMode && (
+            <>
+              <Text style={styles.filterLabel}>種別</Text>
+              <View style={styles.chipRow}>
+                {TYPE_OPTIONS.map((o) => (
+                  <TouchableOpacity
+                    key={o.value}
+                    style={[styles.smallChip, detail.type === o.value && styles.smallChipActive]}
+                    onPress={() => setDetail((p) => ({ ...p, type: o.value }))}
+                  >
+                    <Text style={[styles.smallChipText, detail.type === o.value && styles.smallChipTextActive]}>
+                      {o.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </>
+          )}
 
           {/* 動物 */}
           <Text style={styles.filterLabel}>動物</Text>
@@ -233,28 +325,29 @@ export default function HomeScreen() {
             ))}
           </View>
 
-          {/* 状態 */}
-          <Text style={styles.filterLabel}>状態</Text>
-          <View style={styles.chipRow}>
-            {STATUS_OPTIONS.map((o) => (
-              <TouchableOpacity
-                key={o.value}
-                style={[styles.smallChip, detail.status === o.value && styles.smallChipActive]}
-                onPress={() => setDetail((p) => ({ ...p, status: o.value }))}
-              >
-                <Text style={[styles.smallChipText, detail.status === o.value && styles.smallChipTextActive]}>
-                  {o.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          {/* 状態（目撃モードでは非表示） */}
+          {!isSightingMode && (
+            <>
+              <Text style={styles.filterLabel}>状態</Text>
+              <View style={styles.chipRow}>
+                {STATUS_OPTIONS.map((o) => (
+                  <TouchableOpacity
+                    key={o.value}
+                    style={[styles.smallChip, detail.status === o.value && styles.smallChipActive]}
+                    onPress={() => setDetail((p) => ({ ...p, status: o.value }))}
+                  >
+                    <Text style={[styles.smallChipText, detail.status === o.value && styles.smallChipTextActive]}>
+                      {o.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </>
+          )}
 
           {/* 都道府県 */}
           <Text style={styles.filterLabel}>都道府県</Text>
-          <TouchableOpacity
-            style={styles.prefSelector}
-            onPress={() => setPrefModal(true)}
-          >
+          <TouchableOpacity style={styles.prefSelector} onPress={() => setPrefModal(true)}>
             <Text style={detail.prefecture ? styles.prefSelectorText : styles.prefSelectorPlaceholder}>
               {detail.prefecture || 'すべての都道府県'}
             </Text>
@@ -284,12 +377,12 @@ export default function HomeScreen() {
       )}
 
       {!loading && !error && (
-        <Text style={styles.resultCount}>{pets.length}件の情報が見つかりました</Text>
+        <Text style={styles.resultCount}>{resultCount}件の情報が見つかりました</Text>
       )}
     </View>
   )
 
-  // ─── Prefecture modal ──────────────────────────────────────────────────────────
+  // ─── Prefecture modal ────────────────────────────────────────────────────────
   const PrefModal = (
     <Modal visible={prefModal} transparent animationType="slide" onRequestClose={() => setPrefModal(false)}>
       <Pressable style={styles.modalBackdrop} onPress={() => setPrefModal(false)}>
@@ -349,13 +442,13 @@ export default function HomeScreen() {
     )
   }
 
-  if (pets.length === 0) {
+  if (isEmpty) {
     return (
       <ScrollView style={styles.container}>
         {ListHeader}
         <View style={styles.center}>
           <Text style={styles.emptyEmoji}>🐾</Text>
-          <Text style={styles.emptyText}>該当するペットがいません</Text>
+          <Text style={styles.emptyText}>該当する情報がありません</Text>
         </View>
         {PrefModal}
       </ScrollView>
@@ -364,21 +457,39 @@ export default function HomeScreen() {
 
   return (
     <>
-      <FlatList
-        style={styles.container}
-        data={pets}
-        keyExtractor={(item) => item.id}
-        numColumns={2}
-        columnWrapperStyle={styles.row}
-        contentContainerStyle={styles.list}
-        ListHeaderComponent={ListHeader}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C46B00" />
-        }
-        renderItem={({ item }) => (
-          <PetCard pet={item} onPress={() => router.push(`/pet/${item.id}`)} />
-        )}
-      />
+      {isSightingMode ? (
+        <FlatList
+          style={styles.container}
+          data={sightings}
+          keyExtractor={(item) => item.id}
+          numColumns={2}
+          columnWrapperStyle={styles.row}
+          contentContainerStyle={styles.list}
+          ListHeaderComponent={ListHeader}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C46B00" />
+          }
+          renderItem={({ item }) => (
+            <SightingItem item={item} onPress={() => router.push(`/sightings/${item.id}`)} />
+          )}
+        />
+      ) : (
+        <FlatList
+          style={styles.container}
+          data={pets}
+          keyExtractor={(item) => item.id}
+          numColumns={2}
+          columnWrapperStyle={styles.row}
+          contentContainerStyle={styles.list}
+          ListHeaderComponent={ListHeader}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C46B00" />
+          }
+          renderItem={({ item }) => (
+            <PetCard pet={item} onPress={() => router.push(`/pet/${item.id}`)} />
+          )}
+        />
+      )}
       {PrefModal}
     </>
   )

@@ -35,19 +35,22 @@ export default function LocationMapPicker({
   const [busy, setBusy] = useState(false)
   const [busyMsg, setBusyMsg] = useState('')
 
-  // Animate map to new pin when pinLocation changes externally
+  // Animate map to new pin; when circle is shown, fit the full radius
   useEffect(() => {
     if (!pinLocation || !mapRef.current) return
+    const delta = showRadiusCircle
+      ? (searchRadiusKm / 111.32) * 2.4  // diameter in degrees + 20% padding
+      : 0.01
     mapRef.current.animateToRegion(
       {
         latitude: pinLocation.lat,
         longitude: pinLocation.lng,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
+        latitudeDelta: delta,
+        longitudeDelta: delta,
       },
       400,
     )
-  }, [pinLocation?.lat, pinLocation?.lng])
+  }, [pinLocation?.lat, pinLocation?.lng, showRadiusCircle, searchRadiusKm])
 
   const reverseGeocode = useCallback(
     async (lat: number, lng: number) => {
@@ -126,11 +129,12 @@ export default function LocationMapPicker({
     }
   }
 
+  const fitDelta = showRadiusCircle ? (searchRadiusKm / 111.32) * 2.4 : 0.01
   const initialRegion = {
     latitude: pinLocation?.lat ?? DEFAULT_LAT,
     longitude: pinLocation?.lng ?? DEFAULT_LNG,
-    latitudeDelta: pinLocation ? 0.01 : 0.05,
-    longitudeDelta: pinLocation ? 0.01 : 0.05,
+    latitudeDelta: pinLocation ? fitDelta : 0.05,
+    longitudeDelta: pinLocation ? fitDelta : 0.05,
   }
 
   return (

@@ -1,12 +1,13 @@
 'use client'
 
-import { Fragment, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import {
   APIProvider,
   Map,
   AdvancedMarker,
   Pin,
   InfoWindow,
+  useMap,
 } from '@vis.gl/react-google-maps'
 import Link from 'next/link'
 import type { Pet, PetSpecies, Sighting } from '@pet-rescue/shared'
@@ -14,6 +15,32 @@ import { SPECIES_LABELS, TYPE_LABELS } from '@pet-rescue/shared'
 import Image from 'next/image'
 import MapCircle from './MapCircle'
 import type { MapFilter } from '@/app/map/page'
+
+// Fits the map to show all pet circles on first load
+function MapBoundsController({ pets }: { pets: Pet[] }) {
+  const map = useMap()
+  const fitted = useRef(false)
+
+  useEffect(() => {
+    if (!map || pets.length === 0 || fitted.current) return
+    fitted.current = true
+
+    let north = -90, south = 90, east = -180, west = 180
+    const R = 6371000
+    pets.forEach((pet) => {
+      const r = (pet.searchRadiusKm ?? 5) * 1000
+      const latOff = (r / R) * (180 / Math.PI)
+      const lngOff = (r / (R * Math.cos((pet.location.lat * Math.PI) / 180))) * (180 / Math.PI)
+      north = Math.max(north, pet.location.lat + latOff)
+      south = Math.min(south, pet.location.lat - latOff)
+      east  = Math.max(east,  pet.location.lng + lngOff)
+      west  = Math.min(west,  pet.location.lng - lngOff)
+    })
+    map.fitBounds({ north, south, east, west }, 40)
+  }, [map, pets])
+
+  return null
+}
 
 function speciesGlyph(species: PetSpecies): string {
   switch (species) {
@@ -69,6 +96,7 @@ export default function MapView({
         style={{ width: '100%', height: '100%' }}
         gestureHandling="greedy"
       >
+        <MapBoundsController pets={visiblePets} />
         {/* 迷子・保護投稿マーカーと探知範囲円 */}
         {visiblePets.map((pet) => {
           const radiusKm = pet.searchRadiusKm ?? 5

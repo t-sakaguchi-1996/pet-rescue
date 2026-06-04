@@ -78,15 +78,32 @@ export default function LocationMapPicker({
     )
   }, [autoDetectOnMount, pinLocation, map])
 
-  // Pan map when parent updates pinLocation externally (e.g. forward geocoding)
+  // Pan / fit map when parent updates pinLocation externally
   useEffect(() => {
     if (!pinLocation || !map) return
     const prev = prevPinRef.current
     if (prev && prev.lat === pinLocation.lat && prev.lng === pinLocation.lng) return
     prevPinRef.current = pinLocation
-    map.panTo(pinLocation)
-    map.setZoom(15)
-  }, [pinLocation, map])
+
+    if (showRadiusCircle) {
+      const r = searchRadiusKm * 1000
+      const R = 6371000
+      const latOff = (r / R) * (180 / Math.PI)
+      const lngOff = (r / (R * Math.cos((pinLocation.lat * Math.PI) / 180))) * (180 / Math.PI)
+      map.fitBounds(
+        {
+          north: pinLocation.lat + latOff,
+          south: pinLocation.lat - latOff,
+          east: pinLocation.lng + lngOff,
+          west: pinLocation.lng - lngOff,
+        },
+        40,
+      )
+    } else {
+      map.panTo(pinLocation)
+      map.setZoom(15)
+    }
+  }, [pinLocation, map, showRadiusCircle, searchRadiusKm])
 
   const reverseGeocode = useCallback(
     async (pos: { lat: number; lng: number }) => {
@@ -155,7 +172,11 @@ export default function LocationMapPicker({
   }
 
   const initialCenter = pinLocation ?? DEFAULT_CENTER
-  const initialZoom = pinLocation ? 15 : 12
+  const initialZoom = pinLocation
+    ? showRadiusCircle
+      ? Math.max(8, Math.round(14 - Math.log2(searchRadiusKm)))
+      : 15
+    : 12
 
   return (
     <div className="space-y-2">
