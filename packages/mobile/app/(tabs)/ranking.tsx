@@ -6,7 +6,6 @@ import {
   ScrollView,
   FlatList,
   TouchableOpacity,
-  ActivityIndicator,
   Image,
   Platform,
 } from 'react-native'
@@ -14,6 +13,7 @@ import { useRouter } from 'expo-router'
 import { useAuth } from '../../src/contexts/AuthContext'
 import { fetchRanking, findUserRank, RANKING_TYPE_LABELS, RANKING_SCORE_UNIT } from '../../src/lib/rankings'
 import { getTitleName, getBadgeDefinition } from '../../src/lib/titles'
+import LoadingIndicator from '../../src/components/LoadingIndicator'
 import type { RankingEntry, RankingType } from '../../src/types'
 
 const RANKING_TABS: { type: RankingType; label: string; emoji: string }[] = [
@@ -168,10 +168,7 @@ export default function RankingScreen() {
 
       {/* コンテンツ */}
       {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator color="#C46B00" size="large" />
-          <Text style={styles.loadingText}>読み込み中...</Text>
-        </View>
+        <LoadingIndicator />
       ) : needsAuth && !user ? (
         <View style={styles.authRequired}>
           <Text style={styles.authEmoji}>🔒</Text>

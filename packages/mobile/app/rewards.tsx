@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   Alert,
 } from 'react-native'
 import { useRouter } from 'expo-router'
@@ -13,6 +12,7 @@ import { useAuth } from '../src/contexts/AuthContext'
 import { fetchRewards, fetchUserRewardExchanges, requestRewardExchange } from '../src/lib/rewards'
 import { fetchUserProfile } from '../src/lib/firestore'
 import type { Reward, RewardExchange } from '../src/types'
+import LoadingIndicator from '../src/components/LoadingIndicator'
 
 const REWARD_TYPE_EMOJI: Record<string, string> = {
   badge: '🏅',
@@ -175,9 +175,7 @@ export default function RewardsScreen() {
         </View>
 
         {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator color="#C46B00" size="large" />
-          </View>
+          <LoadingIndicator style={styles.loadingContainer} />
         ) : tab === 'list' ? (
           <>
             {rewards.length === 0 ? (

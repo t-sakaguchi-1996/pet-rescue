@@ -22,6 +22,7 @@ import {
 import { db } from '../lib/firebase'
 import { useAuth } from '../contexts/AuthContext'
 import { useRouter } from 'expo-router'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { format } from 'date-fns'
 import { ja } from 'date-fns/locale'
 import type { AppNotification } from '../types'
@@ -109,6 +110,7 @@ function notifRoute(n: AppNotification): string {
 export default function NotificationBell() {
   const { user } = useAuth()
   const router = useRouter()
+  const insets = useSafeAreaInsets()
   const [notifications, setNotifications] = useState<AppNotification[]>([])
   const [open, setOpen] = useState(false)
   const unsubRef = useRef<(() => void) | null>(null)
@@ -177,7 +179,7 @@ export default function NotificationBell() {
       </TouchableOpacity>
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
-        <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
+        <Pressable style={[styles.backdrop, { paddingTop: insets.top + 60 }]} onPress={() => setOpen(false)}>
           <Pressable style={styles.panel} onPress={() => {}}>
             <View style={styles.panelHeader}>
               <Text style={styles.panelTitle}>🔔 通知</Text>
@@ -250,7 +252,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.3)',
     justifyContent: 'flex-start',
     alignItems: 'flex-end',
-    paddingTop: 56,
     paddingRight: 8,
   },
   panel: {

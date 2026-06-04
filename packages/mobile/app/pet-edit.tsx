@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { View, Text, ActivityIndicator, StyleSheet } from 'react-native'
+import { View, Text, StyleSheet } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { fetchPetById } from '../src/lib/firestore'
 import { useAuth } from '../src/contexts/AuthContext'
 import PostForm from '../src/components/PostForm'
+import LoadingIndicator from '../src/components/LoadingIndicator'
 import type { Pet } from '../src/types'
 
 export default function PetEditScreen() {
@@ -36,12 +37,7 @@ export default function PetEditScreen() {
   }, [petId, user, authLoading])
 
   if (authLoading || loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator color="#C46B00" size="large" />
-        <Text style={styles.loadingText}>読み込み中...</Text>
-      </View>
-    )
+    return <LoadingIndicator />
   }
 
   if (error) {

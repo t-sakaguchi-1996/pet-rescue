@@ -8,7 +8,6 @@ import {
   ScrollView,
   Image,
   Switch,
-  ActivityIndicator,
 } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useAuth } from '../../src/contexts/AuthContext'
@@ -24,6 +23,7 @@ import { fetchRanking, findUserRank } from '../../src/lib/rankings'
 import { getTitleName, getBadgeDefinition } from '../../src/lib/titles'
 import { requestNotificationPermission } from '../../src/lib/notifications'
 import PetCard from '../../src/components/PetCard'
+import LoadingIndicator from '../../src/components/LoadingIndicator'
 import type { Pet, UserProfile, PointTransaction, RewardExchange } from '../../src/types'
 import { TITLE_DEFINITIONS, BADGE_DEFINITIONS, TRANSACTION_TYPE_LABELS } from '../../src/types'
 
@@ -149,7 +149,7 @@ export default function ProfileScreen() {
   }
 
   if (loading) {
-    return <View style={styles.center}><ActivityIndicator color="#C46B00" /></View>
+    return <LoadingIndicator />
   }
 
   if (!user) {

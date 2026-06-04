@@ -1,5 +1,6 @@
-import { Text } from 'react-native'
+import { Text, Platform } from 'react-native'
 import { Tabs } from 'expo-router'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import HeaderRight from '../../src/components/HeaderRight'
 
 function TabIcon({ emoji, active }: { emoji: string; active: boolean }) {
@@ -17,6 +18,8 @@ const HEADER_STYLE = {
 } as const
 
 export default function TabLayout() {
+  const insets = useSafeAreaInsets()
+
   return (
     <Tabs
       screenOptions={{
@@ -29,7 +32,9 @@ export default function TabLayout() {
           paddingBottom: 4,
           height: 58,
         },
-        headerStyle: HEADER_STYLE,
+        headerStyle: Platform.OS === 'ios'
+          ? { ...HEADER_STYLE, height: insets.top + 60 }
+          : HEADER_STYLE,
         headerTintColor: '#3D2400',
         headerTitleStyle: { fontWeight: '900', color: '#C46B00', fontSize: 17 },
         headerRight: () => <HeaderRight />,

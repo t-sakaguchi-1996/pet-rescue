@@ -10,6 +10,7 @@ import {
   ScrollView,
 } from 'react-native'
 import { useRouter } from 'expo-router'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useAuth } from '../contexts/AuthContext'
 import NotificationBell from './NotificationBell'
 
@@ -26,6 +27,7 @@ const MENU_ITEMS: { emoji: string; label: string; route: string }[] = [
 export default function HeaderRight() {
   const { user, profile } = useAuth()
   const router = useRouter()
+  const insets = useSafeAreaInsets()
   const [menuOpen, setMenuOpen] = useState(false)
 
   const photoURL = profile?.photoURL ?? user?.photoURL
@@ -76,7 +78,7 @@ export default function HeaderRight() {
         animationType="fade"
         onRequestClose={() => setMenuOpen(false)}
       >
-        <Pressable style={styles.backdrop} onPress={() => setMenuOpen(false)}>
+        <Pressable style={[styles.backdrop, { paddingTop: insets.top + 60 }]} onPress={() => setMenuOpen(false)}>
           <Pressable style={styles.menu} onPress={() => {}}>
             <ScrollView showsVerticalScrollIndicator={false}>
               {MENU_ITEMS.map((item) => (
@@ -161,7 +163,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.2)',
     justifyContent: 'flex-start',
     alignItems: 'flex-end',
-    paddingTop: 52,
   },
   menu: {
     width: 220,

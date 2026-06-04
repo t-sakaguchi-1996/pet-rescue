@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import MapView, { Marker, Circle, PROVIDER_GOOGLE } from 'react-native-maps'
+import LoadingIndicator from './LoadingIndicator'
 import * as Location from 'expo-location'
 
 const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? ''
@@ -188,8 +189,7 @@ export default function LocationMapPicker({
 
         {busy && (
           <View style={styles.overlay}>
-            <ActivityIndicator color="#C46B00" />
-            <Text style={styles.overlayText}>{busyMsg}</Text>
+            <LoadingIndicator label={busyMsg} />
           </View>
         )}
       </View>

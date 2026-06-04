@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  ActivityIndicator,
   Platform,
   ScrollView,
 } from 'react-native'
@@ -14,6 +13,7 @@ import { useRouter } from 'expo-router'
 import { fetchPets, fetchRecentSightings } from '../../src/lib/firestore'
 import type { Pet, Sighting } from '../../src/types'
 import { TYPE_LABELS, SPECIES_LABELS } from '../../src/types'
+import LoadingIndicator from '../../src/components/LoadingIndicator'
 
 const SPECIES_EMOJI: Record<string, string> = {
   dog: '🐕', cat: '🐈', rabbit: '🐇', bird: '🐦', other: '🐾',
@@ -92,8 +92,7 @@ export default function MapScreen() {
     <View style={styles.container}>
       {loading ? (
         <View style={styles.loadingOverlay}>
-          <ActivityIndicator color="#C46B00" size="large" />
-          <Text style={styles.loadingText}>地図を読み込み中...</Text>
+          <LoadingIndicator label="地図を読み込み中..." />
         </View>
       ) : null}
 

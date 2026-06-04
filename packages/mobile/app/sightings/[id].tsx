@@ -6,7 +6,6 @@ import {
   ScrollView,
   Image,
   TouchableOpacity,
-  ActivityIndicator,
   Alert,
   Platform,
 } from 'react-native'
@@ -21,6 +20,7 @@ import {
   markPetBestInfoPointGranted,
 } from '../../src/lib/firestore'
 import { grantBestSightingPoints } from '../../src/lib/points'
+import LoadingIndicator from '../../src/components/LoadingIndicator'
 import { useAuth } from '../../src/contexts/AuthContext'
 import { SPECIES_LABELS, type Sighting, type Pet } from '../../src/types'
 import { format } from 'date-fns'
@@ -135,12 +135,7 @@ export default function SightingDetailScreen() {
   }
 
   if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator color="#C46B00" size="large" />
-        <Text style={styles.loadingText}>読み込み中...</Text>
-      </View>
-    )
+    return <LoadingIndicator />
   }
 
   if (!sighting) {

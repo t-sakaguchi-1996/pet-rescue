@@ -8,13 +8,13 @@ import {
   StyleSheet,
   Linking,
   Dimensions,
-  ActivityIndicator,
   TextInput,
   Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
+import LoadingIndicator from '../../src/components/LoadingIndicator'
 import {
   fetchPetById,
   fetchRecentSightings,
@@ -235,11 +235,7 @@ export default function PetDetailScreen() {
   }
 
   if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator color="#C46B00" size="large" />
-      </View>
-    )
+    return <LoadingIndicator />
   }
 
   if (!pet) {

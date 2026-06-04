@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  ActivityIndicator,
   Image,
   ScrollView,
   Modal,
@@ -14,6 +13,7 @@ import {
 } from 'react-native'
 import { useRouter } from 'expo-router'
 import { fetchSightingsFiltered } from '../../src/lib/firestore'
+import LoadingIndicator from '../../src/components/LoadingIndicator'
 import { SPECIES_LABELS, PREFECTURES, CITIES_BY_PREFECTURE, type Sighting, type PetSpecies } from '../../src/types'
 import { format } from 'date-fns'
 import { ja } from 'date-fns/locale'
@@ -237,10 +237,7 @@ export default function SightingsScreen() {
 
       {/* リスト */}
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color="#C46B00" size="large" />
-          <Text style={styles.loadingText}>読み込み中...</Text>
-        </View>
+        <LoadingIndicator />
       ) : sightings.length === 0 ? (
         <View style={styles.center}>
           <Text style={styles.emptyEmoji}>👁️</Text>
