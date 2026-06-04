@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import {
   View,
   Text,
+  Image,
   StyleSheet,
   TouchableOpacity,
   Platform,
@@ -41,6 +42,7 @@ export default function MapScreen() {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [selected, setSelected] = useState<SelectedItem | null>(null)
   const [filter, setFilter] = useState<MapFilter>('all')
+  const markerJustPressed = useRef(false)
 
   const INITIAL_REGION = {
     latitude: 35.6762,
@@ -103,19 +105,26 @@ export default function MapScreen() {
         initialRegion={INITIAL_REGION}
         showsUserLocation
         showsMyLocationButton={false}
-        onPress={() => setSelected(null)}
+        onPress={() => {
+          if (markerJustPressed.current) { markerJustPressed.current = false; return }
+          setSelected(null)
+        }}
       >
         {/* ペットマーカー */}
         {petsWithLocation.map((pet) => (
           <Marker
             key={`pet-${pet.id}`}
             coordinate={{ latitude: pet.location.lat, longitude: pet.location.lng }}
-            onPress={() => setSelected({ kind: 'pet', data: pet })}
+            onPress={(e) => { e.stopPropagation?.(); markerJustPressed.current = true; setSelected({ kind: 'pet', data: pet }) }}
+            tracksViewChanges={Platform.OS !== 'ios'}
           >
-            <View style={[
-              styles.markerContainer,
-              { backgroundColor: pet.type === 'lost' ? '#ef4444' : '#3b82f6' },
-            ]}>
+            <View
+              pointerEvents="none"
+              style={[
+                styles.markerContainer,
+                { backgroundColor: pet.type === 'lost' ? '#ef4444' : '#3b82f6' },
+              ]}
+            >
               <Text style={styles.markerEmoji}>{SPECIES_EMOJI[pet.species] ?? '🐾'}</Text>
             </View>
           </Marker>
@@ -126,9 +135,10 @@ export default function MapScreen() {
           <Marker
             key={`sighting-${s.id}`}
             coordinate={{ latitude: s.location.lat!, longitude: s.location.lng! }}
-            onPress={() => setSelected({ kind: 'sighting', data: s })}
+            onPress={(e) => { e.stopPropagation?.(); markerJustPressed.current = true; setSelected({ kind: 'sighting', data: s }) }}
+            tracksViewChanges={Platform.OS !== 'ios'}
           >
-            <View style={styles.sightingMarker}>
+            <View pointerEvents="none" style={styles.sightingMarker}>
               <Text style={styles.markerEmoji}>{s.species ? (SPECIES_EMOJI[s.species] ?? '👁️') : '👁️'}</Text>
             </View>
           </Marker>
@@ -193,65 +203,91 @@ export default function MapScreen() {
       {/* 選択パネル - ペット */}
       {selected?.kind === 'pet' && (
         <TouchableOpacity
-          style={styles.petPanel}
+          style={styles.infoPanel}
           onPress={() => router.push(`/pet/${selected.data.id}`)}
-          activeOpacity={0.9}
+          activeOpacity={0.92}
         >
-          <View style={styles.petPanelContent}>
-            <View style={[
-              styles.petPanelBadge,
-              { backgroundColor: selected.data.type === 'lost' ? '#fee2e2' : '#dbeafe' },
-            ]}>
-              <Text style={[
-                styles.petPanelBadgeText,
-                { color: selected.data.type === 'lost' ? '#ef4444' : '#3b82f6' },
-              ]}>
-                {TYPE_LABELS[selected.data.type]}
-              </Text>
+          {selected.data.images[0] ? (
+            <Image
+              source={{ uri: selected.data.images[0] }}
+              style={styles.infoPanelImage}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={[styles.infoPanelImageFallback, { backgroundColor: selected.data.type === 'lost' ? '#fee2e2' : '#dbeafe' }]}>
+              <Text style={styles.infoPanelFallbackEmoji}>{SPECIES_EMOJI[selected.data.species] ?? '🐾'}</Text>
             </View>
-            <Text style={styles.petPanelEmoji}>{SPECIES_EMOJI[selected.data.species] ?? '🐾'}</Text>
-            <View style={styles.petPanelInfo}>
-              <Text style={styles.petPanelName}>{selected.data.name || '名前不明'}</Text>
-              <Text style={styles.petPanelSpecies}>
+          )}
+          <View style={styles.infoPanelBody}>
+            <View style={styles.infoPanelBadgeRow}>
+              <View style={[
+                styles.infoPanelBadge,
+                { backgroundColor: selected.data.type === 'lost' ? '#fee2e2' : '#dbeafe' },
+              ]}>
+                <Text style={[
+                  styles.infoPanelBadgeText,
+                  { color: selected.data.type === 'lost' ? '#ef4444' : '#3b82f6' },
+                ]}>
+                  {TYPE_LABELS[selected.data.type]}
+                </Text>
+              </View>
+              <Text style={styles.infoPanelSpecies}>
                 {SPECIES_LABELS[selected.data.species]}
                 {selected.data.breed ? ` / ${selected.data.breed}` : ''}
               </Text>
-              <Text style={styles.petPanelLocation}>
-                📍 {selected.data.location.prefecture} {selected.data.location.city}
-              </Text>
             </View>
-            <Text style={styles.petPanelArrow}>›</Text>
+            <Text style={styles.infoPanelName} numberOfLines={1}>
+              {selected.data.name || '名前不明'}
+            </Text>
+            <Text style={styles.infoPanelLocation}>
+              📍 {selected.data.location.prefecture} {selected.data.location.city}
+            </Text>
           </View>
-          <Text style={styles.petPanelHint}>タップして詳細を見る</Text>
+          <View style={[styles.infoPanelBtn, { backgroundColor: '#ef4444' }]}>
+            <Text style={styles.infoPanelBtnText}>詳細を見る</Text>
+          </View>
         </TouchableOpacity>
       )}
 
       {/* 選択パネル - 目撃情報 */}
       {selected?.kind === 'sighting' && (
         <TouchableOpacity
-          style={styles.petPanel}
+          style={styles.infoPanel}
           onPress={() => router.push(`/sightings/${selected.data.id}`)}
-          activeOpacity={0.9}
+          activeOpacity={0.92}
         >
-          <View style={styles.petPanelContent}>
-            <View style={styles.sightingPanelBadge}>
-              <Text style={styles.sightingPanelBadgeText}>目撃情報</Text>
+          {selected.data.photos[0] ? (
+            <Image
+              source={{ uri: selected.data.photos[0] }}
+              style={styles.infoPanelImage}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={[styles.infoPanelImageFallback, { backgroundColor: '#FFF3DC' }]}>
+              <Text style={styles.infoPanelFallbackEmoji}>
+                {selected.data.species ? (SPECIES_EMOJI[selected.data.species] ?? '👁️') : '👁️'}
+              </Text>
             </View>
-            <Text style={styles.petPanelEmoji}>
-              {selected.data.species ? (SPECIES_EMOJI[selected.data.species] ?? '👁️') : '👁️'}
+          )}
+          <View style={styles.infoPanelBody}>
+            <View style={styles.infoPanelBadgeRow}>
+              <View style={[styles.infoPanelBadge, { backgroundColor: '#fef3c7' }]}>
+                <Text style={[styles.infoPanelBadgeText, { color: '#d97706' }]}>目撃情報</Text>
+              </View>
+              {selected.data.species && (
+                <Text style={styles.infoPanelSpecies}>{SPECIES_LABELS[selected.data.species]}</Text>
+              )}
+            </View>
+            <Text style={styles.infoPanelName} numberOfLines={2}>
+              {selected.data.title}
             </Text>
-            <View style={styles.petPanelInfo}>
-              <Text style={styles.petPanelName} numberOfLines={1}>{selected.data.title}</Text>
-              <Text style={styles.petPanelSpecies}>
-                {selected.data.species ? SPECIES_LABELS[selected.data.species] : ''}
-              </Text>
-              <Text style={styles.petPanelLocation}>
-                📍 {selected.data.location.prefecture} {selected.data.location.city}
-              </Text>
-            </View>
-            <Text style={styles.petPanelArrow}>›</Text>
+            <Text style={styles.infoPanelLocation}>
+              📍 {selected.data.location.prefecture} {selected.data.location.city}
+            </Text>
           </View>
-          <Text style={styles.petPanelHint}>タップして詳細を見る</Text>
+          <View style={[styles.infoPanelBtn, { backgroundColor: '#f59e0b' }]}>
+            <Text style={styles.infoPanelBtnText}>詳細を見る</Text>
+          </View>
         </TouchableOpacity>
       )}
     </View>
@@ -271,16 +307,20 @@ const styles = StyleSheet.create({
   markerContainer: {
     width: 36, height: 36, borderRadius: 18,
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3, shadowRadius: 3, elevation: 4,
+    ...(Platform.OS === 'ios' ? {
+      shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.3, shadowRadius: 3,
+    } : {}),
     borderWidth: 2, borderColor: '#fff',
   },
   sightingMarker: {
     width: 36, height: 36, borderRadius: 18,
     alignItems: 'center', justifyContent: 'center',
     backgroundColor: '#FFC96B',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3, shadowRadius: 3, elevation: 4,
+    ...(Platform.OS === 'ios' ? {
+      shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.3, shadowRadius: 3,
+    } : {}),
     borderWidth: 2, borderColor: '#fff',
   },
   markerEmoji: { fontSize: 18 },
@@ -318,23 +358,32 @@ const styles = StyleSheet.create({
   },
   myLocationIcon: { fontSize: 22 },
 
-  petPanel: {
+  infoPanel: {
     position: 'absolute', bottom: 24, left: 16, right: 16,
-    backgroundColor: '#fff', borderRadius: 16, padding: 14,
+    backgroundColor: '#fff', borderRadius: 16,
+    overflow: 'hidden',
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15, shadowRadius: 8, elevation: 6,
+    shadowOpacity: 0.18, shadowRadius: 10, elevation: 8,
     borderWidth: 1.5, borderColor: '#FFD98A',
   },
-  petPanelContent: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  petPanelBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
-  petPanelBadgeText: { fontSize: 11, fontWeight: 'bold' },
-  sightingPanelBadge: { backgroundColor: '#FFF3DC', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
-  sightingPanelBadgeText: { fontSize: 11, fontWeight: 'bold', color: '#C46B00' },
-  petPanelEmoji: { fontSize: 28 },
-  petPanelInfo: { flex: 1 },
-  petPanelName: { fontSize: 15, fontWeight: 'bold', color: '#111827' },
-  petPanelSpecies: { fontSize: 12, color: '#6b7280', marginTop: 1 },
-  petPanelLocation: { fontSize: 11, color: '#9ca3af', marginTop: 2 },
-  petPanelArrow: { fontSize: 24, color: '#9ca3af' },
-  petPanelHint: { fontSize: 11, color: '#9ca3af', textAlign: 'center', marginTop: 6 },
+  infoPanelImage: {
+    width: '100%', height: 110,
+  },
+  infoPanelImageFallback: {
+    width: '100%', height: 110,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  infoPanelFallbackEmoji: { fontSize: 44 },
+  infoPanelBody: { paddingHorizontal: 14, paddingTop: 10, paddingBottom: 8 },
+  infoPanelBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+  infoPanelBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 20 },
+  infoPanelBadgeText: { fontSize: 11, fontWeight: 'bold' },
+  infoPanelSpecies: { fontSize: 11, color: '#6b7280' },
+  infoPanelName: { fontSize: 15, fontWeight: 'bold', color: '#111827', marginBottom: 3 },
+  infoPanelLocation: { fontSize: 11, color: '#9ca3af' },
+  infoPanelBtn: {
+    marginHorizontal: 14, marginBottom: 12, paddingVertical: 9,
+    borderRadius: 10, alignItems: 'center',
+  },
+  infoPanelBtnText: { fontSize: 13, fontWeight: 'bold', color: '#fff' },
 })
