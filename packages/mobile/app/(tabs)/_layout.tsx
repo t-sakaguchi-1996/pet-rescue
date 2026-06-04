@@ -3,7 +3,7 @@ import { Tabs } from 'expo-router'
 
 function TabIcon({ emoji, active }: { emoji: string; active: boolean }) {
   return (
-    <Text style={{ fontSize: 22, opacity: active ? 1 : 0.45 }}>{emoji}</Text>
+    <Text style={{ fontSize: 20, opacity: active ? 1 : 0.45 }}>{emoji}</Text>
   )
 }
 
@@ -29,20 +29,17 @@ export default function TabLayout() {
         options={{
           title: '一覧',
           tabBarLabel: '一覧',
-          tabBarIcon: ({ focused }) => (
-            <TabIcon emoji="🏠" active={focused} />
-          ),
+          tabBarIcon: ({ focused }) => <TabIcon emoji="🏠" active={focused} />,
           headerTitle: '🐾 ANIMAL GO',
         }}
       />
       <Tabs.Screen
-        name="map"
+        name="sightings"
         options={{
-          title: '地図',
-          tabBarLabel: '地図',
-          tabBarIcon: ({ focused }) => (
-            <TabIcon emoji="🗺️" active={focused} />
-          ),
+          title: '目撃',
+          tabBarLabel: '目撃',
+          tabBarIcon: ({ focused }) => <TabIcon emoji="👁️" active={focused} />,
+          headerTitle: '目撃情報一覧',
         }}
       />
       <Tabs.Screen
@@ -50,9 +47,24 @@ export default function TabLayout() {
         options={{
           title: '投稿',
           tabBarLabel: '投稿',
-          tabBarIcon: ({ focused }) => (
-            <TabIcon emoji="➕" active={focused} />
-          ),
+          tabBarIcon: ({ focused }) => <TabIcon emoji="➕" active={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="map"
+        options={{
+          title: '地図',
+          tabBarLabel: '地図',
+          tabBarIcon: ({ focused }) => <TabIcon emoji="🗺️" active={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="ranking"
+        options={{
+          title: 'ランキング',
+          tabBarLabel: 'ランキング',
+          tabBarIcon: ({ focused }) => <TabIcon emoji="🏆" active={focused} />,
+          headerTitle: '貢献ランキング',
         }}
       />
       <Tabs.Screen
@@ -60,9 +72,7 @@ export default function TabLayout() {
         options={{
           title: 'マイページ',
           tabBarLabel: 'マイ',
-          tabBarIcon: ({ focused }) => (
-            <TabIcon emoji="👤" active={focused} />
-          ),
+          tabBarIcon: ({ focused }) => <TabIcon emoji="👤" active={focused} />,
         }}
       />
     </Tabs>

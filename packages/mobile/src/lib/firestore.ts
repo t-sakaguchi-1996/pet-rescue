@@ -4,6 +4,8 @@ import {
   addDoc,
   getDoc,
   getDocs,
+  updateDoc,
+  deleteDoc,
   query,
   where,
   orderBy,
@@ -115,6 +117,7 @@ function toSighting(id: string, data: Record<string, unknown>): Sighting {
     emailVerified: Boolean(data.emailVerified),
     isBestInfo: Boolean(data.isBestInfo),
     bestInfoPetId: data.bestInfoPetId as string | undefined,
+    bestInfoPointGranted: Boolean(data.bestInfoPointGranted),
     createdAt: createdAt instanceof Timestamp ? createdAt.toDate().toISOString() : (createdAt ?? ''),
     updatedAt: updatedAt instanceof Timestamp ? updatedAt.toDate().toISOString() : (updatedAt ?? ''),
   }
@@ -162,6 +165,20 @@ export async function createPet(
     })
   )
   return ref.id
+}
+
+export async function updatePet(
+  id: string,
+  data: Partial<Omit<Pet, 'id' | 'createdAt'>>
+): Promise<void> {
+  await updateDoc(doc(db, PETS, id), stripUndefined({
+    ...data as Record<string, unknown>,
+    updatedAt: Timestamp.now(),
+  }))
+}
+
+export async function deletePet(id: string): Promise<void> {
+  await deleteDoc(doc(db, PETS, id))
 }
 
 export async function fetchUserPets(userId: string): Promise<Pet[]> {
@@ -232,12 +249,52 @@ export async function createComment(
 
 // ──────────────── Sightings ────────────────
 
+export interface SightingFilter {
+  prefecture?: string
+  city?: string
+  species?: PetSpecies
+  limitCount?: number
+}
+
 export async function fetchRecentSightings(limitCount = 50): Promise<Sighting[]> {
   const snap = await withTimeout(
     getDocs(query(collection(db, SIGHTINGS), orderBy('createdAt', 'desc'), limit(limitCount))),
     FETCH_TIMEOUT_MS
   )
   return snap.docs.map((d) => toSighting(d.id, d.data()))
+}
+
+export async function fetchSightingsFiltered(filter: SightingFilter = {}): Promise<Sighting[]> {
+  const constraints: QueryConstraint[] = [orderBy('createdAt', 'desc')]
+  if (filter.prefecture) constraints.push(where('location.prefecture', '==', filter.prefecture))
+  if (filter.city) constraints.push(where('location.city', '==', filter.city))
+  if (filter.species) constraints.push(where('species', '==', filter.species))
+  constraints.push(limit(filter.limitCount ?? 100))
+
+  try {
+    const snap = await withTimeout(
+      getDocs(query(collection(db, SIGHTINGS), ...constraints)),
+      FETCH_TIMEOUT_MS
+    )
+    return snap.docs.map((d) => toSighting(d.id, d.data()))
+  } catch {
+    // Firestore index might not exist — fallback to client-side filter
+    const snap = await withTimeout(
+      getDocs(query(collection(db, SIGHTINGS), orderBy('createdAt', 'desc'), limit(200))),
+      FETCH_TIMEOUT_MS
+    )
+    let results = snap.docs.map((d) => toSighting(d.id, d.data()))
+    if (filter.prefecture) results = results.filter((s) => s.location.prefecture === filter.prefecture)
+    if (filter.city) results = results.filter((s) => s.location.city === filter.city)
+    if (filter.species) results = results.filter((s) => s.species === filter.species)
+    return results.slice(0, filter.limitCount ?? 100)
+  }
+}
+
+export async function fetchSightingById(id: string): Promise<Sighting | null> {
+  const snap = await withTimeout(getDoc(doc(db, SIGHTINGS, id)), FETCH_TIMEOUT_MS)
+  if (!snap.exists()) return null
+  return toSighting(snap.id, snap.data())
 }
 
 export async function createSighting(data: {
@@ -283,9 +340,16 @@ export async function fetchUserProfile(uid: string): Promise<UserProfile | null>
     selectedTitle: data.selectedTitle as string | undefined,
     titles: (data.titles as string[]) ?? [],
     badges: (data.badges as string[]) ?? [],
-    showInRanking: Boolean(data.showInRanking),
+    showInRanking: data.showInRanking !== false,
     createdAt: createdAt instanceof Timestamp ? createdAt.toDate().toISOString() : (createdAt ?? ''),
   }
+}
+
+export async function updateUserSettings(
+  uid: string,
+  data: { displayName?: string; selectedTitle?: string | null; showInRanking?: boolean }
+): Promise<void> {
+  await updateDoc(doc(db, USERS, uid), stripUndefined(data as Record<string, unknown>))
 }
 
 export type { Pet, PetSpecies, PetType, PetStatus, Comment, Sighting, UserProfile }

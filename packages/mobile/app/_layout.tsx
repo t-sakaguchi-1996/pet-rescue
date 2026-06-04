@@ -25,6 +25,14 @@ export default function RootLayout() {
           name="sightings/new"
           options={{ title: '目撃情報を投稿', headerBackTitle: '戻る' }}
         />
+        <Stack.Screen
+          name="sightings/[id]"
+          options={{ title: '目撃情報詳細', headerBackTitle: '戻る' }}
+        />
+        <Stack.Screen
+          name="rewards"
+          options={{ title: '貢献特典', headerBackTitle: '戻る' }}
+        />
       </Stack>
     </AuthProvider>
   )
