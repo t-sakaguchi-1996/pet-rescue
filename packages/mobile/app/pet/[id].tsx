@@ -15,7 +15,18 @@ import {
   Platform,
 } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { fetchPetById, fetchRecentSightings, subscribeComments, createComment } from '../../src/lib/firestore'
+import {
+  fetchPetById,
+  fetchRecentSightings,
+  subscribeComments,
+  createComment,
+  updatePet,
+  selectBestInfoSighting,
+  selectBestInfoComment,
+  markSightingBestInfoPointGranted,
+  markPetBestInfoPointGranted,
+} from '../../src/lib/firestore'
+import { grantBestSightingPoints, grantBestCommentPoints, grantDiscoveryBonus } from '../../src/lib/points'
 import { useAuth } from '../../src/contexts/AuthContext'
 import type { Pet, Comment, Sighting } from '../../src/types'
 import {
@@ -26,6 +37,8 @@ import {
 } from '../../src/types'
 import { format } from 'date-fns'
 import { ja } from 'date-fns/locale'
+import { doc, updateDoc, getDoc, Timestamp } from 'firebase/firestore'
+import { db } from '../../src/lib/firebase'
 
 const { width } = Dimensions.get('window')
 
@@ -54,10 +67,28 @@ export default function PetDetailScreen() {
 
   const [nearbySightings, setNearbySightings] = useState<Sighting[]>([])
 
+  // Best info state
+  const [localBestInfoId, setLocalBestInfoId] = useState<string | undefined>(undefined)
+  const [localBestInfoType, setLocalBestInfoType] = useState<'comment' | 'sighting' | undefined>(undefined)
+  const [localBestPointGranted, setLocalBestPointGranted] = useState(false)
+  const [processingBestInfo, setProcessingBestInfo] = useState<string | null>(null)
+
+  // Discovery confirm state
+  const [discoveryDone, setDiscoveryDone] = useState(false)
+  const [processingDiscovery, setProcessingDiscovery] = useState(false)
+
   useEffect(() => {
     if (!id) return
     fetchPetById(id)
-      .then(setPet)
+      .then((p) => {
+        setPet(p)
+        if (p) {
+          setLocalBestInfoId(p.bestInfoId)
+          setLocalBestInfoType(p.bestInfoType)
+          setLocalBestPointGranted(Boolean(p.bestInfoPointGranted))
+          setDiscoveryDone(Boolean(p.discoveryBonusGranted))
+        }
+      })
       .finally(() => setLoading(false))
   }, [id])
 
@@ -84,13 +115,119 @@ export default function PetDetailScreen() {
     })
   }, [pet])
 
+  const isPetOwner = Boolean(user && pet && user.uid === pet.userId)
+  const isLostSearching = pet ? (pet.type === 'lost' && pet.status === 'searching') : false
+
+  const handleSelectBestInfoSighting = async (sighting: Sighting) => {
+    if (!user || !isPetOwner || !id) return
+    const isAlready = localBestInfoId === sighting.id && localBestInfoType === 'sighting'
+    if (isAlready) return
+    const existingLabel = localBestInfoType === 'sighting' ? '目撃情報' : 'コメント'
+    const msg = localBestInfoId && localBestInfoId !== sighting.id
+      ? `この目撃情報を最有力情報に変更しますか？\n（現在の${existingLabel}は解除されます）\n\n※この操作は取り消せません。\n投稿者に +100pt を付与します。`
+      : `「${sighting.posterName}」の目撃情報を最有力情報に選びますか？\n\n※この操作は取り消せません。\n投稿者に +100pt を付与します。`
+    Alert.alert('最有力情報を選ぶ', msg, [
+      { text: 'キャンセル', style: 'cancel' },
+      {
+        text: '選ぶ', style: 'default',
+        onPress: async () => {
+          setProcessingBestInfo(sighting.id)
+          try {
+            const authorUserId = await selectBestInfoSighting(id, sighting.id, localBestInfoId, localBestInfoType)
+            if (!localBestPointGranted && authorUserId && !sighting.bestInfoPointGranted) {
+              await grantBestSightingPoints(authorUserId, sighting.id)
+              await markSightingBestInfoPointGranted(sighting.id)
+              await markPetBestInfoPointGranted(id)
+              setLocalBestPointGranted(true)
+            }
+            setLocalBestInfoId(sighting.id)
+            setLocalBestInfoType('sighting')
+            setNearbySightings((prev) => prev.map((s) => ({ ...s, isBestInfo: s.id === sighting.id })))
+          } catch {
+            Alert.alert('エラー', '処理に失敗しました。もう一度お試しください。')
+          } finally {
+            setProcessingBestInfo(null)
+          }
+        },
+      },
+    ])
+  }
+
+  const handleSelectBestInfoComment = async (comment: Comment) => {
+    if (!user || !isPetOwner || !id) return
+    const msg = `「${comment.userDisplayName}」のコメントを最有力情報に選びますか？\n\n※この操作は取り消せません。\nコメント投稿者に +100pt を付与します。`
+    Alert.alert('最有力情報を選ぶ', msg, [
+      { text: 'キャンセル', style: 'cancel' },
+      {
+        text: '選ぶ', style: 'default',
+        onPress: async () => {
+          setProcessingBestInfo(comment.id)
+          try {
+            const authorUserId = await selectBestInfoComment(id, comment.id, localBestInfoId, localBestInfoType)
+            if (!localBestPointGranted && authorUserId && !comment.bestInfoPointGranted) {
+              await grantBestCommentPoints(authorUserId, comment.id)
+              setLocalBestPointGranted(true)
+            }
+            setLocalBestInfoId(comment.id)
+            setLocalBestInfoType('comment')
+            setComments((prev) => prev.map((c) => ({ ...c, isBestInfo: c.id === comment.id })))
+          } catch {
+            Alert.alert('エラー', '処理に失敗しました。もう一度お試しください。')
+          } finally {
+            setProcessingBestInfo(null)
+          }
+        },
+      },
+    ])
+  }
+
+  const handleConfirmDiscovery = async () => {
+    if (!user || !isPetOwner || !id || !pet?.bestInfoId) return
+    Alert.alert(
+      '発見・保護を確認する',
+      `「${pet.name || '名前不明'}」の発見・保護につながった情報として確認しますか？\n\n最有力情報の提供者に +300pt の発見貢献ボーナスが付与されます。\nこの操作は取り消せません。`,
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: '確認する', style: 'default',
+          onPress: async () => {
+            setProcessingDiscovery(true)
+            try {
+              let contributorUserId: string | undefined
+              if (pet.bestInfoType === 'comment') {
+                const snap = await getDoc(doc(db, 'pets', id, 'comments', pet.bestInfoId!))
+                if (snap.exists()) contributorUserId = snap.data().userId as string | undefined
+              } else {
+                const snap = await getDoc(doc(db, 'sightings', pet.bestInfoId!))
+                if (snap.exists()) contributorUserId = snap.data().userId as string | undefined
+              }
+              await updateDoc(doc(db, 'pets', id), {
+                status: 'resolved',
+                discoveryBonusGranted: true,
+                updatedAt: Timestamp.now(),
+              })
+              if (contributorUserId) {
+                await grantDiscoveryBonus(contributorUserId, id)
+              }
+              setDiscoveryDone(true)
+            } catch {
+              Alert.alert('エラー', '処理に失敗しました。もう一度お試しください。')
+            } finally {
+              setProcessingDiscovery(false)
+            }
+          },
+        },
+      ]
+    )
+  }
+
   const handleSubmitComment = async () => {
     if (!user || !id || !commentText.trim()) return
     setSubmittingComment(true)
     try {
       await createComment(id, user.uid, user.displayName ?? 'ユーザー', commentText.trim())
       setCommentText('')
-    } catch (e) {
+    } catch {
       Alert.alert('エラー', 'コメントの投稿に失敗しました')
     } finally {
       setSubmittingComment(false)
@@ -113,7 +250,8 @@ export default function PetDetailScreen() {
     )
   }
 
-  const isLostSearching = pet.type === 'lost' && pet.status === 'searching'
+  const topLevelComments = comments.filter((c) => !c.parentId)
+  const repliesFor = (parentId: string) => comments.filter((c) => c.parentId === parentId)
 
   return (
     <KeyboardAvoidingView
@@ -124,11 +262,7 @@ export default function PetDetailScreen() {
         {/* 画像 */}
         <View style={styles.imageContainer}>
           {pet.images.length > 0 ? (
-            <Image
-              source={{ uri: pet.images[imageIndex] }}
-              style={styles.mainImage}
-              resizeMode="cover"
-            />
+            <Image source={{ uri: pet.images[imageIndex] }} style={styles.mainImage} resizeMode="cover" />
           ) : (
             <View style={[styles.mainImage, styles.noImage]}>
               <Text style={styles.noImageEmoji}>
@@ -146,6 +280,15 @@ export default function PetDetailScreen() {
               <Text style={styles.badgeText}>{STATUS_LABELS[pet.status]}</Text>
             </View>
           </View>
+          {/* 編集ボタン（オーナーのみ） */}
+          {isPetOwner && (
+            <TouchableOpacity
+              style={styles.editBtn}
+              onPress={() => router.push({ pathname: '/pet-edit', params: { petId: id } })}
+            >
+              <Text style={styles.editBtnText}>✏️ 編集</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* サムネイル */}
@@ -212,8 +355,35 @@ export default function PetDetailScreen() {
             ) : null}
           </View>
 
-          {/* 目撃情報投稿CTA（迷子・捜索中のみ） */}
-          {isLostSearching && (
+          {/* 発見確認ボタン（オーナー向け・最有力情報が選ばれている場合） */}
+          {isPetOwner && pet.bestInfoId && pet.status !== 'resolved' && (
+            discoveryDone ? (
+              <View style={styles.discoveryDoneCard}>
+                <Text style={styles.discoveryDoneTitle}>🎉 発見・保護への貢献を確認済みです</Text>
+                <Text style={styles.discoveryDoneDesc}>情報提供者に +300pt の発見貢献ボーナスが付与されました</Text>
+              </View>
+            ) : (
+              <View style={styles.discoveryCard}>
+                <Text style={styles.discoveryTitle}>🎉 ペットが発見・保護されましたか？</Text>
+                <Text style={styles.discoveryDesc}>
+                  最有力情報が実際の発見・保護につながった場合は確認ボタンを押してください。
+                  情報提供者に <Text style={{ fontWeight: 'bold' }}>+300pt</Text> の発見貢献ボーナスが付与されます。
+                </Text>
+                <TouchableOpacity
+                  style={[styles.discoveryBtn, processingDiscovery && styles.btnDisabled]}
+                  onPress={handleConfirmDiscovery}
+                  disabled={processingDiscovery}
+                >
+                  <Text style={styles.discoveryBtnText}>
+                    {processingDiscovery ? '処理中...' : '✅ 発見・保護を確認する（+300pt 付与）'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )
+          )}
+
+          {/* 目撃情報投稿CTA（迷子・捜索中のみ・非オーナー） */}
+          {isLostSearching && !isPetOwner && (
             <TouchableOpacity
               style={styles.sightingCta}
               onPress={() => router.push({ pathname: '/sightings/new', params: { species: pet.species } })}
@@ -230,33 +400,57 @@ export default function PetDetailScreen() {
           {/* 近くの目撃情報 */}
           {isLostSearching && nearbySightings.length > 0 && (
             <View style={styles.sightingsSection}>
-              <Text style={styles.sectionTitle}>👁️ 近くの目撃情報 ({nearbySightings.length}件)</Text>
-              {nearbySightings.map((s) => (
-                <View key={s.id} style={styles.sightingCard}>
-                  <View style={styles.sightingHeader}>
-                    <Text style={styles.sightingTitle}>{s.title}</Text>
-                    {s.isBestInfo && (
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>👁️ 近くの目撃情報 ({nearbySightings.length}件)</Text>
+                {!isPetOwner && (
+                  <TouchableOpacity
+                    onPress={() => router.push({ pathname: '/sightings/new', params: { species: pet.species } })}
+                  >
+                    <Text style={styles.sectionLink}>目撃情報を投稿（+2pt）</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+              {nearbySightings.map((s) => {
+                const isCurrent = localBestInfoId === s.id && localBestInfoType === 'sighting'
+                return (
+                  <TouchableOpacity
+                    key={s.id}
+                    style={[styles.sightingCard, isCurrent && styles.sightingCardBest]}
+                    onPress={() => router.push(`/sightings/${s.id}`)}
+                    activeOpacity={0.8}
+                  >
+                    {isCurrent && (
                       <View style={styles.bestBadge}>
-                        <Text style={styles.bestBadgeText}>⭐ 最有力</Text>
+                        <Text style={styles.bestBadgeText}>⭐ 最有力情報</Text>
                       </View>
                     )}
-                  </View>
-                  <Text style={styles.sightingMeta}>
-                    📍 {s.location.prefecture} {s.location.city}
-                    {s.location.address ? ` · ${s.location.address}` : ''}
-                  </Text>
-                  {s.description ? (
-                    <Text style={styles.sightingDesc} numberOfLines={2}>{s.description}</Text>
-                  ) : null}
-                  <Text style={styles.sightingBy}>
-                    by {s.posterName} ·{' '}
-                    {format(new Date(s.createdAt), 'M月d日 H:mm', { locale: ja })}
-                  </Text>
-                  {s.photos.length > 0 && (
-                    <Image source={{ uri: s.photos[0] }} style={styles.sightingPhoto} />
-                  )}
-                </View>
-              ))}
+                    <View style={styles.sightingHeader}>
+                      <Text style={styles.sightingTitle} numberOfLines={2}>{s.title}</Text>
+                    </View>
+                    {s.photos.length > 0 && (
+                      <Image source={{ uri: s.photos[0] }} style={styles.sightingPhoto} />
+                    )}
+                    <Text style={styles.sightingMeta}>
+                      📍 {s.location.prefecture} {s.location.city}
+                    </Text>
+                    <Text style={styles.sightingBy}>
+                      by {s.posterName} · {format(new Date(s.createdAt), 'M月d日 H:mm', { locale: ja })}
+                    </Text>
+                    {/* オーナー向け最有力情報ボタン */}
+                    {isPetOwner && !isCurrent && (
+                      <TouchableOpacity
+                        style={[styles.bestInfoBtn, processingBestInfo === s.id && styles.btnDisabled]}
+                        onPress={(e) => { e.stopPropagation?.(); handleSelectBestInfoSighting(s) }}
+                        disabled={processingBestInfo === s.id}
+                      >
+                        <Text style={styles.bestInfoBtnText}>
+                          {processingBestInfo === s.id ? '処理中...' : '⭐ 最有力情報に選ぶ'}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </TouchableOpacity>
+                )
+              })}
             </View>
           )}
 
@@ -266,32 +460,75 @@ export default function PetDetailScreen() {
               💬 コメント {comments.length > 0 ? `(${comments.length}件)` : ''}
             </Text>
 
-            {comments.length === 0 ? (
+            {isPetOwner && (
+              <View style={styles.ownerNote}>
+                <Text style={styles.ownerNoteText}>
+                  💡 最も有力な情報のコメントに「最有力情報」を選ぶと、コメント投稿者に +100pt 付与されます。
+                </Text>
+              </View>
+            )}
+
+            {topLevelComments.length === 0 ? (
               <Text style={styles.noComments}>まだコメントがありません</Text>
             ) : (
-              comments.map((c) => (
-                <View key={c.id} style={[styles.commentCard, c.parentId && styles.commentReply]}>
-                  {c.isBestInfo && (
-                    <View style={styles.bestBadge}>
-                      <Text style={styles.bestBadgeText}>⭐ 最有力情報</Text>
+              topLevelComments.map((c) => {
+                const replies = repliesFor(c.id)
+                return (
+                  <View key={c.id}>
+                    <View style={[styles.commentCard, c.isBestInfo && styles.commentCardBest]}>
+                      {c.isBestInfo && (
+                        <View style={styles.bestBadge}>
+                          <Text style={styles.bestBadgeText}>⭐ 最有力情報</Text>
+                        </View>
+                      )}
+                      <View style={styles.commentHeader}>
+                        <View style={styles.commentAvatar}>
+                          <Text style={styles.commentAvatarText}>
+                            {(c.userDisplayName ?? '?')[0]?.toUpperCase()}
+                          </Text>
+                        </View>
+                        <View style={styles.commentMeta}>
+                          <Text style={styles.commentName}>{c.userDisplayName}</Text>
+                          <Text style={styles.commentDate}>
+                            {format(new Date(c.createdAt), 'M月d日 H:mm', { locale: ja })}
+                          </Text>
+                        </View>
+                      </View>
+                      <Text style={styles.commentText}>{c.text}</Text>
+                      {/* オーナー向け最有力情報ボタン */}
+                      {isPetOwner && !c.isBestInfo && (
+                        <TouchableOpacity
+                          style={[styles.bestInfoBtnSmall, processingBestInfo === c.id && styles.btnDisabled]}
+                          onPress={() => handleSelectBestInfoComment(c)}
+                          disabled={processingBestInfo === c.id}
+                        >
+                          <Text style={styles.bestInfoBtnSmallText}>
+                            {processingBestInfo === c.id ? '処理中...' : '⭐ 最有力情報に選ぶ（+100pt付与）'}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
                     </View>
-                  )}
-                  <View style={styles.commentHeader}>
-                    <View style={styles.commentAvatar}>
-                      <Text style={styles.commentAvatarText}>
-                        {(c.userDisplayName ?? '?')[0]?.toUpperCase()}
-                      </Text>
-                    </View>
-                    <View style={styles.commentMeta}>
-                      <Text style={styles.commentName}>{c.userDisplayName}</Text>
-                      <Text style={styles.commentDate}>
-                        {format(new Date(c.createdAt), 'M月d日 H:mm', { locale: ja })}
-                      </Text>
-                    </View>
+                    {replies.map((r) => (
+                      <View key={r.id} style={styles.commentReply}>
+                        <View style={styles.commentHeader}>
+                          <View style={styles.commentAvatar}>
+                            <Text style={styles.commentAvatarText}>
+                              {(r.userDisplayName ?? '?')[0]?.toUpperCase()}
+                            </Text>
+                          </View>
+                          <View style={styles.commentMeta}>
+                            <Text style={styles.commentName}>{r.userDisplayName}</Text>
+                            <Text style={styles.commentDate}>
+                              {format(new Date(r.createdAt), 'M月d日 H:mm', { locale: ja })}
+                            </Text>
+                          </View>
+                        </View>
+                        <Text style={styles.commentText}>{r.text}</Text>
+                      </View>
+                    ))}
                   </View>
-                  <Text style={styles.commentText}>{c.text}</Text>
-                </View>
-              ))
+                )
+              })
             )}
 
             {/* コメント入力 */}
@@ -361,6 +598,13 @@ const styles = StyleSheet.create({
   badges: { position: 'absolute', top: 12, left: 12, flexDirection: 'row', gap: 6 },
   badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 },
   badgeText: { color: '#fff', fontWeight: 'bold', fontSize: 11 },
+  editBtn: {
+    position: 'absolute', top: 12, right: 12,
+    backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 20,
+    paddingHorizontal: 12, paddingVertical: 6,
+    borderWidth: 1, borderColor: WARM_BORDER,
+  },
+  editBtnText: { fontSize: 12, fontWeight: 'bold', color: WARM_MID },
   thumbnailRow: { paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#fff' },
   thumbnail: { width: 64, height: 64, borderRadius: 8, marginRight: 8, borderWidth: 2, borderColor: 'transparent', overflow: 'hidden' },
   thumbnailActive: { borderColor: '#C46B00' },
@@ -383,6 +627,24 @@ const styles = StyleSheet.create({
   contactBtnPhone: { backgroundColor: '#3b82f6' },
   contactBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 14 },
 
+  // Discovery confirm
+  discoveryCard: {
+    backgroundColor: WARM_BG, borderRadius: 14, padding: 16, marginBottom: 12,
+    borderWidth: 1.5, borderColor: WARM_BORDER,
+  },
+  discoveryTitle: { fontSize: 14, fontWeight: 'bold', color: WARM_MID, marginBottom: 6 },
+  discoveryDesc: { fontSize: 12, color: '#8B5E1A', lineHeight: 18, marginBottom: 12 },
+  discoveryBtn: {
+    backgroundColor: WARM_ACCENT, borderRadius: 10, padding: 12, alignItems: 'center',
+  },
+  discoveryBtnText: { color: WARM_DARK, fontWeight: 'bold', fontSize: 13 },
+  discoveryDoneCard: {
+    backgroundColor: '#F0FFF4', borderRadius: 14, padding: 16, marginBottom: 12,
+    borderWidth: 1.5, borderColor: '#9ADFC0', alignItems: 'center',
+  },
+  discoveryDoneTitle: { fontSize: 14, fontWeight: 'bold', color: '#1A7A3C', marginBottom: 4 },
+  discoveryDoneDesc: { fontSize: 12, color: '#2AAA6E', textAlign: 'center' },
+
   // Sighting CTA
   sightingCta: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: WARM_BG,
@@ -397,28 +659,42 @@ const styles = StyleSheet.create({
 
   // Sightings section
   sightingsSection: { marginBottom: 12 },
-  sectionTitle: { fontSize: 15, fontWeight: 'bold', color: '#374151', marginBottom: 10 },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  sectionTitle: { fontSize: 15, fontWeight: 'bold', color: '#374151' },
+  sectionLink: { fontSize: 12, fontWeight: 'bold', color: WARM_MID, paddingHorizontal: 10, paddingVertical: 4, backgroundColor: WARM_ACCENT, borderRadius: 20 },
   sightingCard: {
     backgroundColor: '#fff', borderRadius: 12, padding: 12, marginBottom: 8,
-    borderWidth: 1, borderColor: '#f3f4f6',
+    borderWidth: 1.5, borderColor: '#FFE0A0',
   },
+  sightingCardBest: { borderColor: '#FFD700', borderWidth: 2 },
   sightingHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 },
   sightingTitle: { fontSize: 14, fontWeight: 'bold', color: '#111827', flex: 1 },
   sightingMeta: { fontSize: 12, color: '#6b7280', marginBottom: 4 },
-  sightingDesc: { fontSize: 13, color: '#374151', marginBottom: 4 },
   sightingBy: { fontSize: 11, color: '#9ca3af' },
-  sightingPhoto: { width: '100%', height: 120, borderRadius: 8, marginTop: 8, backgroundColor: '#f3f4f6' },
-  bestBadge: { backgroundColor: WARM_BG, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, marginBottom: 6, alignSelf: 'flex-start', borderWidth: 1, borderColor: WARM_BORDER },
-  bestBadgeText: { fontSize: 10, fontWeight: 'bold', color: WARM_MID },
+  sightingPhoto: { width: '100%', height: 100, borderRadius: 8, marginVertical: 6, backgroundColor: '#f3f4f6' },
+  bestBadge: { backgroundColor: '#FFF8DC', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, marginBottom: 6, alignSelf: 'flex-start', borderWidth: 1, borderColor: '#FFD700' },
+  bestBadgeText: { fontSize: 10, fontWeight: 'bold', color: '#7A5800' },
+  bestInfoBtn: {
+    marginTop: 8, backgroundColor: WARM_BG, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6,
+    alignItems: 'center', borderWidth: 1, borderColor: WARM_BORDER,
+  },
+  bestInfoBtnText: { fontSize: 12, fontWeight: 'bold', color: WARM_MID },
 
   // Comments
   commentsSection: { marginBottom: 12 },
+  ownerNote: { backgroundColor: WARM_BG, borderRadius: 10, padding: 10, marginBottom: 10, borderWidth: 1, borderColor: WARM_BORDER },
+  ownerNoteText: { fontSize: 11, color: WARM_MID, lineHeight: 16 },
   noComments: { fontSize: 13, color: '#9ca3af', textAlign: 'center', paddingVertical: 16 },
   commentCard: {
     backgroundColor: '#fff', borderRadius: 12, padding: 12, marginBottom: 8,
     borderWidth: 1, borderColor: '#f3f4f6',
   },
-  commentReply: { marginLeft: 16, borderLeftWidth: 3, borderLeftColor: '#e5e7eb' },
+  commentCardBest: { borderColor: '#FFC96B', borderWidth: 1.5, backgroundColor: '#FFFAF0' },
+  commentReply: {
+    backgroundColor: '#fff', borderRadius: 12, padding: 12, marginBottom: 8, marginLeft: 20,
+    borderLeftWidth: 3, borderLeftColor: '#e5e7eb', borderTopWidth: 1, borderTopColor: '#f3f4f6',
+    borderRightWidth: 1, borderRightColor: '#f3f4f6', borderBottomWidth: 1, borderBottomColor: '#f3f4f6',
+  },
   commentHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 },
   commentAvatar: {
     width: 32, height: 32, borderRadius: 16, backgroundColor: '#FFF3DC',
@@ -429,6 +705,8 @@ const styles = StyleSheet.create({
   commentName: { fontSize: 13, fontWeight: 'bold', color: '#374151' },
   commentDate: { fontSize: 11, color: '#9ca3af' },
   commentText: { fontSize: 14, color: '#374151', lineHeight: 20 },
+  bestInfoBtnSmall: { marginTop: 8, paddingVertical: 5 },
+  bestInfoBtnSmallText: { fontSize: 12, color: '#9B8060', fontWeight: '600' },
   commentInput: { marginTop: 8, gap: 8 },
   commentTextField: {
     borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, padding: 12,

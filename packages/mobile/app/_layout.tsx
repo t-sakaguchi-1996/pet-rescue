@@ -33,6 +33,10 @@ export default function RootLayout() {
           name="rewards"
           options={{ title: '貢献特典', headerBackTitle: '戻る' }}
         />
+        <Stack.Screen
+          name="pet-edit"
+          options={{ title: '投稿を編集', headerBackTitle: '戻る' }}
+        />
       </Stack>
     </AuthProvider>
   )

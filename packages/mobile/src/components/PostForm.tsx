@@ -14,7 +14,7 @@ import * as ImagePicker from 'expo-image-picker'
 import * as Location from 'expo-location'
 import { useRouter } from 'expo-router'
 import { getAuth } from 'firebase/auth'
-import { createPet } from '../lib/firestore'
+import { createPet, updatePet } from '../lib/firestore'
 import { uploadPetImages } from '../lib/storage'
 import type { Pet } from '../types'
 
@@ -28,32 +28,41 @@ const SEARCH_RADIUS_OPTIONS = [
 
 interface Props {
   userId: string
+  initialPet?: Pet
 }
 
-export default function PostForm({ userId }: Props) {
+export default function PostForm({ userId, initialPet }: Props) {
   const router = useRouter()
+  const isEditMode = Boolean(initialPet)
   const [submitting, setSubmitting] = useState(false)
   const [images, setImages] = useState<string[]>([])
-  const [isLost, setIsLost] = useState(true)
-  const [pinLocation, setPinLocation] = useState<{ latitude: number; longitude: number } | null>(null)
+  const [existingImages, setExistingImages] = useState<string[]>(initialPet?.images ?? [])
+  const [isLost, setIsLost] = useState(initialPet ? initialPet.type === 'lost' : true)
+  const [pinLocation, setPinLocation] = useState<{ latitude: number; longitude: number } | null>(
+    initialPet?.location.lat && initialPet?.location.lng
+      ? { latitude: initialPet.location.lat, longitude: initialPet.location.lng }
+      : null
+  )
 
-  const [searchRadiusKm, setSearchRadiusKm] = useState<number>(5)
+  const [searchRadiusKm, setSearchRadiusKm] = useState<number>(initialPet?.searchRadiusKm ?? 5)
   const [useUserInfo, setUseUserInfo] = useState(false)
   const [emailBeforeAutoFill, setEmailBeforeAutoFill] = useState('')
   const [form, setForm] = useState({
-    species: 'dog' as Pet['species'],
-    name: '',
-    breed: '',
-    color: '',
-    gender: 'unknown' as Pet['gender'],
-    age: '',
-    description: '',
-    lostDate: new Date().toISOString().split('T')[0],
-    prefecture: '東京都',
-    city: '',
-    address: '',
-    contactEmail: '',
-    contactPhone: '',
+    species: (initialPet?.species ?? 'dog') as Pet['species'],
+    name: initialPet?.name ?? '',
+    breed: initialPet?.breed ?? '',
+    color: initialPet?.color ?? '',
+    gender: (initialPet?.gender ?? 'unknown') as Pet['gender'],
+    age: initialPet?.age ?? '',
+    description: initialPet?.description ?? '',
+    lostDate: initialPet?.lostDate
+      ? new Date(initialPet.lostDate).toISOString().split('T')[0]
+      : new Date().toISOString().split('T')[0],
+    prefecture: initialPet?.location.prefecture ?? '東京都',
+    city: initialPet?.location.city ?? '',
+    address: initialPet?.location.address ?? '',
+    contactEmail: initialPet?.contactEmail ?? '',
+    contactPhone: initialPet?.contactPhone ?? '',
   })
 
   const currentUser = getAuth().currentUser
@@ -112,38 +121,66 @@ export default function PostForm({ userId }: Props) {
     }
     setSubmitting(true)
     try {
-      const imageUrls = images.length > 0
-        ? await uploadPetImages(userId, images)
-        : []
-      await createPet({
-        type: isLost ? 'lost' : 'found',
-        species: form.species,
-        name: form.name,
-        breed: form.breed,
-        color: form.color,
-        gender: form.gender,
-        age: form.age,
-        description: form.description,
-        images: imageUrls,
-        location: {
-          lat: pinLocation.latitude,
-          lng: pinLocation.longitude,
-          address: form.address,
-          prefecture: form.prefecture,
-          city: form.city,
-        },
-        lostDate: form.lostDate,
-        status: 'searching',
-        userId,
-        contactEmail: form.contactEmail,
-        contactPhone: form.contactPhone,
-        searchRadiusKm,
-      })
-      Alert.alert('投稿完了', '投稿しました', [
-        { text: 'OK', onPress: () => router.replace('/(tabs)') },
-      ])
+      const newImageUrls = images.length > 0 ? await uploadPetImages(userId, images) : []
+      const allImages = [...existingImages, ...newImageUrls]
+
+      if (isEditMode && initialPet) {
+        await updatePet(initialPet.id, {
+          type: isLost ? 'lost' : 'found',
+          species: form.species,
+          name: form.name,
+          breed: form.breed,
+          color: form.color,
+          gender: form.gender,
+          age: form.age,
+          description: form.description,
+          images: allImages,
+          location: {
+            lat: pinLocation.latitude,
+            lng: pinLocation.longitude,
+            address: form.address,
+            prefecture: form.prefecture,
+            city: form.city,
+          },
+          lostDate: form.lostDate,
+          contactEmail: form.contactEmail,
+          contactPhone: form.contactPhone,
+          searchRadiusKm,
+        })
+        Alert.alert('更新完了', '投稿を更新しました', [
+          { text: 'OK', onPress: () => router.back() },
+        ])
+      } else {
+        await createPet({
+          type: isLost ? 'lost' : 'found',
+          species: form.species,
+          name: form.name,
+          breed: form.breed,
+          color: form.color,
+          gender: form.gender,
+          age: form.age,
+          description: form.description,
+          images: allImages,
+          location: {
+            lat: pinLocation.latitude,
+            lng: pinLocation.longitude,
+            address: form.address,
+            prefecture: form.prefecture,
+            city: form.city,
+          },
+          lostDate: form.lostDate,
+          status: 'searching',
+          userId,
+          contactEmail: form.contactEmail,
+          contactPhone: form.contactPhone,
+          searchRadiusKm,
+        })
+        Alert.alert('投稿完了', '投稿しました', [
+          { text: 'OK', onPress: () => router.replace('/(tabs)') },
+        ])
+      }
     } catch {
-      Alert.alert('エラー', '投稿に失敗しました。もう一度お試しください')
+      Alert.alert('エラー', `${isEditMode ? '更新' : '投稿'}に失敗しました。もう一度お試しください`)
     } finally {
       setSubmitting(false)
     }
@@ -213,8 +250,26 @@ export default function PostForm({ userId }: Props) {
       {/* 写真 */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>写真（最大5枚）</Text>
+        {existingImages.length > 0 && (
+          <>
+            <Text style={styles.label}>現在の写真</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imageRow}>
+              {existingImages.map((uri, i) => (
+                <View key={i} style={styles.thumbnailWrapper}>
+                  <Image source={{ uri }} style={styles.thumbnail} />
+                  <TouchableOpacity
+                    style={styles.removeImageBtn}
+                    onPress={() => setExistingImages((prev) => prev.filter((_, idx) => idx !== i))}
+                  >
+                    <Text style={styles.removeImageBtnText}>×</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </ScrollView>
+          </>
+        )}
         <TouchableOpacity style={styles.photoBtn} onPress={pickImages}>
-          <Text style={styles.photoBtnText}>📷 写真を選択する</Text>
+          <Text style={styles.photoBtnText}>📷 写真を追加する</Text>
         </TouchableOpacity>
         {images.length > 0 && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imageRow}>
@@ -288,7 +343,9 @@ export default function PostForm({ userId }: Props) {
         onPress={handleSubmit}
         disabled={submitting}
       >
-        <Text style={styles.submitBtnText}>{submitting ? '投稿中...' : '投稿する'}</Text>
+        <Text style={styles.submitBtnText}>
+          {submitting ? (isEditMode ? '更新中...' : '投稿中...') : (isEditMode ? '更新する' : '投稿する')}
+        </Text>
       </TouchableOpacity>
 
       <View style={{ height: 40 }} />
@@ -375,7 +432,14 @@ const styles = StyleSheet.create({
   },
   photoBtnText: { color: '#6b7280', fontWeight: '600' },
   imageRow: { marginTop: 8 },
-  thumbnail: { width: 72, height: 72, borderRadius: 8, marginRight: 8 },
+  thumbnailWrapper: { position: 'relative', marginRight: 8 },
+  thumbnail: { width: 72, height: 72, borderRadius: 8 },
+  removeImageBtn: {
+    position: 'absolute', top: -6, right: -6,
+    width: 20, height: 20, borderRadius: 10,
+    backgroundColor: '#ef4444', alignItems: 'center', justifyContent: 'center',
+  },
+  removeImageBtnText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
   locationBtn: {
     backgroundColor: '#f3f4f6', borderRadius: 8, padding: 10,
     alignItems: 'center', marginTop: 8,

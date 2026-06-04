@@ -297,6 +297,64 @@ export async function fetchSightingById(id: string): Promise<Sighting | null> {
   return toSighting(snap.id, snap.data())
 }
 
+// ──────────────── Best Info ────────────────
+
+export async function selectBestInfoSighting(
+  petId: string,
+  sightingId: string,
+  currentBestInfoId?: string,
+  currentBestInfoType?: 'comment' | 'sighting'
+): Promise<string | undefined> {
+  const now = Timestamp.now()
+  if (currentBestInfoId && currentBestInfoId !== sightingId) {
+    if (currentBestInfoType === 'sighting') {
+      await updateDoc(doc(db, SIGHTINGS, currentBestInfoId), { isBestInfo: false, updatedAt: now })
+    } else if (currentBestInfoType === 'comment') {
+      await updateDoc(doc(db, PETS, petId, COMMENTS, currentBestInfoId), { isBestInfo: false, updatedAt: now })
+    }
+  }
+  await updateDoc(doc(db, SIGHTINGS, sightingId), { isBestInfo: true, bestInfoPetId: petId, updatedAt: now })
+  await updateDoc(doc(db, PETS, petId), { bestInfoId: sightingId, bestInfoType: 'sighting', updatedAt: now })
+  const snap = await getDoc(doc(db, SIGHTINGS, sightingId))
+  return snap.exists() ? (snap.data().userId as string | undefined) : undefined
+}
+
+export async function selectBestInfoComment(
+  petId: string,
+  commentId: string,
+  currentBestInfoId?: string,
+  currentBestInfoType?: 'comment' | 'sighting'
+): Promise<string | undefined> {
+  const now = Timestamp.now()
+  if (currentBestInfoId && currentBestInfoId !== commentId) {
+    if (currentBestInfoType === 'sighting') {
+      await updateDoc(doc(db, SIGHTINGS, currentBestInfoId), { isBestInfo: false, updatedAt: now })
+    } else if (currentBestInfoType === 'comment') {
+      await updateDoc(doc(db, PETS, petId, COMMENTS, currentBestInfoId), { isBestInfo: false, updatedAt: now })
+    }
+  }
+  await updateDoc(doc(db, PETS, petId, COMMENTS, commentId), { isBestInfo: true, updatedAt: now })
+  await updateDoc(doc(db, PETS, petId), { bestInfoId: commentId, bestInfoType: 'comment', updatedAt: now })
+  const snap = await getDoc(doc(db, PETS, petId, COMMENTS, commentId))
+  return snap.exists() ? (snap.data().userId as string | undefined) : undefined
+}
+
+export async function markSightingBestInfoPointGranted(sightingId: string): Promise<void> {
+  await updateDoc(doc(db, SIGHTINGS, sightingId), { bestInfoPointGranted: true, updatedAt: Timestamp.now() })
+}
+
+export async function markPetBestInfoPointGranted(petId: string): Promise<void> {
+  await updateDoc(doc(db, PETS, petId), { bestInfoPointGranted: true, updatedAt: Timestamp.now() })
+}
+
+export async function deleteSighting(sightingId: string): Promise<void> {
+  await deleteDoc(doc(db, SIGHTINGS, sightingId))
+}
+
+export async function deleteComment(petId: string, commentId: string): Promise<void> {
+  await deleteDoc(doc(db, PETS, petId, COMMENTS, commentId))
+}
+
 export async function createSighting(data: {
   species?: PetSpecies
   title: string
