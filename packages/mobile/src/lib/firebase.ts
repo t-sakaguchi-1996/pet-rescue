@@ -38,9 +38,14 @@ try {
   _auth = initializeAuth(app, {
     persistence: getReactNativePersistence(AsyncStorage),
   })
-} catch {
-  // auth already initialized (hot reload / fast refresh)
-  _auth = getAuth(app)
+} catch (e: unknown) {
+  const code = (e as { code?: string })?.code
+  if (code === 'auth/already-initialized') {
+    // hot reload / fast refresh: auth already initialized, just get the instance
+    _auth = getAuth(app)
+  } else {
+    throw e
+  }
 }
 
 export const auth = _auth

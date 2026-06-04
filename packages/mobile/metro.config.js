@@ -16,6 +16,13 @@ config.resolver.nodeModulesPaths = [
 // react@18 (web用) がルートにホイストされているため、react-native が誤って
 // React 18 を読み込みクラッシュする問題を修正。
 // react / scheduler は常にモバイルパッケージ (React 19) のものを使う。
+//
+// また Metro は ESM import と CJS require で @firebase/app の異なるビルドを
+// 選択する（ESM → dist/esm/index.esm2017.js、CJS → dist/index.cjs.js）。
+// これにより _components が別インスタンスに分裂し、registerAuth した側と
+// initializeApp した側が異なる Map を参照して
+// "Component auth has not been registered yet" が発生する。
+// @firebase/app を CJS ビルドに統一することで修正する。
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (
     moduleName === 'react' ||
@@ -30,6 +37,14 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
       // モバイルに見つからなければデフォルト解決にフォールバック
     }
   }
+
+  if (moduleName === '@firebase/app') {
+    return {
+      filePath: path.resolve(workspaceRoot, 'node_modules/@firebase/app/dist/index.cjs.js'),
+      type: 'sourceFile',
+    }
+  }
+
   return context.resolveRequest(context, moduleName, platform)
 }
 
