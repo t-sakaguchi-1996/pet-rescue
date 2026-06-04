@@ -19,7 +19,7 @@ import { createPet, updatePet } from '../lib/firestore'
 import { uploadPetImages } from '../lib/storage'
 import LocationMapPicker, { type LocationData } from './LocationMapPicker'
 import type { Pet } from '../types'
-import { PREFECTURES } from '../types'
+import { PREFECTURES, CITIES_BY_PREFECTURE } from '../types'
 
 const SEARCH_RADIUS_OPTIONS = [
   { value: 5, label: '5km' },
@@ -50,6 +50,7 @@ export default function PostForm({ userId, initialPet }: Props) {
   const [useUserInfo, setUseUserInfo] = useState(false)
   const [emailBeforeAutoFill, setEmailBeforeAutoFill] = useState('')
   const [prefModal, setPrefModal] = useState(false)
+  const [cityModal, setCityModal] = useState(false)
   const [form, setForm] = useState({
     species: (initialPet?.species ?? 'dog') as Pet['species'],
     name: initialPet?.name ?? '',
@@ -84,9 +85,12 @@ export default function PostForm({ userId, initialPet }: Props) {
 
   const handlePinChange = (loc: LocationData) => {
     setPinLocation({ lat: loc.lat, lng: loc.lng })
-    if (loc.prefecture) set('prefecture', loc.prefecture)
-    if (loc.city) set('city', loc.city)
     if (loc.address) set('address', loc.address)
+    if (loc.prefecture) {
+      set('prefecture', loc.prefecture)
+      const cities = CITIES_BY_PREFECTURE[loc.prefecture] ?? []
+      set('city', cities.includes(loc.city) ? loc.city : '')
+    }
   }
 
   const pickImages = async () => {
@@ -289,7 +293,16 @@ export default function PostForm({ userId, initialPet }: Props) {
           <Text style={styles.prefArrow}>▼</Text>
         </TouchableOpacity>
 
-        <Field label="市区町村 *" value={form.city} onChange={(v) => set('city', v)} placeholder="例: 新宿区" />
+        <Text style={styles.label}>市区町村 *</Text>
+        <TouchableOpacity
+          style={[styles.prefSelector, !form.prefecture && { opacity: 0.5 }]}
+          onPress={() => form.prefecture && setCityModal(true)}
+        >
+          <Text style={form.city ? styles.prefText : styles.prefPlaceholder}>
+            {form.city || (form.prefecture ? '市区町村を選択' : '都道府県を先に選択')}
+          </Text>
+          <Text style={styles.prefArrow}>▼</Text>
+        </TouchableOpacity>
         <Field label="詳細場所・目印" value={form.address} onChange={(v) => set('address', v)} placeholder="例: ○○公園付近" />
       </View>
 
@@ -353,10 +366,32 @@ export default function PostForm({ userId, initialPet }: Props) {
                 <TouchableOpacity
                   key={pref}
                   style={[styles.prefOption, form.prefecture === pref && styles.prefOptionActive]}
-                  onPress={() => { set('prefecture', pref); setPrefModal(false) }}
+                  onPress={() => { set('prefecture', pref); set('city', ''); setPrefModal(false) }}
                 >
                   <Text style={[styles.prefOptionText, form.prefecture === pref && styles.prefOptionTextActive]}>
                     {pref}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* 市区町村モーダル */}
+      <Modal visible={cityModal} transparent animationType="slide" onRequestClose={() => setCityModal(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setCityModal(false)}>
+          <Pressable style={styles.prefModalPanel} onPress={() => {}}>
+            <Text style={styles.prefModalTitle}>市区町村を選択</Text>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {(CITIES_BY_PREFECTURE[form.prefecture] ?? []).map((c) => (
+                <TouchableOpacity
+                  key={c}
+                  style={[styles.prefOption, form.city === c && styles.prefOptionActive]}
+                  onPress={() => { set('city', c); setCityModal(false) }}
+                >
+                  <Text style={[styles.prefOptionText, form.city === c && styles.prefOptionTextActive]}>
+                    {c}
                   </Text>
                 </TouchableOpacity>
               ))}

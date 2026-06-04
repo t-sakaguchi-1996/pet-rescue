@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   RefreshControl,
   ScrollView,
-  TextInput,
   Modal,
   Pressable,
   Image,
@@ -17,7 +16,7 @@ import { useRouter } from 'expo-router'
 import { fetchPets, fetchRecentSightings, fetchSightingsFiltered } from '../../src/lib/firestore'
 import PetCard from '../../src/components/PetCard'
 import type { Pet, PetType, PetSpecies, PetStatus, Sighting } from '../../src/types'
-import { PREFECTURES, SPECIES_LABELS } from '../../src/types'
+import { PREFECTURES, CITIES_BY_PREFECTURE, SPECIES_LABELS } from '../../src/types'
 import { format } from 'date-fns'
 import { ja } from 'date-fns/locale'
 
@@ -155,6 +154,7 @@ export default function HomeScreen() {
   const [appliedDetail, setAppliedDetail] = useState<DetailSearch>(EMPTY_DETAIL)
   const [showDetail, setShowDetail] = useState(false)
   const [prefModal, setPrefModal] = useState(false)
+  const [cityModal, setCityModal] = useState(false)
 
   const isDetailActive = Object.values(appliedDetail).some(Boolean)
   const isSightingMode = quickFilter === 'sighting'
@@ -356,13 +356,15 @@ export default function HomeScreen() {
 
           {/* 市区町村 */}
           <Text style={styles.filterLabel}>市区町村</Text>
-          <TextInput
-            style={styles.cityInput}
-            placeholder="例: 渋谷区"
-            placeholderTextColor="#9ca3af"
-            value={detail.city}
-            onChangeText={(v) => setDetail((p) => ({ ...p, city: v }))}
-          />
+          <TouchableOpacity
+            style={[styles.prefSelector, !detail.prefecture && { opacity: 0.5 }]}
+            onPress={() => detail.prefecture && setCityModal(true)}
+          >
+            <Text style={detail.city ? styles.prefSelectorText : styles.prefSelectorPlaceholder}>
+              {detail.city || (detail.prefecture ? '市区町村を選択' : '都道府県を先に選択')}
+            </Text>
+            <Text style={styles.prefSelectorArrow}>▼</Text>
+          </TouchableOpacity>
 
           {/* ボタン */}
           <View style={styles.detailActions}>
@@ -401,10 +403,41 @@ export default function HomeScreen() {
               <TouchableOpacity
                 key={pref}
                 style={[styles.prefOption, detail.prefecture === pref && styles.prefOptionActive]}
-                onPress={() => { setDetail((p) => ({ ...p, prefecture: pref })); setPrefModal(false) }}
+                onPress={() => { setDetail((p) => ({ ...p, prefecture: pref, city: '' })); setPrefModal(false) }}
               >
                 <Text style={[styles.prefOptionText, detail.prefecture === pref && styles.prefOptionTextActive]}>
                   {pref}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  )
+
+  const CityModal = (
+    <Modal visible={cityModal} transparent animationType="slide" onRequestClose={() => setCityModal(false)}>
+      <Pressable style={styles.modalBackdrop} onPress={() => setCityModal(false)}>
+        <Pressable style={styles.prefModalPanel} onPress={() => {}}>
+          <Text style={styles.prefModalTitle}>市区町村を選択</Text>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            <TouchableOpacity
+              style={[styles.prefOption, !detail.city && styles.prefOptionActive]}
+              onPress={() => { setDetail((p) => ({ ...p, city: '' })); setCityModal(false) }}
+            >
+              <Text style={[styles.prefOptionText, !detail.city && styles.prefOptionTextActive]}>
+                すべての市区町村
+              </Text>
+            </TouchableOpacity>
+            {(CITIES_BY_PREFECTURE[detail.prefecture] ?? []).map((c) => (
+              <TouchableOpacity
+                key={c}
+                style={[styles.prefOption, detail.city === c && styles.prefOptionActive]}
+                onPress={() => { setDetail((p) => ({ ...p, city: c })); setCityModal(false) }}
+              >
+                <Text style={[styles.prefOptionText, detail.city === c && styles.prefOptionTextActive]}>
+                  {c}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -422,6 +455,7 @@ export default function HomeScreen() {
           <Text style={styles.loadingText}>読み込み中...</Text>
         </View>
         {PrefModal}
+        {CityModal}
       </ScrollView>
     )
   }
@@ -438,6 +472,7 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
         {PrefModal}
+        {CityModal}
       </ScrollView>
     )
   }
@@ -451,6 +486,7 @@ export default function HomeScreen() {
           <Text style={styles.emptyText}>該当する情報がありません</Text>
         </View>
         {PrefModal}
+        {CityModal}
       </ScrollView>
     )
   }
@@ -491,6 +527,7 @@ export default function HomeScreen() {
         />
       )}
       {PrefModal}
+      {CityModal}
     </>
   )
 }

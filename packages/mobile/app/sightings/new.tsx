@@ -10,6 +10,8 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
+  Modal,
+  Pressable,
 } from 'react-native'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import * as ImagePicker from 'expo-image-picker'
@@ -19,6 +21,7 @@ import { createSighting } from '../../src/lib/firestore'
 import { useAuth } from '../../src/contexts/AuthContext'
 import LocationMapPicker, { type LocationData } from '../../src/components/LocationMapPicker'
 import type { PetSpecies } from '../../src/types'
+import { PREFECTURES, CITIES_BY_PREFECTURE } from '../../src/types'
 
 const SPECIES_OPTIONS: { value: PetSpecies; label: string; emoji: string }[] = [
   { value: 'dog', label: '犬', emoji: '🐕' },
@@ -43,15 +46,20 @@ export default function NewSightingScreen() {
   const [address, setAddress] = useState('')
   const [pinLocation, setPinLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [guestEmail, setGuestEmail] = useState('')
+  const [prefModal, setPrefModal] = useState(false)
+  const [cityModal, setCityModal] = useState(false)
   const [photos, setPhotos] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
 
   const handlePinChange = (loc: LocationData) => {
     setPinLocation({ lat: loc.lat, lng: loc.lng })
-    if (loc.prefecture) setPrefecture(loc.prefecture)
-    if (loc.city) setCity(loc.city)
     if (loc.address) setAddress(loc.address)
+    if (loc.prefecture) {
+      setPrefecture(loc.prefecture)
+      const cities = CITIES_BY_PREFECTURE[loc.prefecture] ?? []
+      setCity(cities.includes(loc.city) ? loc.city : '')
+    }
   }
 
   const pickImage = async () => {
@@ -147,6 +155,46 @@ export default function NewSightingScreen() {
       style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      {/* 都道府県 Modal */}
+      <Modal visible={prefModal} transparent animationType="slide" onRequestClose={() => setPrefModal(false)}>
+        <Pressable style={modalStyles.backdrop} onPress={() => setPrefModal(false)}>
+          <Pressable style={modalStyles.panel} onPress={() => {}}>
+            <Text style={modalStyles.title}>都道府県を選択</Text>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {PREFECTURES.map((p) => (
+                <TouchableOpacity
+                  key={p}
+                  style={[modalStyles.option, prefecture === p && modalStyles.optionActive]}
+                  onPress={() => { setPrefecture(p); setCity(''); setPrefModal(false) }}
+                >
+                  <Text style={[modalStyles.optionText, prefecture === p && modalStyles.optionTextActive]}>{p}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* 市区町村 Modal */}
+      <Modal visible={cityModal} transparent animationType="slide" onRequestClose={() => setCityModal(false)}>
+        <Pressable style={modalStyles.backdrop} onPress={() => setCityModal(false)}>
+          <Pressable style={modalStyles.panel} onPress={() => {}}>
+            <Text style={modalStyles.title}>市区町村を選択</Text>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {(CITIES_BY_PREFECTURE[prefecture] ?? []).map((c) => (
+                <TouchableOpacity
+                  key={c}
+                  style={[modalStyles.option, city === c && modalStyles.optionActive]}
+                  onPress={() => { setCity(c); setCityModal(false) }}
+                >
+                  <Text style={[modalStyles.optionText, city === c && modalStyles.optionTextActive]}>{c}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
         {/* ヘッダー */}
         <View style={styles.header}>
@@ -207,25 +255,26 @@ export default function NewSightingScreen() {
           {/* 都道府県 */}
           <View style={styles.field}>
             <Text style={styles.label}>都道府県 <Text style={styles.required}>*</Text></Text>
-            <TextInput
-              style={styles.input}
-              placeholder="例: 東京都（地図から自動入力）"
-              placeholderTextColor="#9ca3af"
-              value={prefecture}
-              onChangeText={setPrefecture}
-            />
+            <TouchableOpacity style={styles.selector} onPress={() => setPrefModal(true)}>
+              <Text style={[styles.selectorText, !prefecture && styles.selectorPlaceholder]}>
+                {prefecture || '都道府県を選択（地図から自動入力）'}
+              </Text>
+              <Text style={styles.selectorArrow}>▼</Text>
+            </TouchableOpacity>
           </View>
 
           {/* 市区町村 */}
           <View style={styles.field}>
             <Text style={styles.label}>市区町村 <Text style={styles.required}>*</Text></Text>
-            <TextInput
-              style={styles.input}
-              placeholder="例: 渋谷区（地図から自動入力）"
-              placeholderTextColor="#9ca3af"
-              value={city}
-              onChangeText={setCity}
-            />
+            <TouchableOpacity
+              style={[styles.selector, !prefecture && { opacity: 0.5 }]}
+              onPress={() => prefecture && setCityModal(true)}
+            >
+              <Text style={[styles.selectorText, !city && styles.selectorPlaceholder]}>
+                {city || (prefecture ? '市区町村を選択' : '都道府県を先に選択')}
+              </Text>
+              <Text style={styles.selectorArrow}>▼</Text>
+            </TouchableOpacity>
           </View>
 
           {/* 詳細な場所 */}
@@ -351,6 +400,11 @@ const styles = StyleSheet.create({
   photoAddIcon: { fontSize: 22 },
   photoAddText: { fontSize: 10, color: '#9ca3af', marginTop: 2 },
 
+  selector: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, padding: 12, backgroundColor: '#fff' },
+  selectorText: { fontSize: 14, color: '#374151', flex: 1 },
+  selectorPlaceholder: { color: '#9ca3af' },
+  selectorArrow: { fontSize: 10, color: '#9ca3af', marginLeft: 4 },
+
   submitBtn: { backgroundColor: WARM_ACCENT, borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 8 },
   btnDisabled: { opacity: 0.5 },
   submitBtnText: { color: WARM_DARK, fontWeight: 'bold', fontSize: 16 },
@@ -368,4 +422,14 @@ const styles = StyleSheet.create({
   registerBtnText: { color: WARM_DARK, fontWeight: 'bold', fontSize: 13 },
   backBtn: { borderWidth: 1, borderColor: WARM_BORDER, borderRadius: 20, paddingHorizontal: 24, paddingVertical: 10 },
   backBtnText: { color: WARM_MID, fontWeight: '600', fontSize: 14 },
+})
+
+const modalStyles = StyleSheet.create({
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  panel: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '70%', paddingBottom: 20 },
+  title: { fontSize: 16, fontWeight: 'bold', color: '#3D2400', textAlign: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  option: { paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f9fafb' },
+  optionActive: { backgroundColor: '#FFF3DC' },
+  optionText: { fontSize: 15, color: '#374151' },
+  optionTextActive: { color: '#C46B00', fontWeight: 'bold' },
 })

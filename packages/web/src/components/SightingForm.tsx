@@ -8,7 +8,7 @@ import { useLoadingState } from '@/contexts/LoadingContext'
 import { createSighting, uploadSightingImage } from '@/lib/sightings'
 import { grantSightingPoints } from '@/lib/points'
 import { checkAndAwardBadges } from '@/lib/titles'
-import { PREFECTURES, SPECIES_LABELS, type PetSpecies } from '@pet-rescue/shared'
+import { PREFECTURES, CITIES_BY_PREFECTURE, SPECIES_LABELS, type PetSpecies } from '@pet-rescue/shared'
 import LocationMapPicker, { type LocationData } from './LocationMapPicker'
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? ''
@@ -54,8 +54,11 @@ function SightingFormInner({ onSuccess, defaultSpecies }: Props) {
   const handlePinChange = useCallback((loc: LocationData) => {
     setPinLocation({ lat: loc.lat, lng: loc.lng })
     if (loc.address) setAddress(loc.address)
-    if (loc.city) setCity(loc.city)
-    if (loc.prefecture && PREFECTURES.includes(loc.prefecture)) setPrefecture(loc.prefecture)
+    if (loc.prefecture && PREFECTURES.includes(loc.prefecture)) {
+      setPrefecture(loc.prefecture)
+      const cities = CITIES_BY_PREFECTURE[loc.prefecture] ?? []
+      setCity(cities.includes(loc.city) ? loc.city : '')
+    }
   }, [])
 
   const handleFiles = (files: FileList | null) => {
@@ -246,13 +249,17 @@ function SightingFormInner({ onSuccess, defaultSpecies }: Props) {
               <option key={p} value={p}>{p}</option>
             ))}
           </select>
-          <input
-            type="text"
+          <select
             value={city}
             onChange={(e) => setCity(e.target.value)}
-            className="input-field"
-            placeholder="市区町村"
-          />
+            className="select-field"
+            disabled={!prefecture}
+          >
+            <option value="">市区町村を選択</option>
+            {(CITIES_BY_PREFECTURE[prefecture] ?? []).map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
         </div>
         <input
           type="text"

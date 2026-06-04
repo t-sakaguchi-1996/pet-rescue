@@ -8,7 +8,7 @@ import {
   useMapsLibrary,
 } from '@vis.gl/react-google-maps'
 import type { Pet } from '@pet-rescue/shared'
-import { PREFECTURES } from '@pet-rescue/shared'
+import { PREFECTURES, CITIES_BY_PREFECTURE } from '@pet-rescue/shared'
 import { createPet, updatePet } from '@/lib/firestore'
 import { uploadPetImages } from '@/lib/storage'
 import { grantProtectedPostPoints } from '@/lib/points'
@@ -255,12 +255,17 @@ function FormInner({ userId, ownerDisplayName, defaultType = 'lost', pet }: Prop
   // Called by LocationMapPicker when user clicks map or uses current location
   const handlePinChange = useCallback((loc: LocationData) => {
     setPinLocation({ lat: loc.lat, lng: loc.lng })
-    setForm((prev) => ({
-      ...prev,
-      prefecture: loc.prefecture || prev.prefecture,
-      city: loc.city || prev.city,
-      address: loc.address || prev.address,
-    }))
+    setForm((prev) => {
+      const newPref = loc.prefecture || prev.prefecture
+      const cities = CITIES_BY_PREFECTURE[newPref] ?? []
+      const newCity = cities.includes(loc.city) ? loc.city : ''
+      return {
+        ...prev,
+        prefecture: newPref,
+        city: newCity || prev.city,
+        address: loc.address || prev.address,
+      }
+    })
   }, [])
 
   const handleUseUserInfo = (checked: boolean) => {
@@ -626,15 +631,19 @@ function FormInner({ userId, ownerDisplayName, defaultType = 'lost', pet }: Prop
           </div>
           <div>
             <label className="label">市区町村 *</label>
-            <input
+            <select
               name="city"
               value={form.city}
               onChange={handleChange}
-              onBlur={handleCityBlur}
-              className="input-field"
-              placeholder="例: 新宿区"
+              className="select-field"
               required
-            />
+              disabled={!form.prefecture}
+            >
+              <option value="">市区町村を選択</option>
+              {(CITIES_BY_PREFECTURE[form.prefecture] ?? []).map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
           </div>
           <div className="col-span-2">
             <label className="label">詳しい場所・目印</label>

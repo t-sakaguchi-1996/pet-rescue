@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  TextInput,
   ActivityIndicator,
   Image,
   ScrollView,
@@ -14,7 +13,7 @@ import {
 } from 'react-native'
 import { useRouter } from 'expo-router'
 import { fetchSightingsFiltered } from '../../src/lib/firestore'
-import { SPECIES_LABELS, PREFECTURES, type Sighting, type PetSpecies } from '../../src/types'
+import { SPECIES_LABELS, PREFECTURES, CITIES_BY_PREFECTURE, type Sighting, type PetSpecies } from '../../src/types'
 import { format } from 'date-fns'
 import { ja } from 'date-fns/locale'
 
@@ -35,6 +34,7 @@ export default function SightingsScreen() {
   const [city, setCity] = useState('')
   const [species, setSpecies] = useState<PetSpecies | ''>('')
   const [prefModal, setPrefModal] = useState(false)
+  const [cityModal, setCityModal] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -155,14 +155,15 @@ export default function SightingsScreen() {
           </TouchableOpacity>
 
           {/* 市区町村 */}
-          <TextInput
-            style={[styles.cityInput, !prefecture && styles.cityInputDisabled]}
-            placeholder={prefecture ? '市区町村' : '都道府県を先に選択'}
-            placeholderTextColor="#B08050"
-            value={city}
-            onChangeText={setCity}
-            editable={!!prefecture}
-          />
+          <TouchableOpacity
+            style={[styles.prefBtn, city && styles.prefBtnActive, !prefecture && styles.cityInputDisabled]}
+            onPress={() => prefecture && setCityModal(true)}
+          >
+            <Text style={[styles.prefBtnText, city && styles.prefBtnTextActive]} numberOfLines={1}>
+              {city || '市区町村'}
+            </Text>
+            <Text style={styles.prefArrow}>▼</Text>
+          </TouchableOpacity>
 
           {/* リセット */}
           {isFiltered && (
@@ -191,10 +192,40 @@ export default function SightingsScreen() {
                 <TouchableOpacity
                   key={p}
                   style={[styles.modalOption, prefecture === p && styles.modalOptionActive]}
-                  onPress={() => { setPrefecture(p); setCity(''); setPrefModal(false) }}
+                  onPress={() => { setPrefecture(p); setCity(''); setCityModal(false); setPrefModal(false) }}
                 >
                   <Text style={[styles.modalOptionText, prefecture === p && styles.modalOptionTextActive]}>
                     {p}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* 市区町村 Modal */}
+      <Modal visible={cityModal} transparent animationType="slide" onRequestClose={() => setCityModal(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setCityModal(false)}>
+          <Pressable style={styles.modalPanel} onPress={() => {}}>
+            <Text style={styles.modalTitle}>市区町村を選択</Text>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <TouchableOpacity
+                style={[styles.modalOption, !city && styles.modalOptionActive]}
+                onPress={() => { setCity(''); setCityModal(false) }}
+              >
+                <Text style={[styles.modalOptionText, !city && styles.modalOptionTextActive]}>
+                  すべての市区町村
+                </Text>
+              </TouchableOpacity>
+              {(CITIES_BY_PREFECTURE[prefecture] ?? []).map((c) => (
+                <TouchableOpacity
+                  key={c}
+                  style={[styles.modalOption, city === c && styles.modalOptionActive]}
+                  onPress={() => { setCity(c); setCityModal(false) }}
+                >
+                  <Text style={[styles.modalOptionText, city === c && styles.modalOptionTextActive]}>
+                    {c}
                   </Text>
                 </TouchableOpacity>
               ))}

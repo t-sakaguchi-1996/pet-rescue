@@ -5,7 +5,7 @@ import Link from 'next/link'
 import SightingCard from '@/components/SightingCard'
 import { fetchSightingsFiltered } from '@/lib/sightings'
 import type { Sighting, PetSpecies } from '@pet-rescue/shared'
-import { PREFECTURES, SPECIES_LABELS } from '@pet-rescue/shared'
+import { PREFECTURES, CITIES_BY_PREFECTURE, SPECIES_LABELS } from '@pet-rescue/shared'
 
 export default function SightingsPage() {
   const [sightings, setSightings] = useState<Sighting[]>([])
@@ -111,21 +111,24 @@ export default function SightingsPage() {
             ))}
           </select>
 
-          <input
-            type="text"
+          <select
             value={city}
             onChange={(e) => setCity(e.target.value)}
-            placeholder={prefecture ? '市区町村' : '都道府県を先に選択'}
             disabled={!prefecture}
-            className="text-sm rounded-full px-3 py-1.5 flex-1 min-w-[120px]"
+            className="text-sm rounded-full px-3 py-1.5 font-semibold"
             style={{
-              background: '#FFF3DC',
-              border: '1.5px solid #FFD98A',
-              color: '#3D2400',
+              background: city ? '#C46B00' : '#FFF3DC',
+              color: city ? '#fff' : '#7A4500',
+              border: `1.5px solid ${city ? '#C46B00' : '#FFD98A'}`,
               outline: 'none',
               opacity: prefecture ? 1 : 0.5,
             }}
-          />
+          >
+            <option value="">市区町村</option>
+            {(CITIES_BY_PREFECTURE[prefecture] ?? []).map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
 
           {(prefecture || city || species) && (
             <button
