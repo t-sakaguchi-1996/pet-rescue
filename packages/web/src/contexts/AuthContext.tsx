@@ -11,6 +11,7 @@ import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  sendEmailVerification,
   signOut,
   updateProfile,
   reauthenticateWithCredential,
@@ -100,6 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   ) => {
     const cred = await createUserWithEmailAndPassword(auth, email, password)
     await updateProfile(cred.user, { displayName })
+    await sendEmailVerification(cred.user)
     await setDoc(doc(db, 'users', cred.user.uid), {
       email,
       displayName,

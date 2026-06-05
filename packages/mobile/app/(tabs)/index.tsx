@@ -257,10 +257,10 @@ export default function HomeScreen() {
 
       {/* ── フィルタータブ ── */}
       <View style={styles.filterContainer}>
+        {/* 1行目: クイックフィルターチップ */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          style={styles.filterScroll}
           contentContainerStyle={styles.filterRow}
         >
           {QUICK_FILTERS.map((f) => (
@@ -276,15 +276,17 @@ export default function HomeScreen() {
           ))}
         </ScrollView>
 
-        {/* 詳細検索ボタン */}
-        <TouchableOpacity
-          style={[styles.detailBtn, isDetailActive && styles.detailBtnActive]}
-          onPress={() => setShowDetail((v) => !v)}
-        >
-          <Text style={[styles.detailBtnText, isDetailActive && styles.detailBtnTextActive]}>
-            🔍{isDetailActive ? ' 検索中' : ' 詳細'}
-          </Text>
-        </TouchableOpacity>
+        {/* 2行目: 詳細検索ボタン */}
+        <View style={styles.filterRow2}>
+          <TouchableOpacity
+            style={[styles.detailBtn, isDetailActive && styles.detailBtnActive]}
+            onPress={() => setShowDetail((v) => !v)}
+          >
+            <Text style={[styles.detailBtnText, isDetailActive && styles.detailBtnTextActive]}>
+              🔍{isDetailActive ? ' 検索中' : ' 詳細'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* ── 詳細検索パネル ── */}
@@ -568,15 +570,15 @@ const styles = StyleSheet.create({
   pointCardDesc: { fontSize: 9, color: '#8B6340', textAlign: 'center', lineHeight: 12 },
 
   // Filter
-  filterContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  filterScroll: { flex: 1 },
-  filterRow: { paddingHorizontal: 12, paddingVertical: 10, gap: 8, flexDirection: 'row' },
+  filterContainer: { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  filterRow: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 6, gap: 8, flexDirection: 'row' },
+  filterRow2: { paddingHorizontal: 12, paddingBottom: 8 },
   filterChip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e5e7eb' },
   filterChipActive: { backgroundColor: BG, borderColor: A },
   filterText: { fontSize: 13, color: '#6b7280' },
   filterTextActive: { color: M, fontWeight: 'bold' },
 
-  detailBtn: { paddingHorizontal: 12, paddingVertical: 6, marginRight: 10, borderRadius: 16, backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e5e7eb' },
+  detailBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e5e7eb', alignSelf: 'flex-start' },
   detailBtnActive: { backgroundColor: BG, borderColor: A },
   detailBtnText: { fontSize: 12, color: '#6b7280', fontWeight: '600' },
   detailBtnTextActive: { color: M, fontWeight: 'bold' },

@@ -1,5 +1,6 @@
 import * as Notifications from 'expo-notifications'
 import * as Device from 'expo-device'
+import Constants from 'expo-constants'
 import { doc, updateDoc, arrayUnion } from 'firebase/firestore'
 import { db } from './firebase'
 
@@ -31,7 +32,11 @@ export async function requestNotificationPermission(
 
   if (finalStatus !== 'granted') return false
 
-  const { data: token } = await Notifications.getExpoPushTokenAsync()
+  const projectId = (Constants.expoConfig?.extra as Record<string, unknown> | undefined)
+    ?.eas?.['projectId'] as string | undefined
+  const { data: token } = await Notifications.getExpoPushTokenAsync(
+    projectId ? { projectId } : {}
+  )
 
   if (token && userId) {
     await updateDoc(doc(db, 'users', userId), {

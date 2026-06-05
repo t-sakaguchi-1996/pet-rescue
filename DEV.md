@@ -130,8 +130,13 @@ EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=
 
 以下の機能は **Expo Go では動作しません**。EAS Build（実機ビルド）が必要です：
 
-| 機能 | 理由 |
-|------|------|
-| 地図表示（map.tsx） | `react-native-maps` はネイティブモジュールのため |
-| 投稿フォームの地図ピン | 同上。現在地ボタンは使用可能 |
-| プッシュ通知（FCM） | ネイティブビルドが必要 |
+| 機能                   | 理由                                             |
+| ---------------------- | ------------------------------------------------ |
+| 地図表示（map.tsx）    | `react-native-maps` はネイティブモジュールのため |
+| 投稿フォームの地図ピン | 同上。現在地ボタンは使用可能                     |
+| プッシュ通知（FCM）    | ネイティブビルドが必要                           |
+
+cd C:\Users\t_sak\Documents\GitHub\pet-rescue\packages\mobile
+npm start
+
+npm run web

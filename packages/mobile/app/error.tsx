@@ -1,6 +1,10 @@
 import { ScrollView, Text, View, TouchableOpacity, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
-import { ErrorBoundaryProps } from 'expo-router'
+import type { ErrorBoundaryProps } from 'expo-router'
+
+export default function ErrorScreen() {
+  return null
+}
 
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   const router = useRouter()

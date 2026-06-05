@@ -92,7 +92,10 @@ export default function PostForm({ userId, initialPet }: Props) {
     if (loc.prefecture) {
       set('prefecture', loc.prefecture)
       const cities = CITIES_BY_PREFECTURE[loc.prefecture] ?? []
-      set('city', cities.includes(loc.city) ? loc.city : '')
+      if (cities.includes(loc.city)) {
+        set('city', loc.city)
+      }
+      // geocoded city not in predefined list → preserve existing selection
     }
   }
 

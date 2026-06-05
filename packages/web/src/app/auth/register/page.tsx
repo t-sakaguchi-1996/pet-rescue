@@ -16,6 +16,7 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [registered, setRegistered] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -32,13 +33,37 @@ export default function RegisterPage() {
     startLoading()
     try {
       await register(email, password, displayName)
-      router.push('/')
+      setRegistered(true)
     } catch {
       setError('登録に失敗しました。別のメールアドレスをお試しください')
     } finally {
       setLoading(false)
       stopLoading()
     }
+  }
+
+  if (registered) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4 py-12">
+        <div className="w-full max-w-md text-center bg-white rounded-2xl shadow-lg p-8">
+          <div className="text-5xl mb-4">📧</div>
+          <h1 className="text-xl font-bold text-gray-900 mb-2">確認メールを送信しました</h1>
+          <p className="text-gray-500 text-sm mb-2">
+            <span className="font-semibold text-gray-700">{email}</span> に確認メールを送りました。
+          </p>
+          <p className="text-gray-500 text-sm mb-6">
+            メール内のリンクをクリックしてメールアドレスを確認してください。
+            確認後も通常通りアプリをご利用いただけます。
+          </p>
+          <button
+            onClick={() => router.push('/')}
+            className="btn-primary w-full text-center"
+          >
+            ホームへ進む
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (

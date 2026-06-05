@@ -75,7 +75,10 @@ export default function NewSightingScreen() {
     if (loc.prefecture) {
       setPrefecture(loc.prefecture)
       const cities = CITIES_BY_PREFECTURE[loc.prefecture] ?? []
-      setCity(cities.includes(loc.city) ? loc.city : '')
+      if (cities.includes(loc.city)) {
+        setCity(loc.city)
+      }
+      // geocoded city not in predefined list → preserve existing selection
     }
   }
 
@@ -103,12 +106,14 @@ export default function NewSightingScreen() {
       const photoUrls: string[] = []
       for (const uri of photos) {
         const ownerKey = user?.uid ?? `guest_${Date.now()}`
-        const ext = uri.split('.').pop() ?? 'jpg'
+        const ext = uri.split('.').pop()?.toLowerCase() ?? 'jpg'
         const path = `sightings/${ownerKey}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
         const storageRef = ref(storage, path)
+        const contentType = ext === 'png' ? 'image/png' : ext === 'gif' ? 'image/gif' : 'image/jpeg'
         const response = await fetch(uri)
+        if (!response.ok) throw new Error(`Failed to read image: ${uri}`)
         const blob = await response.blob()
-        await uploadBytes(storageRef, blob)
+        await uploadBytes(storageRef, blob, { contentType })
         const url = await getDownloadURL(storageRef)
         photoUrls.push(url)
       }

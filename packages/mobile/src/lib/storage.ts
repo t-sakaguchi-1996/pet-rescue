@@ -1,5 +1,4 @@
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
-import * as FileSystem from 'expo-file-system'
 import { storage } from './firebase'
 
 export async function uploadPetImage(
@@ -9,14 +8,15 @@ export async function uploadPetImage(
   const fileName = `${Date.now()}_${uri.split('/').pop() ?? 'photo.jpg'}`
   const storageRef = ref(storage, `pets/${userId}/${fileName}`)
 
-  // ローカルURIをblobに変換してアップロード
-  const fileInfo = await FileSystem.getInfoAsync(uri)
-  if (!fileInfo.exists) throw new Error(`File not found: ${uri}`)
+  const ext = fileName.split('.').pop()?.toLowerCase() ?? 'jpg'
+  const contentType =
+    ext === 'png' ? 'image/png' : ext === 'gif' ? 'image/gif' : 'image/jpeg'
 
   const response = await fetch(uri)
+  if (!response.ok) throw new Error(`Failed to read image: ${uri}`)
   const blob = await response.blob()
 
-  await uploadBytes(storageRef, blob)
+  await uploadBytes(storageRef, blob, { contentType })
   return getDownloadURL(storageRef)
 }
 

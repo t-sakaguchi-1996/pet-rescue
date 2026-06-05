@@ -13,21 +13,22 @@ export default function SightingsPage() {
   const [prefecture, setPrefecture] = useState('')
   const [city, setCity] = useState('')
   const [species, setSpecies] = useState<PetSpecies | ''>('')
+  const [applied, setApplied] = useState<{ prefecture: string; city: string; species: PetSpecies | '' }>({ prefecture: '', city: '', species: '' })
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
       const result = await fetchSightingsFiltered({
-        prefecture: prefecture || undefined,
-        city: city.trim() || undefined,
-        species: (species as PetSpecies) || undefined,
+        prefecture: applied.prefecture || undefined,
+        city: applied.city.trim() || undefined,
+        species: (applied.species as PetSpecies) || undefined,
         limitCount: 100,
       })
       setSightings(result)
     } finally {
       setLoading(false)
     }
-  }, [prefecture, city, species])
+  }, [applied])
 
   useEffect(() => {
     void load()
@@ -38,11 +39,18 @@ export default function SightingsPage() {
     setCity('')
   }
 
+  const handleSearch = () => {
+    setApplied({ prefecture, city, species })
+  }
+
   const handleReset = () => {
     setPrefecture('')
     setCity('')
     setSpecies('')
+    setApplied({ prefecture: '', city: '', species: '' })
   }
+
+  const isApplied = !!(applied.prefecture || applied.city || applied.species)
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
@@ -130,7 +138,14 @@ export default function SightingsPage() {
             ))}
           </select>
 
-          {(prefecture || city || species) && (
+          <button
+            onClick={handleSearch}
+            className="text-xs font-semibold px-4 py-1.5 rounded-full transition-all"
+            style={{ background: '#C46B00', color: '#fff', border: '1.5px solid #C46B00' }}
+          >
+            🔍 検索
+          </button>
+          {isApplied && (
             <button
               onClick={handleReset}
               className="text-xs font-semibold px-3 py-1.5 rounded-full transition-all"
@@ -159,7 +174,7 @@ export default function SightingsPage() {
         <div className="text-center py-20 rounded-2xl" style={{ border: '1.5px dashed #FFD98A' }}>
           <p className="text-5xl mb-4">👁️</p>
           <p className="text-gray-500 mb-4">
-            {prefecture || city || species ? '条件に一致する目撃情報がありません' : 'まだ目撃情報はありません'}
+            {isApplied ? '条件に一致する目撃情報がありません' : 'まだ目撃情報はありません'}
           </p>
           <Link
             href="/sightings/new"

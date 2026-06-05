@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Alert,
 } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useAuth } from '../../src/contexts/AuthContext'
@@ -31,7 +32,11 @@ export default function RegisterScreen() {
     setLoading(true)
     try {
       await register(email, password, displayName)
-      router.back()
+      Alert.alert(
+        '登録完了',
+        `${email} に確認メールを送りました。\nメール内のリンクをクリックしてメールアドレスを確認してください。`,
+        [{ text: 'OK', onPress: () => router.back() }]
+      )
     } catch {
       setError('登録に失敗しました。別のメールアドレスをお試しください')
     } finally {

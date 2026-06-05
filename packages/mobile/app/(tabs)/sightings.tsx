@@ -10,7 +10,11 @@ import {
   Modal,
   Pressable,
   Platform,
+  Dimensions,
 } from 'react-native'
+
+const SCREEN_W = Dimensions.get('window').width
+const CARD_W = Math.floor((SCREEN_W - 24 - 10) / 2)
 import { useRouter } from 'expo-router'
 import { fetchSightingsFiltered } from '../../src/lib/firestore'
 import LoadingIndicator from '../../src/components/LoadingIndicator'
@@ -34,6 +38,7 @@ export default function SightingsScreen() {
   const [prefecture, setPrefecture] = useState('')
   const [city, setCity] = useState('')
   const [species, setSpecies] = useState<PetSpecies | ''>('')
+  const [applied, setApplied] = useState<{ prefecture: string; city: string; species: PetSpecies | '' }>({ prefecture: '', city: '', species: '' })
   const [prefModal, setPrefModal] = useState(false)
   const [cityModal, setCityModal] = useState(false)
 
@@ -41,24 +46,31 @@ export default function SightingsScreen() {
     setLoading(true)
     try {
       const result = await fetchSightingsFiltered({
-        prefecture: prefecture || undefined,
-        city: city.trim() || undefined,
-        species: (species as PetSpecies) || undefined,
+        prefecture: applied.prefecture || undefined,
+        city: applied.city.trim() || undefined,
+        species: (applied.species as PetSpecies) || undefined,
         limitCount: 100,
       })
       setSightings(result)
     } finally {
       setLoading(false)
     }
-  }, [prefecture, city, species])
+  }, [applied])
 
   useEffect(() => { void load() }, [load])
+
+  const handleSearch = () => {
+    setApplied({ prefecture, city, species })
+  }
 
   const handleReset = () => {
     setPrefecture('')
     setCity('')
     setSpecies('')
+    setApplied({ prefecture: '', city: '', species: '' })
   }
+
+  const isApplied = !!(applied.prefecture || applied.city || applied.species)
 
   const locationText = (item: Sighting) => {
     const parts = [item.location.prefecture, item.location.city].filter(Boolean)
@@ -105,7 +117,7 @@ export default function SightingsScreen() {
     </TouchableOpacity>
   )
 
-  const isFiltered = !!(prefecture || city || species)
+  const isFiltered = isApplied
 
   return (
     <View style={styles.container}>
@@ -166,8 +178,13 @@ export default function SightingsScreen() {
             <Text style={styles.prefArrow}>▼</Text>
           </TouchableOpacity>
 
+          {/* 検索 */}
+          <TouchableOpacity style={styles.searchBtn} onPress={handleSearch}>
+            <Text style={styles.searchBtnText}>🔍 検索</Text>
+          </TouchableOpacity>
+
           {/* リセット */}
-          {isFiltered && (
+          {isApplied && (
             <TouchableOpacity style={styles.resetBtn} onPress={handleReset}>
               <Text style={styles.resetBtnText}>✕</Text>
             </TouchableOpacity>
@@ -329,6 +346,12 @@ const styles = StyleSheet.create({
   },
   cityInputDisabled: { opacity: 0.5 },
 
+  searchBtn: {
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20,
+    backgroundColor: '#C46B00',
+  },
+  searchBtnText: { fontSize: 12, fontWeight: 'bold', color: '#fff' },
+
   resetBtn: {
     width: 32, height: 32, borderRadius: 16,
     backgroundColor: '#FEE2E2', borderWidth: 1, borderColor: '#FCA5A5',
@@ -363,7 +386,7 @@ const styles = StyleSheet.create({
   row: { gap: 10, marginBottom: 10 },
 
   card: {
-    flex: 1, backgroundColor: '#fff', borderRadius: 14, overflow: 'hidden',
+    width: CARD_W, backgroundColor: '#fff', borderRadius: 14, overflow: 'hidden',
     borderWidth: 1.5, borderColor: '#FFE0A0',
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.07, shadowRadius: 3, elevation: 2,
   },
