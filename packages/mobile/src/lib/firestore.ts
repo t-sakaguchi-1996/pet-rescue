@@ -24,17 +24,6 @@ async function addNotification(data: Record<string, unknown>): Promise<void> {
     await addDoc(collection(db, NOTIFICATIONS), { ...data, isRead: false, createdAt: Timestamp.now() })
   } catch { /* 通知失敗はメイン処理に影響させない */ }
 }
-
-function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371
-  const dLat = (lat2 - lat1) * Math.PI / 180
-  const dLng = (lng2 - lng1) * Math.PI / 180
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLng / 2) ** 2
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-}
 import type {
   Pet,
   PetSpecies,
@@ -420,76 +409,9 @@ export async function createSighting(data: {
     updatedAt: now,
   }))
 
-  // 近隣の迷子投稿者へ通知
-  void notifyNearbyLostPets(ref.id, data.location, data.title, data.species, data.userId)
+  // 近隣通知は Cloud Function (notifyOnNewSighting) が担う
 
   return ref.id
-}
-
-async function notifyNearbyLostPets(
-  sightingId: string,
-  location: SightingLocation,
-  title: string,
-  species?: PetSpecies,
-  sightingUserId?: string
-): Promise<void> {
-  try {
-    const constraints: QueryConstraint[] = [
-      where('type', '==', 'lost'),
-      where('status', '==', 'searching'),
-      limit(100),
-    ]
-    const snap = await withTimeout(
-      getDocs(query(collection(db, PETS), ...constraints)),
-      FETCH_TIMEOUT_MS
-    )
-    const now = Timestamp.now()
-    for (const d of snap.docs) {
-      const pet = toPet(d.id, d.data())
-      if (sightingUserId && pet.userId === sightingUserId) continue
-      if (species && pet.species !== species) continue
-
-      const radiusKm = pet.searchRadiusKm ?? 5
-      let withinRadius = false
-      if (
-        location.lat !== undefined && location.lng !== undefined &&
-        pet.location.lat && pet.location.lng
-      ) {
-        withinRadius = haversineKm(location.lat, location.lng, pet.location.lat, pet.location.lng) <= radiusKm
-      }
-      if (!withinRadius && location.city && pet.location.city && location.city === pet.location.city) {
-        withinRadius = true
-      }
-
-      const notifType = withinRadius ? 'sighting_nearby' : (
-        location.prefecture && pet.location.prefecture && location.prefecture === pet.location.prefecture
-          ? 'prefecture_sighting'
-          : null
-      )
-      if (!notifType) continue
-
-      // 重複チェック
-      const existing = await getDocs(query(
-        collection(db, NOTIFICATIONS),
-        where('sightingId', '==', sightingId),
-        where('petId', '==', pet.id),
-        where('type', '==', notifType),
-        limit(1)
-      ))
-      if (!existing.empty) continue
-
-      await addDoc(collection(db, NOTIFICATIONS), {
-        userId: pet.userId,
-        type: notifType,
-        petId: pet.id,
-        petName: pet.name || '名前不明',
-        sightingId,
-        fromUserDisplayName: title,
-        isRead: false,
-        createdAt: now,
-      })
-    }
-  } catch { /* 通知失敗は投稿に影響させない */ }
 }
 
 // ──────────────── User ────────────────

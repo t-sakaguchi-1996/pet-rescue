@@ -216,6 +216,7 @@ export interface SightingLocation {
 
 export interface Sighting {
   id: string
+  sightingType?: 'sighting' | 'found'
   species?: PetSpecies
   title: string
   photos: string[]

@@ -1,12 +1,13 @@
-import { useEffect } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
-import { useRouter } from 'expo-router'
+import { useRouter, useLocalSearchParams } from 'expo-router'
 import { useAuth } from '../../src/contexts/AuthContext'
 import PostForm from '../../src/components/PostForm'
 
 export default function PostScreen() {
   const router = useRouter()
   const { user, loading } = useAuth()
+  const params = useLocalSearchParams<{ type?: string }>()
+  const defaultIsLost = params.type !== 'found'
 
   if (loading) {
     return (
@@ -31,7 +32,7 @@ export default function PostScreen() {
     )
   }
 
-  return <PostForm userId={user.uid} />
+  return <PostForm key={params.type ?? 'lost'} userId={user.uid} defaultIsLost={defaultIsLost} />
 }
 
 const styles = StyleSheet.create({

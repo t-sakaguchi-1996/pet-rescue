@@ -34,15 +34,16 @@ const SEARCH_RADIUS_OPTIONS = [
 interface Props {
   userId: string
   initialPet?: Pet
+  defaultIsLost?: boolean
 }
 
-export default function PostForm({ userId, initialPet }: Props) {
+export default function PostForm({ userId, initialPet, defaultIsLost = true }: Props) {
   const router = useRouter()
   const isEditMode = Boolean(initialPet)
   const [submitting, setSubmitting] = useState(false)
   const [images, setImages] = useState<string[]>([])
   const [existingImages, setExistingImages] = useState<string[]>(initialPet?.images ?? [])
-  const [isLost, setIsLost] = useState(initialPet ? initialPet.type === 'lost' : true)
+  const [isLost, setIsLost] = useState(initialPet ? initialPet.type === 'lost' : defaultIsLost)
   const [pinLocation, setPinLocation] = useState<{ lat: number; lng: number } | null>(
     initialPet?.location.lat && initialPet?.location.lng
       ? { lat: initialPet.location.lat, lng: initialPet.location.lng }
@@ -112,8 +113,12 @@ export default function PostForm({ userId, initialPet }: Props) {
   }
 
   const handleSubmit = async () => {
-    if (!form.color || !form.description || !form.city) {
-      Alert.alert('入力エラー', '必須項目を入力してください（毛色・説明・市区町村）')
+    if (!form.description || !form.city) {
+      Alert.alert('入力エラー', '必須項目を入力してください（説明・市区町村）')
+      return
+    }
+    if (isLost && !form.color) {
+      Alert.alert('入力エラー', '毛色を入力してください')
       return
     }
     if (!pinLocation) {
@@ -172,6 +177,26 @@ export default function PostForm({ userId, initialPet }: Props) {
           contactPhone: form.contactPhone,
           searchRadiusKm,
         })
+        // フォームをリセットしてからHOMEへ
+        setImages([])
+        setExistingImages([])
+        setPinLocation(null)
+        setSearchRadiusKm(5)
+        setIsLost(true)
+        setForm({
+          species: 'dog',
+          name: '',
+          breed: '',
+          color: '',
+          gender: 'unknown',
+          age: '',
+          description: '',
+          lostDate: new Date().toISOString().split('T')[0],
+          prefecture: '東京都',
+          city: '',
+          address: '',
+          contactPhone: '',
+        })
         Alert.alert('投稿完了', '投稿しました', [{ text: 'OK', onPress: () => router.replace('/(tabs)') }])
       }
     } catch {
@@ -229,10 +254,17 @@ export default function PostForm({ userId, initialPet }: Props) {
             )
           })}
         </View>
-        <Field label="名前" value={form.name} onChange={(v) => set('name', v)} placeholder="例: チョコ" />
-        <Field label="品種" value={form.breed} onChange={(v) => set('breed', v)} placeholder="例: トイプードル" />
-        <Field label="毛色 *" value={form.color} onChange={(v) => set('color', v)} placeholder="例: 茶色と白" />
-        <Field label="年齢・月齢" value={form.age} onChange={(v) => set('age', v)} placeholder="例: 3歳" />
+
+        {/* 迷子のみ: 名前・品種・毛色・年齢 */}
+        {isLost && (
+          <>
+            <Field label="名前" value={form.name} onChange={(v) => set('name', v)} placeholder="例: チョコ" />
+            <Field label="品種" value={form.breed} onChange={(v) => set('breed', v)} placeholder="例: トイプードル" />
+            <Field label="毛色 *" value={form.color} onChange={(v) => set('color', v)} placeholder="例: 茶色と白" />
+            <Field label="年齢・月齢" value={form.age} onChange={(v) => set('age', v)} placeholder="例: 3歳" />
+          </>
+        )}
+
         <Field
           label={isLost ? '迷子になった日 *' : '保護した日 *'}
           value={form.lostDate}
@@ -240,12 +272,12 @@ export default function PostForm({ userId, initialPet }: Props) {
           placeholder="YYYY-MM-DD"
           keyboardType="numbers-and-punctuation"
         />
-        <Text style={styles.label}>特徴・説明 *</Text>
+        <Text style={styles.label}>{isLost ? '特徴・説明 *' : '状況・説明 *'}</Text>
         <TextInput
           style={styles.textarea}
           value={form.description}
           onChangeText={(v) => set('description', v)}
-          placeholder="首輪の色・模様・特徴など詳しく記入してください"
+          placeholder={isLost ? '首輪の色・模様・特徴など詳しく記入してください' : '保護した状況・外見の特徴などを記入してください'}
           placeholderTextColor="#9ca3af"
           multiline
           numberOfLines={4}
@@ -295,7 +327,7 @@ export default function PostForm({ userId, initialPet }: Props) {
         <LocationMapPicker
           pinLocation={pinLocation}
           onPinChange={handlePinChange}
-          showRadiusCircle
+          showRadiusCircle={isLost}
           searchRadiusKm={searchRadiusKm}
         />
 
@@ -321,25 +353,27 @@ export default function PostForm({ userId, initialPet }: Props) {
         <Field label="詳細場所・目印" value={form.address} onChange={(v) => set('address', v)} placeholder="例: ○○公園付近" />
       </View>
 
-      {/* 探知範囲 */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>目撃情報の探知範囲</Text>
-        <Text style={styles.hint}>この範囲内で目撃情報が投稿された場合に通知します</Text>
-        <View style={styles.chipRow}>
-          {SEARCH_RADIUS_OPTIONS.map((opt) => (
-            <TouchableOpacity
-              key={opt.value}
-              style={[styles.chip, searchRadiusKm === opt.value && styles.chipActive]}
-              onPress={() => setSearchRadiusKm(opt.value)}
-              activeOpacity={0.75}
-            >
-              <Text style={[styles.chipText, searchRadiusKm === opt.value && styles.chipTextActive]}>
-                {opt.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+      {/* 探知範囲（迷子のみ） */}
+      {isLost && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>目撃情報の探知範囲</Text>
+          <Text style={styles.hint}>この範囲内で目撃情報が投稿された場合に通知します</Text>
+          <View style={styles.chipRow}>
+            {SEARCH_RADIUS_OPTIONS.map((opt) => (
+              <TouchableOpacity
+                key={opt.value}
+                style={[styles.chip, searchRadiusKm === opt.value && styles.chipActive]}
+                onPress={() => setSearchRadiusKm(opt.value)}
+                activeOpacity={0.75}
+              >
+                <Text style={[styles.chipText, searchRadiusKm === opt.value && styles.chipTextActive]}>
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
-      </View>
+      )}
 
       <TouchableOpacity
         style={[styles.submitBtn, submitting && styles.submitBtnDisabled]}

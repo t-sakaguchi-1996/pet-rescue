@@ -135,6 +135,13 @@ function FormInner({ userId, ownerDisplayName, ownerPhotoURL, defaultType = 'los
     if (geocodingLib) setGeocoder(new geocodingLib.Geocoder())
   }, [geocodingLib])
 
+  // URL パラメータが変わったとき（同じ key でも）form.type を強制同期
+  useEffect(() => {
+    if (!pet) {
+      setForm((prev) => ({ ...prev, type: defaultType }))
+    }
+  }, [defaultType, pet])
+
   // 編集時：初回マウントで初期件数を取得（メッセージは表示しない）
   useEffect(() => {
     if (!isEdit || !pet?.location?.lat) return
@@ -400,6 +407,7 @@ function FormInner({ userId, ownerDisplayName, ownerPhotoURL, defaultType = 'los
           await checkAndAwardBadges(userId, { isFirstPost: true }).catch(() => {})
         }
 
+        router.refresh()  // Next.js ルートキャッシュを無効化してホームの投稿リストを最新化
         router.push('/')
       }
     } catch (err) {
@@ -476,60 +484,37 @@ function FormInner({ userId, ownerDisplayName, ownerPhotoURL, defaultType = 'los
               <option value="other">その他</option>
             </select>
           </div>
-          <div>
-            <label className="label">性別</label>
-            <select
-              name="gender"
-              value={form.gender}
-              onChange={handleChange}
-              className="select-field"
-            >
-              <option value="unknown">不明</option>
-              <option value="male">オス</option>
-              <option value="female">メス</option>
-            </select>
-          </div>
-          <div>
-            <label className="label">名前</label>
-            <input
-              name="name"
-              value={form.name}
-              onChange={handleChange}
-              className="input-field"
-              placeholder="例: チョコ"
-            />
-          </div>
-          <div>
-            <label className="label">品種</label>
-            <input
-              name="breed"
-              value={form.breed}
-              onChange={handleChange}
-              className="input-field"
-              placeholder="例: トイプードル"
-            />
-          </div>
-          <div>
-            <label className="label">毛色 *</label>
-            <input
-              name="color"
-              value={form.color}
-              onChange={handleChange}
-              className="input-field"
-              placeholder="例: 茶色と白"
-              required
-            />
-          </div>
-          <div>
-            <label className="label">年齢・月齢</label>
-            <input
-              name="age"
-              value={form.age}
-              onChange={handleChange}
-              className="input-field"
-              placeholder="例: 3歳"
-            />
-          </div>
+
+          {/* 迷子のみ: 性別・名前・品種・毛色・年齢 */}
+          {form.type === 'lost' && (
+            <>
+              <div>
+                <label className="label">性別</label>
+                <select name="gender" value={form.gender} onChange={handleChange} className="select-field">
+                  <option value="unknown">不明</option>
+                  <option value="male">オス</option>
+                  <option value="female">メス</option>
+                </select>
+              </div>
+              <div>
+                <label className="label">名前</label>
+                <input name="name" value={form.name} onChange={handleChange} className="input-field" placeholder="例: チョコ" />
+              </div>
+              <div>
+                <label className="label">品種</label>
+                <input name="breed" value={form.breed} onChange={handleChange} className="input-field" placeholder="例: トイプードル" />
+              </div>
+              <div>
+                <label className="label">毛色 *</label>
+                <input name="color" value={form.color} onChange={handleChange} className="input-field" placeholder="例: 茶色と白" required />
+              </div>
+              <div>
+                <label className="label">年齢・月齢</label>
+                <input name="age" value={form.age} onChange={handleChange} className="input-field" placeholder="例: 3歳" />
+              </div>
+            </>
+          )}
+
           <div>
             <label className="label">
               {form.type === 'lost' ? '迷子になった日' : '保護した日'} *
@@ -546,13 +531,15 @@ function FormInner({ userId, ownerDisplayName, ownerPhotoURL, defaultType = 'los
         </div>
 
         <div className="mt-4">
-          <label className="label">特徴・詳細説明 *</label>
+          <label className="label">{form.type === 'lost' ? '特徴・詳細説明 *' : '保護した状況・説明 *'}</label>
           <textarea
             name="description"
             value={form.description}
             onChange={handleChange}
             className="input-field min-h-24 resize-none"
-            placeholder="首輪の色・模様・特徴など詳しく記入してください"
+            placeholder={form.type === 'lost'
+              ? '首輪の色・模様・特徴など詳しく記入してください'
+              : '保護した状況・外見の特徴などを記入してください'}
             required
           />
         </div>
@@ -669,15 +656,15 @@ function FormInner({ userId, ownerDisplayName, ownerPhotoURL, defaultType = 'los
           pinLocation={pinLocation}
           species={form.species}
           searchRadiusKm={form.searchRadiusKm}
-          showRadiusCircle
+          showRadiusCircle={form.type === 'lost'}
           draggable
           autoDetectOnMount={!pet}
           onPinChange={handlePinChange}
         />
       </div>
 
-      {/* 探知範囲 */}
-      <div className="bg-white rounded-xl shadow-sm p-5">
+      {/* 探知範囲（迷子のみ） */}
+      {form.type === 'lost' && <div className="bg-white rounded-xl shadow-sm p-5">
         <h2 className="font-semibold text-gray-800 mb-1">目撃情報の探知範囲</h2>
         <p className="text-xs text-gray-500 mb-4">
           この範囲内で目撃情報が投稿された場合に通知します
@@ -709,7 +696,7 @@ function FormInner({ userId, ownerDisplayName, ownerPhotoURL, defaultType = 'los
             )
           })() : null
         )}
-      </div>
+      </div>}
 
       {/* 連絡先 */}
       <div className="bg-white rounded-xl shadow-sm p-5">

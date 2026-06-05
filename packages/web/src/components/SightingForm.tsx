@@ -6,7 +6,7 @@ import { APIProvider, useMapsLibrary } from '@vis.gl/react-google-maps'
 import { useAuth } from '@/contexts/AuthContext'
 import { useLoadingState } from '@/contexts/LoadingContext'
 import { createSighting, uploadSightingImage } from '@/lib/sightings'
-import { grantSightingPoints } from '@/lib/points'
+import { grantSightingPoints, grantProtectedPostPoints } from '@/lib/points'
 import { checkAndAwardBadges } from '@/lib/titles'
 import { PREFECTURES, CITIES_BY_PREFECTURE, SPECIES_LABELS, type PetSpecies } from '@pet-rescue/shared'
 import LocationMapPicker, { type LocationData } from './LocationMapPicker'
@@ -16,6 +16,7 @@ const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? ''
 interface Props {
   onSuccess?: (sightingId: string, wasGuest: boolean) => void
   defaultSpecies?: PetSpecies
+  sightingType?: 'sighting' | 'found'
 }
 
 const SPECIES_OPTIONS: { value: PetSpecies; label: string; emoji: string }[] = [
@@ -26,15 +27,15 @@ const SPECIES_OPTIONS: { value: PetSpecies; label: string; emoji: string }[] = [
   { value: 'other', label: 'その他', emoji: '🐾' },
 ]
 
-export default function SightingForm({ onSuccess, defaultSpecies }: Props) {
+export default function SightingForm({ onSuccess, defaultSpecies, sightingType = 'sighting' }: Props) {
   return (
     <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
-      <SightingFormInner onSuccess={onSuccess} defaultSpecies={defaultSpecies} />
+      <SightingFormInner onSuccess={onSuccess} defaultSpecies={defaultSpecies} sightingType={sightingType} />
     </APIProvider>
   )
 }
 
-function SightingFormInner({ onSuccess, defaultSpecies }: Props) {
+function SightingFormInner({ onSuccess, defaultSpecies, sightingType = 'sighting' }: Props) {
   const { user, profile } = useAuth()
   const { startLoading, stopLoading } = useLoadingState()
   const [species, setSpecies] = useState<PetSpecies>(defaultSpecies ?? 'dog')
@@ -135,6 +136,7 @@ function SightingFormInner({ onSuccess, defaultSpecies }: Props) {
       const photoUrls = await Promise.all(photos.map((f) => uploadSightingImage(ownerKey, f)))
 
       const sightingId = await createSighting({
+        sightingType,
         species,
         title: title.trim(),
         photos: photoUrls,
@@ -157,11 +159,19 @@ function SightingFormInner({ onSuccess, defaultSpecies }: Props) {
 
       if (user) {
         const today = new Date().toISOString().split('T')[0]
-        await grantSightingPoints(user.uid, sightingId, today)
-        await checkAndAwardBadges(user.uid, {
-          isFirstPost: true,
-          isFirstSighting: true,
-        }).catch(() => {})
+        if (sightingType === 'found') {
+          await grantProtectedPostPoints(user.uid, sightingId, today).catch(() => {})
+          await checkAndAwardBadges(user.uid, {
+            isFirstPost: true,
+            isFirstProtection: true,
+          }).catch(() => {})
+        } else {
+          await grantSightingPoints(user.uid, sightingId, today)
+          await checkAndAwardBadges(user.uid, {
+            isFirstPost: true,
+            isFirstSighting: true,
+          }).catch(() => {})
+        }
       }
 
       onSuccess?.(sightingId, !user)
@@ -212,7 +222,9 @@ function SightingFormInner({ onSuccess, defaultSpecies }: Props) {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           className="input-field"
-          placeholder={`例: ${SPECIES_LABELS[species]}を見かけました`}
+          placeholder={sightingType === 'found'
+            ? `例: ${SPECIES_LABELS[species]}を保護しました`
+            : `例: ${SPECIES_LABELS[species]}を見かけました`}
           required
         />
       </div>
@@ -342,12 +354,12 @@ function SightingFormInner({ onSuccess, defaultSpecies }: Props) {
         disabled={submitting}
         className="btn-primary w-full text-center disabled:opacity-50"
       >
-        {submitting ? '投稿中...' : '目撃情報を投稿する'}
+        {submitting ? '投稿中...' : sightingType === 'found' ? '保護情報を投稿する' : '目撃情報を投稿する'}
       </button>
 
       {user && (
         <p className="text-xs text-center" style={{ color: '#8B6340' }}>
-          投稿すると <strong>+2pt</strong> 獲得（1日最大10pt）
+          投稿すると <strong>+{sightingType === 'found' ? '10' : '2'}pt</strong> 獲得{sightingType !== 'found' && '（1日最大10pt）'}
         </p>
       )}
     </form>

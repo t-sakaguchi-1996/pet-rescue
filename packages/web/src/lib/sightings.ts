@@ -21,6 +21,7 @@ export interface SightingFilter {
   prefecture?: string
   city?: string
   species?: PetSpecies
+  sightingType?: 'sighting' | 'found'
   limitCount?: number
 }
 
@@ -32,6 +33,7 @@ function toSighting(id: string, data: Record<string, unknown>): Sighting {
   const updatedAt = data.updatedAt as Timestamp | string
   return {
     id,
+    sightingType: (data.sightingType as 'sighting' | 'found' | undefined) ?? 'sighting',
     species: data.species as PetSpecies | undefined,
     title: (data.title as string) ?? '',
     photos: (data.photos as string[]) ?? [],
@@ -91,8 +93,9 @@ export async function uploadSightingImage(ownerKey: string, file: File): Promise
   return getDownloadURL(storageRef)
 }
 
-/** 目撃投稿の作成 */
+/** 目撃・保護投稿の作成 */
 export async function createSighting(params: {
+  sightingType?: 'sighting' | 'found'
   species?: import('@pet-rescue/shared').PetSpecies
   title: string
   photos: string[]
@@ -102,9 +105,11 @@ export async function createSighting(params: {
   guestEmail?: string
   temporaryId?: string
   posterName: string
+  posterPhotoURL?: string
 }): Promise<string> {
   const now = Timestamp.now()
   const data: Record<string, unknown> = {
+    sightingType: params.sightingType ?? 'sighting',
     title: params.title,
     photos: params.photos,
     location: params.location,
@@ -119,13 +124,11 @@ export async function createSighting(params: {
   if (params.guestEmail) data.guestEmail = params.guestEmail
   if (params.temporaryId) data.temporaryId = params.temporaryId
   if (params.description) data.description = params.description
+  if (params.posterPhotoURL) data.posterPhotoURL = params.posterPhotoURL
   if (!params.userId) data.userId = null
 
   const ref2 = await addDoc(collection(db, SIGHTINGS), data)
-
-  // 動物種・投稿者が一致する近隣の迷子投稿に通知を送る
-  await notifyNearbyLostPets(ref2.id, params.location, params.title, 'sighting_nearby', params.species, params.userId)
-
+  // 近隣通知は Cloud Function (notifyOnNewSighting) が担う
   return ref2.id
 }
 
@@ -289,6 +292,10 @@ export async function fetchSightingsFiltered(filter: SightingFilter): Promise<Si
     if (filter.prefecture && s.location.prefecture !== filter.prefecture) return false
     if (filter.city && s.location.city !== filter.city) return false
     if (filter.species && s.species !== filter.species) return false
+    if (filter.sightingType) {
+      const t = s.sightingType ?? 'sighting'
+      if (t !== filter.sightingType) return false
+    }
     return true
   })
 }

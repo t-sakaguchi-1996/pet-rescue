@@ -22,6 +22,7 @@ export default function SightingsPage() {
         prefecture: applied.prefecture || undefined,
         city: applied.city.trim() || undefined,
         species: (applied.species as PetSpecies) || undefined,
+        sightingType: 'sighting',  // 目撃のみ
         limitCount: 100,
       })
       setSightings(result)

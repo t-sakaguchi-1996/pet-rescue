@@ -1,7 +1,7 @@
 import type { ExpoConfig } from 'expo/config'
 
 const config: ExpoConfig = {
-  name: 'ペットレスキュー',
+  name: 'ANIMAL GO',
   slug: 'pet-rescue',
   version: '1.0.0',
   orientation: 'portrait',

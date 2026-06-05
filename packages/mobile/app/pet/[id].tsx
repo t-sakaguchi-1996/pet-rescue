@@ -458,7 +458,7 @@ export default function PetDetailScreen() {
                   <TouchableOpacity
                     onPress={() => router.push({ pathname: '/sightings/new', params: { species: pet.species } })}
                   >
-                    <Text style={styles.sectionLink}>目撃情報を投稿（+2pt）</Text>
+                    <Text style={styles.sectionLink}>投稿（+2pt）</Text>
                   </TouchableOpacity>
                 )}
               </View>

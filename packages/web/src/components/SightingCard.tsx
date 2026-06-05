@@ -47,10 +47,17 @@ export default function SightingCard({ sighting }: Props) {
           </div>
         )}
         <div className="absolute top-2 left-2 flex gap-1">
-          <span className="text-xs font-bold px-2 py-0.5 rounded-full"
-                style={{ background: '#FFC96B', color: '#3D2400' }}>
-            目撃情報
-          </span>
+          {sighting.sightingType === 'found' ? (
+            <span className="text-xs font-bold px-2 py-0.5 rounded-full"
+                  style={{ background: '#4A90D9', color: 'white' }}>
+              🤝 保護情報
+            </span>
+          ) : (
+            <span className="text-xs font-bold px-2 py-0.5 rounded-full"
+                  style={{ background: '#FFC96B', color: '#3D2400' }}>
+              目撃情報
+            </span>
+          )}
           {species && (
             <span className="text-xs font-bold px-2 py-0.5 rounded-full"
                   style={{ background: 'rgba(0,0,0,0.45)', color: 'white' }}>

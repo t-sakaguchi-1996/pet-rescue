@@ -57,8 +57,9 @@ export default function SearchFilter({ currentParams }: Props) {
             className="select-field text-sm py-2"
           >
             <option value="">すべて</option>
-            <option value="lost">迷子</option>
-            <option value="found">保護</option>
+            <option value="lost">🔍 迷子</option>
+            <option value="sighting">👁️ 目撃</option>
+            <option value="found">🤝 保護</option>
           </select>
         </div>
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   View,
   Text,
@@ -9,7 +9,7 @@ import {
   Image,
   Switch,
 } from 'react-native'
-import { useRouter } from 'expo-router'
+import { useRouter, useFocusEffect } from 'expo-router'
 import { useAuth } from '../../src/contexts/AuthContext'
 import {
   fetchUserPets,
@@ -80,38 +80,46 @@ export default function ProfileScreen() {
     discovery_bonus: true,
   })
 
-  useEffect(() => {
+  const loadAll = useCallback(async () => {
     if (!user) return
-
-    const loadAll = async () => {
-      const [p, userPets, txs, exs] = await Promise.all([
-        fetchUserProfile(user.uid),
-        fetchUserPets(user.uid),
-        fetchPointTransactions(user.uid).catch(() => [] as PointTransaction[]),
-        fetchUserRewardExchanges(user.uid).catch(() => [] as RewardExchange[]),
-      ])
-      setProfile(p)
-      setPets(userPets)
-      setTransactions(txs)
-      setExchanges(exs)
-      setSelectedTitleEdit(p?.selectedTitle ?? null)
-      if (p && (p as unknown as Record<string, unknown>).notificationSettings) {
-        setNotifSettings((prev) => ({
-          ...prev,
-          ...((p as unknown as Record<string, unknown>).notificationSettings as Record<string, boolean>),
-        }))
-      }
-
-      Promise.all([
-        fetchRanking('total_points', user.uid),
-        fetchRanking('monthly_points', user.uid),
-      ]).then(([total, monthly]) => {
-        setTotalRank(findUserRank(total, user.uid))
-        setMonthlyRank(findUserRank(monthly, user.uid))
-      }).catch(() => {})
+    const [p, userPets, txs, exs] = await Promise.all([
+      fetchUserProfile(user.uid),
+      fetchUserPets(user.uid),
+      fetchPointTransactions(user.uid).catch(() => [] as PointTransaction[]),
+      fetchUserRewardExchanges(user.uid).catch(() => [] as RewardExchange[]),
+    ])
+    setProfile(p)
+    setPets(userPets)
+    setTransactions(txs)
+    setExchanges(exs)
+    setSelectedTitleEdit(p?.selectedTitle ?? null)
+    if (p && (p as unknown as Record<string, unknown>).notificationSettings) {
+      setNotifSettings((prev) => ({
+        ...prev,
+        ...((p as unknown as Record<string, unknown>).notificationSettings as Record<string, boolean>),
+      }))
     }
-    void loadAll()
+    Promise.all([
+      fetchRanking('total_points', user.uid),
+      fetchRanking('monthly_points', user.uid),
+    ]).then(([total, monthly]) => {
+      setTotalRank(findUserRank(total, user.uid))
+      setMonthlyRank(findUserRank(monthly, user.uid))
+    }).catch(() => {})
   }, [user])
+
+  useEffect(() => { void loadAll() }, [loadAll])
+
+  // タブにフォーカスが戻ったとき（投稿後など）に投稿リストをリロード
+  const profileMountedRef = useRef(false)
+  useFocusEffect(
+    useCallback(() => {
+      if (profileMountedRef.current && user) {
+        fetchUserPets(user.uid).then(setPets).catch(() => {})
+      }
+      profileMountedRef.current = true
+    }, [user])
+  )
 
   const handleEnableNotifications = async () => {
     if (!user) return

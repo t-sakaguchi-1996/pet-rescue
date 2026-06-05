@@ -166,8 +166,8 @@ export default function NewSightingScreen() {
             </TouchableOpacity>
           </View>
         )}
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Text style={styles.backBtnText}>一覧に戻る</Text>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.replace('/(tabs)/sightings')}>
+          <Text style={styles.backBtnText}>目撃情報一覧を見る</Text>
         </TouchableOpacity>
       </View>
     )

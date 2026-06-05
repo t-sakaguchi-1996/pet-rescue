@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   View,
   Text,
@@ -15,7 +15,7 @@ import {
 
 const SCREEN_W = Dimensions.get('window').width
 const CARD_W = Math.floor((SCREEN_W - 24 - 10) / 2)
-import { useRouter } from 'expo-router'
+import { useRouter, useFocusEffect } from 'expo-router'
 import { fetchSightingsFiltered } from '../../src/lib/firestore'
 import LoadingIndicator from '../../src/components/LoadingIndicator'
 import { SPECIES_LABELS, PREFECTURES, CITIES_BY_PREFECTURE, type Sighting, type PetSpecies } from '../../src/types'
@@ -58,6 +58,15 @@ export default function SightingsScreen() {
   }, [applied])
 
   useEffect(() => { void load() }, [load])
+
+  // タブにフォーカスが戻ったとき（目撃投稿後など）にリロード
+  const mountedRef = useRef(false)
+  useFocusEffect(
+    useCallback(() => {
+      if (mountedRef.current) { void load() }
+      mountedRef.current = true
+    }, [load])
+  )
 
   const handleSearch = () => {
     setApplied({ prefecture, city, species })

@@ -72,19 +72,30 @@ export default function PetCard({ pet, onPress, currentUserId }: Props) {
       </View>
 
       <View style={styles.body}>
-        <Text style={styles.name} numberOfLines={1}>
-          {pet.name || '名前不明'}
-          <Text style={styles.species}> ({SPECIES_LABELS[pet.species]})</Text>
-        </Text>
+        {/* 保護の場合は目撃カードと同じ：タイトル（説明文）＋場所＋種別＋日付 */}
+        {isLost ? (
+          <Text style={styles.name} numberOfLines={1}>
+            {pet.name || '名前不明'}
+            <Text style={styles.species}> ({SPECIES_LABELS[pet.species]})</Text>
+          </Text>
+        ) : (
+          <Text style={styles.name} numberOfLines={2}>
+            {pet.description || pet.name || '保護された動物'}
+          </Text>
+        )}
         <Text style={styles.location} numberOfLines={1}>
           📍 {pet.location.prefecture} {pet.location.city}
         </Text>
         <View style={styles.footer}>
-          <View style={[styles.statusBadge, { backgroundColor: statusBg }]}>
-            <Text style={[styles.statusText, { color: statusColor }]}>
-              {STATUS_LABELS[pet.status]}
-            </Text>
-          </View>
+          {isLost ? (
+            <View style={[styles.statusBadge, { backgroundColor: statusBg }]}>
+              <Text style={[styles.statusText, { color: statusColor }]}>
+                {STATUS_LABELS[pet.status]}
+              </Text>
+            </View>
+          ) : (
+            <Text style={styles.species}>{SPECIES_LABELS[pet.species]}</Text>
+          )}
           <Text style={styles.date}>
             {format(new Date(pet.createdAt), 'M/d', { locale: ja })}
           </Text>

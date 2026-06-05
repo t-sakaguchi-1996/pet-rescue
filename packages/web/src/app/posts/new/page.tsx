@@ -18,15 +18,20 @@ function NewPostContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user, profile, loading } = useAuth()
-  const defaultType = searchParams.get('type') === 'found' ? 'found' : 'lost'
+  const typeParam = searchParams.get('type')
 
   useEffect(() => {
+    // 保護投稿は sightings/new?type=found へ転送
+    if (typeParam === 'found') {
+      router.replace('/sightings/new?type=found')
+      return
+    }
     if (!loading && !user) {
       router.push('/auth/login')
     }
-  }, [user, loading, router])
+  }, [typeParam, user, loading, router])
 
-  if (loading || !user) {
+  if (typeParam === 'found' || loading || !user) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-gray-400 text-sm">読み込み中...</div>
@@ -37,13 +42,13 @@ function NewPostContent() {
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold text-gray-900 mb-6">
-        {defaultType === 'lost' ? '迷子ペットを報告する' : '保護したペットを報告する'}
+        迷子ペットを報告する
       </h1>
       <PetForm
         userId={user.uid}
         ownerDisplayName={profile?.displayName ?? user.displayName ?? user.email ?? undefined}
         ownerPhotoURL={profile?.photoURL ?? user.photoURL ?? undefined}
-        defaultType={defaultType}
+        defaultType="lost"
       />
     </div>
   )

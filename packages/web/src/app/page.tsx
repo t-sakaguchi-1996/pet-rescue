@@ -4,52 +4,69 @@ import { useState, useEffect, useRef, Suspense } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import PetCard from '@/components/PetCard'
+import SightingCard from '@/components/SightingCard'
 import SearchFilter from '@/components/SearchFilter'
 import { fetchPets, fetchOwnerNames } from '@/lib/firestore'
-import type { Pet } from '@pet-rescue/shared'
+import { fetchSightingsFiltered } from '@/lib/sightings'
+import type { Pet, Sighting } from '@pet-rescue/shared'
 import { useSearchParams } from 'next/navigation'
+
+type ListItem = { kind: 'pet'; data: Pet } | { kind: 'sighting'; data: Sighting } | { kind: 'found'; data: Sighting }
 
 function HomeContent() {
   const searchParams = useSearchParams()
-  const [pets, setPets] = useState<Pet[]>([])
+  const [items, setItems] = useState<ListItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const paramsKey = searchParams.toString()
   const fetchRef = useRef(paramsKey)
 
   const params = {
-    type:       searchParams.get('type')       ?? undefined,
+    type:       searchParams.get('type')       ?? '',
     species:    searchParams.get('species')    ?? undefined,
     prefecture: searchParams.get('prefecture') ?? undefined,
     city:       searchParams.get('city')       ?? undefined,
     status:     searchParams.get('status')     ?? undefined,
   }
 
-  const loadPets = () => {
+  const loadItems = () => {
     setLoading(true)
     setError(null)
-    fetchPets({
-      type:       params.type    as 'lost' | 'found' | undefined,
-      species:    params.species as 'dog' | 'cat' | 'rabbit' | 'bird' | 'other' | undefined,
-      prefecture: params.prefecture,
-      city:       params.city,
-      status:     (params.status as 'searching' | 'protected' | 'resolved') ?? 'searching',
-      limitCount: 50,
-    })
-      .then(async (fetched) => {
-        const needsName = fetched.filter((p) => !p.ownerDisplayName)
-        if (needsName.length === 0) {
-          setPets(fetched)
-          return
-        }
-        const ids = [...new Set(needsName.map((p) => p.userId))]
-        const names = await fetchOwnerNames(ids)
-        setPets(
-          fetched.map((p) => ({
-            ...p,
-            ownerDisplayName: p.ownerDisplayName ?? names.get(p.userId),
-          }))
+
+    type Species = 'dog' | 'cat' | 'rabbit' | 'bird' | 'other' | undefined
+    const species = params.species as Species
+    const status = (params.status as 'searching' | 'protected' | 'resolved') ?? 'searching'
+
+    const fetchLost = params.type === '' || params.type === 'lost'
+      ? fetchPets({ type: 'lost', species, prefecture: params.prefecture, city: params.city, status, limitCount: 50 })
+          .then(async (fetched) => {
+            const needsName = fetched.filter((p) => !p.ownerDisplayName)
+            if (needsName.length === 0) return fetched
+            const ids = [...new Set(needsName.map((p) => p.userId))]
+            const names = await fetchOwnerNames(ids)
+            return fetched.map((p) => ({ ...p, ownerDisplayName: p.ownerDisplayName ?? names.get(p.userId) }))
+          })
+      : Promise.resolve([] as Pet[])
+
+    const fetchSightings = params.type === '' || params.type === 'sighting'
+      ? fetchSightingsFiltered({ sightingType: 'sighting', species, prefecture: params.prefecture, city: params.city, limitCount: 50 })
+      : Promise.resolve([] as Sighting[])
+
+    const fetchFound = params.type === '' || params.type === 'found'
+      ? fetchSightingsFiltered({ sightingType: 'found', species, prefecture: params.prefecture, city: params.city, limitCount: 50 })
+      : Promise.resolve([] as Sighting[])
+
+    Promise.all([fetchLost, fetchSightings, fetchFound])
+      .then(([pets, sightings, foundSightings]) => {
+        const merged: ListItem[] = [
+          ...pets.map((p): ListItem => ({ kind: 'pet', data: p })),
+          ...sightings.map((s): ListItem => ({ kind: 'sighting', data: s })),
+          ...foundSightings.map((s): ListItem => ({ kind: 'found', data: s })),
+        ]
+        merged.sort((a, b) =>
+          new Date(b.data.createdAt).getTime() - new Date(a.data.createdAt).getTime()
         )
+        setItems(merged)
       })
       .catch((err: Error) => setError(err.message ?? 'データの取得に失敗しました'))
       .finally(() => setLoading(false))
@@ -57,13 +74,13 @@ function HomeContent() {
 
   useEffect(() => {
     fetchRef.current = paramsKey
-    loadPets()
+    loadItems()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paramsKey])
 
   useEffect(() => {
     const onVisible = () => {
-      if (document.visibilityState === 'visible') loadPets()
+      if (document.visibilityState === 'visible') loadItems()
     }
     document.addEventListener('visibilitychange', onVisible)
     return () => document.removeEventListener('visibilitychange', onVisible)
@@ -214,21 +231,27 @@ function HomeContent() {
             <p className="text-xs rounded-2xl px-4 py-2 inline-block max-w-sm break-all"
                style={{ color: '#C04000', background: '#FFF0E6' }}>{error}</p>
           </div>
-        ) : pets.length === 0 ? (
+        ) : items.length === 0 ? (
           <div className="text-center py-12">
             <div className="text-5xl mb-3">🐾</div>
-            <p style={{ color: '#8B6340' }}>該当するペット情報がありません</p>
+            <p style={{ color: '#8B6340' }}>該当する情報がありません</p>
             <p className="text-sm mt-1" style={{ color: '#C8A87A' }}>条件を変えて検索してみてください</p>
           </div>
         ) : (
           <>
             <p className="text-xs mb-3 px-1" style={{ color: '#B08050' }}>
-              {pets.length}件の情報が見つかりました
+              {items.length}件の情報が見つかりました
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-              {pets.map((pet, index) => (
-                <PetCard key={pet.id} pet={pet} priority={index < 2} />
-              ))}
+              {items.map((item, index) =>
+                item.kind === 'pet' ? (
+                  <PetCard key={item.data.id} pet={item.data} priority={index < 2} />
+                ) : (
+                  <Link key={item.data.id} href={`/sightings/${item.data.id}`}>
+                    <SightingCard sighting={item.data} />
+                  </Link>
+                )
+              )}
             </div>
           </>
         )}

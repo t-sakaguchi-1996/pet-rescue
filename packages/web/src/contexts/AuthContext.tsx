@@ -19,7 +19,7 @@ import {
   EmailAuthProvider,
   type User as FirebaseUser,
 } from 'firebase/auth'
-import { doc, setDoc, getDoc, updateDoc, Timestamp } from 'firebase/firestore'
+import { doc, setDoc, getDoc, updateDoc, onSnapshot, Timestamp } from 'firebase/firestore'
 import { auth, db } from '@/lib/firebase'
 import type { User } from '@pet-rescue/shared'
 import { linkGuestActivityAndGrantPoints } from '@/lib/points'
@@ -46,48 +46,62 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const loadProfile = async (firebaseUser: FirebaseUser) => {
-    const snap = await getDoc(doc(db, 'users', firebaseUser.uid))
-    if (snap.exists()) {
-      const data = snap.data()
-      setProfile({
-        id: firebaseUser.uid,
-        email: firebaseUser.email ?? '',
-        displayName: data.displayName ?? '',
-        photoURL: data.photoURL,
-        fcmTokens: data.fcmTokens ?? [],
-        notificationRadius: data.notificationRadius ?? 10,
-        notificationLocation: data.notificationLocation,
-        points: (data.points as number) ?? 0,
-        totalPointsEarned: (data.totalPointsEarned as number) ?? 0,
-        showInRanking: data.showInRanking !== false,
-        isBanned: Boolean(data.isBanned),
-        selectedTitle: data.selectedTitle as string | undefined,
-        titles: (data.titles as string[]) ?? [],
-        badges: (data.badges as string[]) ?? [],
-        sightingCount: (data.sightingCount as number) ?? 0,
-        protectedPostCount: (data.protectedPostCount as number) ?? 0,
-        bestInfoCount: (data.bestInfoCount as number) ?? 0,
-        discoveryCount: (data.discoveryCount as number) ?? 0,
-        createdAt:
-          data.createdAt instanceof Timestamp
-            ? data.createdAt.toDate().toISOString()
-            : data.createdAt,
-      })
-    }
-  }
-
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    let profileUnsub: (() => void) | null = null
+
+    const authUnsub = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser)
+
+      // 前のユーザーのリスナーを解除
+      if (profileUnsub) { profileUnsub(); profileUnsub = null }
+
       if (firebaseUser) {
-        await loadProfile(firebaseUser)
+        // onSnapshot でユーザードキュメントをリアルタイム購読
+        // → ポイント・称号・バッジが更新されると即座に反映される
+        profileUnsub = onSnapshot(
+          doc(db, 'users', firebaseUser.uid),
+          (snap) => {
+            if (snap.exists()) {
+              const data = snap.data()
+              setProfile({
+                id: firebaseUser.uid,
+                email: firebaseUser.email ?? '',
+                displayName: data.displayName ?? '',
+                photoURL: data.photoURL,
+                fcmTokens: data.fcmTokens ?? [],
+                notificationRadius: data.notificationRadius ?? 10,
+                notificationLocation: data.notificationLocation,
+                points: (data.points as number) ?? 0,
+                totalPointsEarned: (data.totalPointsEarned as number) ?? 0,
+                showInRanking: data.showInRanking !== false,
+                isBanned: Boolean(data.isBanned),
+                selectedTitle: data.selectedTitle as string | undefined,
+                titles: (data.titles as string[]) ?? [],
+                badges: (data.badges as string[]) ?? [],
+                sightingCount: (data.sightingCount as number) ?? 0,
+                protectedPostCount: (data.protectedPostCount as number) ?? 0,
+                bestInfoCount: (data.bestInfoCount as number) ?? 0,
+                discoveryCount: (data.discoveryCount as number) ?? 0,
+                createdAt:
+                  data.createdAt instanceof Timestamp
+                    ? data.createdAt.toDate().toISOString()
+                    : data.createdAt,
+              })
+            }
+            setLoading(false)
+          },
+          () => setLoading(false)
+        )
       } else {
         setProfile(null)
+        setLoading(false)
       }
-      setLoading(false)
     })
-    return unsubscribe
+
+    return () => {
+      authUnsub()
+      if (profileUnsub) profileUnsub()
+    }
   }, [])
 
   const login = async (email: string, password: string) => {
@@ -173,8 +187,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile((prev) => (prev ? { ...prev, showInRanking: show } : null))
   }
 
+  // onSnapshot でリアルタイム購読しているため、外部から明示的に呼ぶ必要はないが
+  // 後方互換性のため維持（getDoc で最新状態を強制再取得）
   const refreshProfile = async () => {
-    if (auth.currentUser) await loadProfile(auth.currentUser)
+    if (!auth.currentUser) return
+    const snap = await getDoc(doc(db, 'users', auth.currentUser.uid))
+    if (snap.exists()) {
+      const data = snap.data()
+      setProfile((prev) => prev ? {
+        ...prev,
+        points: (data.points as number) ?? 0,
+        totalPointsEarned: (data.totalPointsEarned as number) ?? 0,
+        sightingCount: (data.sightingCount as number) ?? 0,
+        protectedPostCount: (data.protectedPostCount as number) ?? 0,
+        bestInfoCount: (data.bestInfoCount as number) ?? 0,
+        discoveryCount: (data.discoveryCount as number) ?? 0,
+        titles: (data.titles as string[]) ?? [],
+        badges: (data.badges as string[]) ?? [],
+        selectedTitle: data.selectedTitle as string | undefined,
+      } : null)
+    }
   }
 
   return (

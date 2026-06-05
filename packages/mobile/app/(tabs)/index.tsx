@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   View,
   Text,
@@ -14,7 +14,7 @@ import {
   Platform,
   Alert,
 } from 'react-native'
-import { useRouter } from 'expo-router'
+import { useRouter, useFocusEffect } from 'expo-router'
 import { fetchPets, fetchRecentSightings, fetchSightingsFiltered } from '../../src/lib/firestore'
 import PetCard from '../../src/components/PetCard'
 import { useAuth } from '../../src/contexts/AuthContext'
@@ -228,6 +228,18 @@ export default function HomeScreen() {
     setLoading(true)
     load()
   }, [load])
+
+  // タブにフォーカスが戻ったとき（投稿後など）にリロード
+  const isMountedRef = useRef(false)
+  useFocusEffect(
+    useCallback(() => {
+      if (isMountedRef.current) {
+        setLoading(true)
+        load()
+      }
+      isMountedRef.current = true
+    }, [load])
+  )
 
   const onRefresh = () => { setRefreshing(true); load() }
 

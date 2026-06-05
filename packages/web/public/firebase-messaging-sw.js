@@ -15,7 +15,7 @@ const messaging = firebase.messaging()
 
 messaging.onBackgroundMessage((payload) => {
   const { title, body } = payload.notification ?? {}
-  self.registration.showNotification(title ?? 'ペットレスキュー', {
+  self.registration.showNotification(title ?? 'ANIMAL GO', {
     body: body ?? '新しいペット情報があります',
     icon: '/icon-192.png',
     badge: '/icon-96.png',

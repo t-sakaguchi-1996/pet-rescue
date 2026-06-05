@@ -85,11 +85,14 @@ export default function PetCard({ pet, showEditLink, priority = false }: Props) 
 
       {/* 情報 */}
       <div className="p-3">
-        <p className="font-black text-sm leading-tight truncate" style={{ color: '#3D2400' }}>
-          {pet.name || '名前不明'}
+        {/* 保護の場合は目撃と同じ表示（説明文をタイトルに） */}
+        <p className="font-black text-sm leading-tight line-clamp-2" style={{ color: '#3D2400' }}>
+          {pet.type === 'found'
+            ? (pet.description || pet.name || '保護された動物')
+            : (pet.name || '名前不明')}
         </p>
         <p className="text-xs mt-0.5" style={{ color: '#B08050' }}>
-          {SPECIES_LABELS[pet.species]}{pet.breed ? ` / ${pet.breed}` : ''}
+          {SPECIES_LABELS[pet.species]}{pet.type === 'lost' && pet.breed ? ` / ${pet.breed}` : ''}
         </p>
         <p className="text-xs mt-1 truncate" style={{ color: '#C8A070' }}>
           📍 {pet.location.prefecture} {pet.location.city}

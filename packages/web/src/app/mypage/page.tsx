@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLoadingState } from '@/contexts/LoadingContext'
 import Link from 'next/link'
@@ -65,12 +65,11 @@ export default function MyPage() {
     if (!loading && !user) router.push('/auth/login')
   }, [user, loading, router])
 
-  useEffect(() => {
+  // ページに来るたびに投稿リストを最新化（router.refresh() と連動）
+  const refreshPets = useCallback(() => {
     if (!user || isAdmin) return
+    setPetsLoading(true)
     const displayNameVal = profile?.displayName ?? user.displayName ?? ''
-    setDisplayName(displayNameVal)
-    setSelectedTitleEdit(profile?.selectedTitle ?? null)
-
     Promise.all([
       fetchUserPets(user.uid),
       fetchUserSightings(user.uid),
@@ -81,6 +80,15 @@ export default function MyPage() {
       })))
       setUserSightings(sightings)
     }).finally(() => setPetsLoading(false))
+  }, [user, profile, isAdmin])
+
+  useEffect(() => {
+    if (!user || isAdmin) return
+    const displayNameVal = profile?.displayName ?? user.displayName ?? ''
+    setDisplayName(displayNameVal)
+    setSelectedTitleEdit(profile?.selectedTitle ?? null)
+
+    refreshPets()
 
     getPointTransactions(user.uid)
       .then(setTransactions)
@@ -98,7 +106,7 @@ export default function MyPage() {
       setMyTotalRank(findUserRank(total, user.uid))
       setMyMonthlyRank(findUserRank(monthly, user.uid))
     }).catch(() => {})
-  }, [user, profile])
+  }, [user, profile, refreshPets])
 
   const handleLogout = async () => {
     setLoggingOut(true)

@@ -14,12 +14,21 @@ import {
   updateProfile,
   type User as FirebaseUser,
 } from 'firebase/auth'
-import { doc, setDoc, getDoc, Timestamp } from 'firebase/firestore'
+import { doc, setDoc, onSnapshot, Timestamp } from 'firebase/firestore'
 import { auth, db } from '../lib/firebase'
 
 interface UserProfile {
   displayName: string
   photoURL?: string
+  points?: number
+  totalPointsEarned?: number
+  sightingCount?: number
+  protectedPostCount?: number
+  bestInfoCount?: number
+  discoveryCount?: number
+  selectedTitle?: string
+  titles?: string[]
+  badges?: string[]
 }
 
 interface AuthContextValue {
@@ -39,42 +48,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Firebase Auth 応答がない場合の 8秒フォールバック
     const timeout = setTimeout(() => setLoading(false), 8000)
+    let profileUnsub: (() => void) | null = null
 
-    let unsub = () => {}
+    let authUnsub = () => {}
     try {
-      unsub = onAuthStateChanged(auth, async (u) => {
+      authUnsub = onAuthStateChanged(auth, (u) => {
         clearTimeout(timeout)
         setUser(u)
 
+        if (profileUnsub) { profileUnsub(); profileUnsub = null }
+
         if (u) {
-          // Firestore から最新プロフィールを取得（photoURL 同期のため）
-          try {
-            const snap = await getDoc(doc(db, 'users', u.uid))
-            if (snap.exists()) {
-              const data = snap.data()
-              setProfile({
-                displayName: (data.displayName as string) ?? u.displayName ?? '',
-                photoURL: (data.photoURL as string | undefined) ?? u.photoURL ?? undefined,
-              })
-            } else {
-              setProfile({
-                displayName: u.displayName ?? '',
-                photoURL: u.photoURL ?? undefined,
-              })
+          // onSnapshot でユーザードキュメントをリアルタイム購読
+          // → ポイント・称号・バッジが更新されると即座に反映される
+          profileUnsub = onSnapshot(
+            doc(db, 'users', u.uid),
+            (snap) => {
+              if (snap.exists()) {
+                const data = snap.data()
+                setProfile({
+                  displayName: (data.displayName as string) ?? u.displayName ?? '',
+                  photoURL: (data.photoURL as string | undefined) ?? u.photoURL ?? undefined,
+                  points: (data.points as number) ?? 0,
+                  totalPointsEarned: (data.totalPointsEarned as number) ?? 0,
+                  sightingCount: (data.sightingCount as number) ?? 0,
+                  protectedPostCount: (data.protectedPostCount as number) ?? 0,
+                  bestInfoCount: (data.bestInfoCount as number) ?? 0,
+                  discoveryCount: (data.discoveryCount as number) ?? 0,
+                  selectedTitle: data.selectedTitle as string | undefined,
+                  titles: (data.titles as string[]) ?? [],
+                  badges: (data.badges as string[]) ?? [],
+                })
+              } else {
+                setProfile({
+                  displayName: u.displayName ?? '',
+                  photoURL: u.photoURL ?? undefined,
+                })
+              }
+              setLoading(false)
+            },
+            () => {
+              setProfile({ displayName: u.displayName ?? '', photoURL: u.photoURL ?? undefined })
+              setLoading(false)
             }
-          } catch {
-            setProfile({
-              displayName: u.displayName ?? '',
-              photoURL: u.photoURL ?? undefined,
-            })
-          }
+          )
         } else {
           setProfile(null)
+          setLoading(false)
         }
-
-        setLoading(false)
       })
     } catch (e) {
       clearTimeout(timeout)
@@ -83,7 +105,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     return () => {
-      unsub()
+      authUnsub()
+      if (profileUnsub) profileUnsub()
       clearTimeout(timeout)
     }
   }, [])

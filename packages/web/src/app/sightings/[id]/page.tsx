@@ -76,10 +76,17 @@ export default async function SightingDetailPage({
                 className="object-cover"
               />
               <div className="absolute top-3 left-3 flex gap-1.5">
-                <span className="text-xs font-bold px-2 py-0.5 rounded-full"
-                      style={{ background: '#FFC96B', color: '#3D2400' }}>
-                  目撃情報
-                </span>
+                {sighting.sightingType === 'found' ? (
+                  <span className="text-xs font-bold px-2 py-0.5 rounded-full"
+                        style={{ background: '#4A90D9', color: 'white' }}>
+                    🤝 保護情報
+                  </span>
+                ) : (
+                  <span className="text-xs font-bold px-2 py-0.5 rounded-full"
+                        style={{ background: '#FFC96B', color: '#3D2400' }}>
+                    目撃情報
+                  </span>
+                )}
                 {sighting.species && (
                   <span className="text-xs font-bold px-2 py-0.5 rounded-full"
                         style={{ background: 'rgba(0,0,0,0.5)', color: 'white' }}>
@@ -154,7 +161,9 @@ export default async function SightingDetailPage({
           {/* 地図 */}
           {hasLocation && (
             <div className="mb-6">
-              <h2 className="text-sm font-bold mb-2" style={{ color: '#7A4500' }}>目撃場所（半径5km）</h2>
+              <h2 className="text-sm font-bold mb-2" style={{ color: '#7A4500' }}>
+                {sighting.sightingType === 'found' ? '保護場所（半径5km）' : '目撃場所（半径5km）'}
+              </h2>
               <div className="rounded-xl overflow-hidden" style={{ height: '280px' }}>
                 <SightingMap
                   sightingLat={sighting.location.lat!}
