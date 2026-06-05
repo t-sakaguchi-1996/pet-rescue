@@ -54,6 +54,7 @@ function toPet(id: string, data: Record<string, unknown>): Pet {
     status: data.status as Pet['status'],
     userId: (data.userId as string) ?? '',
     ownerDisplayName: data.ownerDisplayName as string | undefined,
+    ownerPhotoURL: data.ownerPhotoURL as string | undefined,
     contactEmail: (data.contactEmail as string) ?? '',
     contactPhone: (data.contactPhone as string) ?? '',
     searchRadiusKm: data.searchRadiusKm as number | undefined,

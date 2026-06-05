@@ -139,10 +139,10 @@ export default function RankingScreen() {
         <View style={styles.myRankEmpty}>
           <Text style={styles.myRankEmptyText}>
             このランキングにはまだ参加していません。
-            <Text style={styles.myRankLink} onPress={() => router.push('/sightings/new')}>
-              {' '}目撃情報を投稿する
-            </Text>
           </Text>
+          <TouchableOpacity onPress={() => router.push('/sightings/new')} style={styles.myRankLinkBtn}>
+            <Text style={styles.myRankLink}>👁️ 目撃情報を投稿する</Text>
+          </TouchableOpacity>
         </View>
       )}
 
@@ -232,8 +232,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF9F0', borderWidth: 1.5, borderColor: '#FFD98A',
     borderStyle: 'dashed',
   },
-  myRankEmptyText: { fontSize: 12, color: '#B08050', textAlign: 'center' },
-  myRankLink: { color: '#C46B00', textDecorationLine: 'underline' },
+  myRankEmptyText: { fontSize: 12, color: '#B08050', textAlign: 'center', marginBottom: 6 },
+  myRankLinkBtn: { alignSelf: 'center' },
+  myRankLink: { fontSize: 12, color: '#C46B00', fontWeight: 'bold', textDecorationLine: 'underline' },
 
   tabScroll: { height: 58, maxHeight: 58, minHeight: 58, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
   tabContent: { paddingHorizontal: 12, paddingVertical: 0, gap: 6, alignItems: 'center' },
@@ -297,13 +298,13 @@ const styles = StyleSheet.create({
     marginTop: 8, padding: 16, borderRadius: 16, backgroundColor: '#FFF3DC',
     borderWidth: 1.5, borderColor: '#FFD98A', alignItems: 'center',
   },
-  ctaText: { fontSize: 13, fontWeight: 'bold', color: '#7A4500', marginBottom: 10 },
-  ctaRow: { flexDirection: 'row', gap: 8 },
-  ctaBtn: { backgroundColor: '#FFC96B', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20 },
-  ctaBtnText: { fontSize: 12, fontWeight: 'bold', color: '#3D2400' },
+  ctaText: { fontSize: 13, fontWeight: 'bold', color: '#7A4500', marginBottom: 10, textAlign: 'center' },
+  ctaRow: { flexDirection: 'column', gap: 8, width: '100%' },
+  ctaBtn: { backgroundColor: '#FFC96B', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20, alignItems: 'center' },
+  ctaBtnText: { fontSize: 13, fontWeight: 'bold', color: '#3D2400' },
   ctaBtnSub: {
-    backgroundColor: '#fff', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
-    borderWidth: 1, borderColor: '#FFD98A',
+    backgroundColor: '#fff', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20,
+    borderWidth: 1, borderColor: '#FFD98A', alignItems: 'center',
   },
-  ctaBtnSubText: { fontSize: 12, fontWeight: 'bold', color: '#C46B00' },
+  ctaBtnSubText: { fontSize: 13, fontWeight: 'bold', color: '#C46B00' },
 })

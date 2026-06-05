@@ -166,6 +166,8 @@ export default function PostForm({ userId, initialPet }: Props) {
           lostDate: form.lostDate,
           status: 'searching',
           userId,
+          ownerDisplayName: currentUser?.displayName ?? undefined,
+          ownerPhotoURL: currentUser?.photoURL ?? undefined,
           contactEmail,
           contactPhone: form.contactPhone,
           searchRadiusKm,

@@ -9,6 +9,7 @@ import { SPECIES_LABELS } from '@pet-rescue/shared'
 import SightingBestInfoPanel from '@/components/SightingBestInfoPanel'
 import SightingMap from '@/components/SightingMap'
 import SightingDeleteButton from '@/components/SightingDeleteButton'
+import UserProfileButton from '@/components/UserProfileButton'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -115,6 +116,16 @@ export default async function SightingDetailPage({
             {sighting.title}
           </h1>
 
+          {/* 投稿者プロフィール */}
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl mb-4"
+               style={{ background: '#FFFAF0', border: '1px solid #FFE0A0', display: 'inline-flex' }}>
+            <UserProfileButton
+              userId={sighting.userId}
+              displayName={sighting.posterName}
+              photoURL={sighting.posterPhotoURL}
+            />
+          </div>
+
           {/* 基本情報 */}
           <dl className="space-y-2 mb-5">
             {sighting.species && (
@@ -124,7 +135,6 @@ export default async function SightingDetailPage({
               label="場所"
               value={`${sighting.location.prefecture}${sighting.location.city ? ` ${sighting.location.city}` : ''}${sighting.location.address ? ` ${sighting.location.address}` : ''}`}
             />
-            <InfoRow label="投稿者" value={sighting.posterName} />
             <InfoRow
               label="投稿日時"
               value={format(new Date(sighting.createdAt), 'yyyy年M月d日 H:mm', { locale: ja })}

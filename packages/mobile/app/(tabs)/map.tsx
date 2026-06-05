@@ -8,13 +8,25 @@ import {
   Platform,
   ScrollView,
 } from 'react-native'
-import MapView, { Marker, Circle, PROVIDER_GOOGLE } from 'react-native-maps'
 import * as Location from 'expo-location'
 import { useRouter } from 'expo-router'
 import { fetchPets, fetchRecentSightings } from '../../src/lib/firestore'
 import type { Pet, Sighting } from '../../src/types'
 import { TYPE_LABELS, SPECIES_LABELS } from '../../src/types'
 import LoadingIndicator from '../../src/components/LoadingIndicator'
+
+const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? ''
+
+// Google Maps API key がない場合にクラッシュを防ぐため、条件付きで import する
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let MapView: any = null, Marker: any = null, Circle: any = null, PROVIDER_GOOGLE: any = undefined
+if (GOOGLE_MAPS_API_KEY) {
+  const maps = require('react-native-maps')
+  MapView = maps.default
+  Marker = maps.Marker
+  Circle = maps.Circle
+  PROVIDER_GOOGLE = maps.PROVIDER_GOOGLE
+}
 
 const SPECIES_EMOJI: Record<string, string> = {
   dog: '🐕', cat: '🐈', rabbit: '🐇', bird: '🐦', other: '🐾',
@@ -89,6 +101,20 @@ export default function MapScreen() {
   })
 
   const totalVisible = petsWithLocation.length + (filter !== 'lost' && filter !== 'protected' ? sightingsWithLocation.length : 0)
+
+  if (!GOOGLE_MAPS_API_KEY || !MapView) {
+    return (
+      <View style={styles.noMapContainer}>
+        <Text style={styles.noMapEmoji}>🗺️</Text>
+        <Text style={styles.noMapTitle}>地図を表示できません</Text>
+        <Text style={styles.noMapDesc}>
+          Google Maps API キーが設定されていません。{'\n'}
+          開発者に連絡するか、EXPO_PUBLIC_GOOGLE_MAPS_API_KEY を設定して{'\n'}
+          再ビルドしてください。
+        </Text>
+      </View>
+    )
+  }
 
   return (
     <View style={styles.container}>
@@ -297,6 +323,10 @@ export default function MapScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   map: { flex: 1 },
+  noMapContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, backgroundColor: '#f9fafb' },
+  noMapEmoji: { fontSize: 56, marginBottom: 16 },
+  noMapTitle: { fontSize: 17, fontWeight: 'bold', color: '#374151', marginBottom: 8 },
+  noMapDesc: { fontSize: 13, color: '#6b7280', textAlign: 'center', lineHeight: 20 },
   loadingOverlay: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: 'rgba(255,255,255,0.9)', zIndex: 10,

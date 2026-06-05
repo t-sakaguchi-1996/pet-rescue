@@ -25,6 +25,7 @@ import {
   selectBestInfoComment,
   markSightingBestInfoPointGranted,
   markPetBestInfoPointGranted,
+  notifyBestInfoSelected,
 } from '../../src/lib/firestore'
 import { grantBestSightingPoints, grantBestCommentPoints, grantDiscoveryBonus } from '../../src/lib/points'
 import { useAuth } from '../../src/contexts/AuthContext'
@@ -140,6 +141,15 @@ export default function PetDetailScreen() {
               await markPetBestInfoPointGranted(id)
               setLocalBestPointGranted(true)
             }
+            if (authorUserId) {
+              await notifyBestInfoSelected({
+                recipientUserId: authorUserId,
+                petId: id,
+                petName: pet?.name || '名前不明',
+                sightingId: sighting.id,
+                amount: 100,
+              })
+            }
             setLocalBestInfoId(sighting.id)
             setLocalBestInfoType('sighting')
             setNearbySightings((prev) => prev.map((s) => ({ ...s, isBestInfo: s.id === sighting.id })))
@@ -167,6 +177,14 @@ export default function PetDetailScreen() {
             if (!localBestPointGranted && authorUserId && !comment.bestInfoPointGranted) {
               await grantBestCommentPoints(authorUserId, comment.id)
               setLocalBestPointGranted(true)
+            }
+            if (authorUserId) {
+              await notifyBestInfoSelected({
+                recipientUserId: authorUserId,
+                petId: id,
+                petName: pet?.name || '名前不明',
+                amount: 100,
+              })
             }
             setLocalBestInfoId(comment.id)
             setLocalBestInfoType('comment')
@@ -225,7 +243,7 @@ export default function PetDetailScreen() {
     if (!user || !id || !commentText.trim()) return
     setSubmittingComment(true)
     try {
-      await createComment(id, user.uid, user.displayName ?? 'ユーザー', commentText.trim())
+      await createComment(id, user.uid, user.displayName ?? 'ユーザー', commentText.trim(), undefined, pet?.userId, pet?.name)
       setCommentText('')
     } catch {
       Alert.alert('エラー', 'コメントの投稿に失敗しました')
@@ -307,6 +325,35 @@ export default function PetDetailScreen() {
           <Text style={styles.species}>
             {SPECIES_LABELS[pet.species]}{pet.breed ? ` / ${pet.breed}` : ''}
           </Text>
+
+          {/* 投稿者 */}
+          {pet.userId && (
+            <TouchableOpacity
+              style={styles.ownerRow}
+              onPress={() => {
+                if (pet.userId === user?.uid) { router.push(`/users/${pet.userId}`); return }
+                Alert.alert('プロフィール確認', 'プロフィールを確認しますか？', [
+                  { text: 'キャンセル', style: 'cancel' },
+                  { text: 'OK', onPress: () => router.push(`/users/${pet.userId}`) },
+                ])
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={styles.ownerAvatar}>
+                {pet.ownerPhotoURL ? (
+                  <Image source={{ uri: pet.ownerPhotoURL }} style={styles.ownerAvatarImg} />
+                ) : (
+                  <Text style={styles.ownerInitial}>
+                    {(pet.ownerDisplayName ?? 'U').charAt(0).toUpperCase()}
+                  </Text>
+                )}
+              </View>
+              <Text style={styles.ownerName} numberOfLines={1}>
+                {pet.ownerDisplayName ?? '投稿者'}
+              </Text>
+              <Text style={styles.ownerArrow}>›</Text>
+            </TouchableOpacity>
+          )}
 
           {/* 基本情報 */}
           <View style={styles.card}>
@@ -478,6 +525,13 @@ export default function PetDetailScreen() {
             ) : (
               topLevelComments.map((c) => {
                 const replies = repliesFor(c.id)
+                const handleAvatarPress = (targetUserId?: string) => {
+                  if (!targetUserId || targetUserId === user?.uid) return
+                  Alert.alert('プロフィール確認', 'プロフィールを確認しますか？', [
+                    { text: 'キャンセル', style: 'cancel' },
+                    { text: 'OK', onPress: () => router.push(`/users/${targetUserId}`) },
+                  ])
+                }
                 return (
                   <View key={c.id}>
                     <View style={[styles.commentCard, c.isBestInfo && styles.commentCardBest]}>
@@ -487,11 +541,15 @@ export default function PetDetailScreen() {
                         </View>
                       )}
                       <View style={styles.commentHeader}>
-                        <View style={styles.commentAvatar}>
+                        <TouchableOpacity
+                          style={styles.commentAvatar}
+                          onPress={() => handleAvatarPress(c.userId)}
+                          activeOpacity={c.userId && c.userId !== user?.uid ? 0.7 : 1}
+                        >
                           <Text style={styles.commentAvatarText}>
                             {(c.userDisplayName ?? '?')[0]?.toUpperCase()}
                           </Text>
-                        </View>
+                        </TouchableOpacity>
                         <View style={styles.commentMeta}>
                           <Text style={styles.commentName}>{c.userDisplayName}</Text>
                           <Text style={styles.commentDate}>
@@ -618,7 +676,13 @@ const styles = StyleSheet.create({
   thumbnailImage: { width: '100%', height: '100%' },
   body: { padding: 16 },
   name: { fontSize: 24, fontWeight: 'bold', color: '#111827', marginBottom: 4 },
-  species: { fontSize: 14, color: '#6b7280', marginBottom: 16 },
+  species: { fontSize: 14, color: '#6b7280', marginBottom: 8 },
+  ownerRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8, paddingHorizontal: 12, marginBottom: 12, backgroundColor: '#FFFAF0', borderRadius: 12, borderWidth: 1, borderColor: '#FFE0A0' },
+  ownerAvatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#FFE0A0', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' },
+  ownerAvatarImg: { width: 28, height: 28 },
+  ownerInitial: { fontSize: 12, fontWeight: 'bold', color: '#7A4500' },
+  ownerName: { fontSize: 13, fontWeight: '600', color: '#7A4500', flex: 1 },
+  ownerArrow: { fontSize: 18, color: '#C8A070', flexShrink: 0 },
   card: {
     backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 12,
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1,

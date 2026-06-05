@@ -1,6 +1,10 @@
+'use client'
+
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 import { format } from 'date-fns'
 import { ja } from 'date-fns/locale'
+import { useAuth } from '@/contexts/AuthContext'
 import type { Sighting } from '@pet-rescue/shared'
 import { SPECIES_LABELS } from '@pet-rescue/shared'
 
@@ -9,7 +13,20 @@ interface Props {
 }
 
 export default function SightingCard({ sighting }: Props) {
-  const { species, title, photos, location, description, posterName, createdAt } = sighting
+  const router = useRouter()
+  const { user } = useAuth()
+  const { species, title, photos, location, description, posterName, posterPhotoURL, createdAt, userId } = sighting
+  const posterInitial = (posterName && posterName !== '未登録ユーザー' ? posterName : 'U').charAt(0).toUpperCase()
+
+  const handlePosterClick = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!userId) return
+    if (userId === user?.uid) { router.push(`/users/${userId}`); return }
+    if (window.confirm('プロフィールを確認しますか？')) {
+      router.push(`/users/${userId}`)
+    }
+  }
 
   return (
     <div className="rounded-2xl overflow-hidden transition-all hover:shadow-md"
@@ -58,11 +75,23 @@ export default function SightingCard({ sighting }: Props) {
             {description}
           </p>
         )}
-        <div className="flex items-center justify-between mt-2">
-          <span className="text-xs" style={{ color: '#B08050' }}>
-            {posterName === '未登録ユーザー' ? '未登録ユーザー' : posterName}
-          </span>
-          <span className="text-xs" style={{ color: '#C8A87A' }}>
+        <div className="flex items-center justify-between mt-2 pt-2" style={{ borderTop: '1px solid #F5E8D0' }}>
+          <button
+            onClick={handlePosterClick}
+            className={`flex items-center gap-1.5 min-w-0 ${userId ? 'hover:opacity-70 transition-opacity' : ''}`}
+          >
+            <div className="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-[9px] font-bold overflow-hidden"
+                 style={{ background: '#FFE0A0', color: '#7A4500' }}>
+              {posterPhotoURL ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={posterPhotoURL} alt={posterName} className="w-full h-full object-cover" />
+              ) : posterInitial}
+            </div>
+            <span className="text-[10px] truncate font-medium" style={{ color: '#7A4500' }}>
+              {posterName === '未登録ユーザー' ? '未登録ユーザー' : posterName}
+            </span>
+          </button>
+          <span className="text-[10px] flex-shrink-0" style={{ color: '#C8A87A' }}>
             {format(new Date(createdAt), 'M/d H:mm', { locale: ja })}
           </span>
         </div>

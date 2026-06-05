@@ -20,6 +20,18 @@ type NotificationType =
   | 'new_matched_sighting_after_edit'
   | 'new_matched_protected_after_edit'
 
+// 通知種別とユーザー設定キーのマッピング
+const NOTIFICATION_SETTING_KEY: Partial<Record<NotificationType, string>> = {
+  comment: 'comment',
+  reply: 'comment',
+  sighting_nearby: 'sighting_nearby',
+  found_nearby: 'found_nearby',
+  best_info_selected: 'best_info_selected',
+  points_granted: 'points_granted',
+  discovery_bonus: 'discovery_bonus',
+  prefecture_sighting: 'sighting_nearby',
+}
+
 interface AppNotification {
   userId: string
   type: NotificationType
@@ -68,7 +80,14 @@ export const sendPushOnNotification = onDocumentCreated(
     if (!n?.userId) return
 
     const userSnap = await db.doc(`users/${n.userId}`).get()
-    const tokens = (userSnap.data()?.expoPushTokens ?? []) as string[]
+    const userData = userSnap.data() ?? {}
+
+    // 通知種別ごとのON/OFF設定チェック
+    const notifSettings = (userData.notificationSettings ?? {}) as Record<string, boolean>
+    const settingKey = NOTIFICATION_SETTING_KEY[n.type]
+    if (settingKey !== undefined && notifSettings[settingKey] === false) return
+
+    const tokens = (userData.expoPushTokens ?? []) as string[]
     const validTokens = tokens.filter((t) => Expo.isExpoPushToken(t))
     if (validTokens.length === 0) return
 

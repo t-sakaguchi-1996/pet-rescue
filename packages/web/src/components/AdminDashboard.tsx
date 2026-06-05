@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useLoadingState } from '@/contexts/LoadingContext'
 import { getAllPointTransactions, cancelPointTransaction } from '@/lib/points'
 import { fetchAllRewardExchanges, updateExchangeStatus, fetchAllRewards, updateReward, createReward, seedInitialRewards } from '@/lib/rewards'
-import { getDocs, collection, writeBatch, query, orderBy } from 'firebase/firestore'
+import { getDocs, collection, writeBatch, deleteDoc, query, where, orderBy } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { TRANSACTION_TYPE_LABELS } from '@pet-rescue/shared'
 import type { PointTransaction, RewardExchange, Reward, ExchangeStatus, RewardType } from '@pet-rescue/shared'
@@ -113,15 +113,62 @@ export default function AdminDashboard() {
   }
 
   const handleResetAllUsers = async () => {
-    if (!window.confirm('全ユーザーのポイント・実績・称号・バッジをリセットします。この操作は元に戻せません。続行しますか？')) return
+    if (!window.confirm(
+      '【全ユーザー】データをリセットします。\n\n' +
+      '・全ユーザーのポイント・実績・称号・バッジ（ランキングスコア含む）\n' +
+      '・全ポイント履歴（期間別ランキング）\n' +
+      '・全ペット投稿（迷子・保護）\n' +
+      '・全目撃情報\n' +
+      '・全通知\n\n' +
+      '⚠️ この操作は元に戻せません。本当に続行しますか？'
+    )) return
+    if (!window.confirm('最終確認: 全データを削除します。よろしいですか？')) return
+
     startLoading()
     try {
-      const snap = await getDocs(collection(db, 'users'))
       const CHUNK = 400
-      const docs = snap.docs
-      for (let i = 0; i < docs.length; i += CHUNK) {
+
+      // ─── 全ペット投稿とコメントサブコレクションを削除 ───
+      const petsSnap = await getDocs(collection(db, 'pets'))
+      for (const petDoc of petsSnap.docs) {
+        const commentsSnap = await getDocs(collection(db, 'pets', petDoc.id, 'comments'))
+        for (let i = 0; i < commentsSnap.docs.length; i += CHUNK) {
+          const batch = writeBatch(db)
+          commentsSnap.docs.slice(i, i + CHUNK).forEach((c) => batch.delete(c.ref))
+          await batch.commit()
+        }
+        await deleteDoc(petDoc.ref)
+      }
+
+      // ─── 全目撃情報を削除 ───
+      const sightingsSnap = await getDocs(collection(db, 'sightings'))
+      for (let i = 0; i < sightingsSnap.docs.length; i += CHUNK) {
         const batch = writeBatch(db)
-        docs.slice(i, i + CHUNK).forEach((d) => {
+        sightingsSnap.docs.slice(i, i + CHUNK).forEach((s) => batch.delete(s.ref))
+        await batch.commit()
+      }
+
+      // ─── 全ポイント履歴を削除（期間別ランキングに使用） ───
+      const txSnap = await getDocs(collection(db, 'point_transactions'))
+      for (let i = 0; i < txSnap.docs.length; i += CHUNK) {
+        const batch = writeBatch(db)
+        txSnap.docs.slice(i, i + CHUNK).forEach((t) => batch.delete(t.ref))
+        await batch.commit()
+      }
+
+      // ─── 全通知を削除 ───
+      const notifSnap = await getDocs(collection(db, 'notifications'))
+      for (let i = 0; i < notifSnap.docs.length; i += CHUNK) {
+        const batch = writeBatch(db)
+        notifSnap.docs.slice(i, i + CHUNK).forEach((n) => batch.delete(n.ref))
+        await batch.commit()
+      }
+
+      // ─── 全ユーザードキュメントをリセット ───
+      const usersSnap = await getDocs(collection(db, 'users'))
+      for (let i = 0; i < usersSnap.docs.length; i += CHUNK) {
+        const batch = writeBatch(db)
+        usersSnap.docs.slice(i, i + CHUNK).forEach((d) => {
           batch.update(d.ref, {
             points: 0,
             totalPointsEarned: 0,
@@ -136,7 +183,17 @@ export default function AdminDashboard() {
         })
         await batch.commit()
       }
-      alert(`${snap.docs.length}件のユーザーデータをリセットしました`)
+
+      alert(
+        `リセット完了\n` +
+        `・ユーザー: ${usersSnap.docs.length}件リセット\n` +
+        `・ペット投稿: ${petsSnap.docs.length}件削除\n` +
+        `・目撃情報: ${sightingsSnap.docs.length}件削除\n` +
+        `・ポイント履歴: ${txSnap.docs.length}件削除\n` +
+        `・通知: ${notifSnap.docs.length}件削除`
+      )
+    } catch (err) {
+      alert('リセット中にエラーが発生しました: ' + (err as Error).message)
     } finally {
       stopLoading()
     }
@@ -193,9 +250,9 @@ export default function AdminDashboard() {
           onClick={handleResetAllUsers}
           className="text-xs font-bold px-3 py-1.5 rounded-xl"
           style={{ background: '#FFE8E8', color: '#CC3333', border: '1px solid #FFCCCC' }}
-          title="ポイント・実績・称号・バッジをリセット"
+          title="全ユーザーのポイント・実績・称号・バッジ・投稿・目撃情報をリセット"
         >
-          🔄 ユーザーデータをリセット
+          🗑️ 全データをリセット
         </button>
       </div>
 

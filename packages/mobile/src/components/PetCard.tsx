@@ -5,7 +5,9 @@ import {
   TouchableOpacity,
   StyleSheet,
   Dimensions,
+  Alert,
 } from 'react-native'
+import { useRouter } from 'expo-router'
 import type { Pet } from '../types'
 import { SPECIES_LABELS, STATUS_LABELS } from '../types'
 import { format } from 'date-fns'
@@ -17,10 +19,26 @@ const CARD_WIDTH = (width - 12 * 2 - 10) / 2
 interface Props {
   pet: Pet
   onPress: () => void
+  currentUserId?: string
 }
 
-export default function PetCard({ pet, onPress }: Props) {
+export default function PetCard({ pet, onPress, currentUserId }: Props) {
+  const router = useRouter()
   const isLost = pet.type === 'lost'
+  const ownerInitial = (pet.ownerDisplayName ?? 'U').charAt(0).toUpperCase()
+  const ownerPhoto = pet.ownerPhotoURL ?? null
+
+  const handleOwnerPress = () => {
+    if (!pet.userId) return
+    if (pet.userId === currentUserId) {
+      router.push(`/users/${pet.userId}`)
+      return
+    }
+    Alert.alert('プロフィール確認', 'プロフィールを確認しますか？', [
+      { text: 'キャンセル', style: 'cancel' },
+      { text: 'OK', onPress: () => router.push(`/users/${pet.userId}`) },
+    ])
+  }
 
   const statusBg =
     pet.status === 'searching' ? '#fef3c7'
@@ -71,6 +89,23 @@ export default function PetCard({ pet, onPress }: Props) {
             {format(new Date(pet.createdAt), 'M/d', { locale: ja })}
           </Text>
         </View>
+        {/* オーナー行 */}
+        <TouchableOpacity
+          style={styles.ownerRow}
+          onPress={handleOwnerPress}
+          activeOpacity={pet.userId ? 0.7 : 1}
+        >
+          <View style={styles.ownerAvatar}>
+            {ownerPhoto ? (
+              <Image source={{ uri: ownerPhoto }} style={styles.ownerAvatarImage} />
+            ) : (
+              <Text style={styles.ownerInitial}>{ownerInitial}</Text>
+            )}
+          </View>
+          <Text style={styles.ownerName} numberOfLines={1}>
+            {pet.ownerDisplayName ?? '投稿者'}
+          </Text>
+        </TouchableOpacity>
       </View>
     </TouchableOpacity>
   )
@@ -113,4 +148,9 @@ const styles = StyleSheet.create({
   statusBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 },
   statusText: { fontSize: 10, fontWeight: '600' },
   date: { fontSize: 10, color: '#9ca3af' },
+  ownerRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 7, paddingTop: 6, borderTopWidth: 1, borderTopColor: '#f3f4f6' },
+  ownerAvatar: { width: 18, height: 18, borderRadius: 9, backgroundColor: '#FFE0A0', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' },
+  ownerAvatarImage: { width: 18, height: 18 },
+  ownerInitial: { fontSize: 9, fontWeight: 'bold', color: '#7A4500' },
+  ownerName: { fontSize: 10, color: '#7A4500', flex: 1 },
 })

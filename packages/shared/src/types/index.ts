@@ -27,6 +27,7 @@ export interface Pet {
   status: PetStatus
   userId: string
   ownerDisplayName?: string
+  ownerPhotoURL?: string
   contactEmail: string
   contactPhone: string
   searchRadiusKm?: number
@@ -224,6 +225,7 @@ export interface Sighting {
   guestEmail?: string
   temporaryId?: string
   posterName: string
+  posterPhotoURL?: string
   pointGranted: boolean
   emailVerified: boolean
   isBestInfo?: boolean

@@ -13,6 +13,13 @@ config.resolver.nodeModulesPaths = [
   path.resolve(workspaceRoot, 'node_modules'),
 ]
 
+// packages/web は Next.js プロジェクトで Metro が監視する必要はない。
+// .next/static など存在しないパスを watch しようとしてクラッシュするため除外する。
+// Windows (バックスラッシュ) / Unix (スラッシュ) 両方に対応したパターン。
+config.resolver.blockList = [
+  /[/\\]packages[/\\]web[/\\]/,
+]
+
 // react@18 (web用) がルートにホイストされているため、react-native が誤って
 // React 18 を読み込みクラッシュする問題を修正。
 // react / scheduler は常にモバイルパッケージ (React 19) のものを使う。

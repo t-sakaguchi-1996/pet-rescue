@@ -19,6 +19,7 @@ import CommentSection from '@/components/CommentSection'
 import SightingsSection from '@/components/SightingsSection'
 import SightingCtaBox from '@/components/SightingCtaBox'
 import DiscoveryConfirmButton from '@/components/DiscoveryConfirmButton'
+import UserProfileButton from '@/components/UserProfileButton'
 import { useLoadingState } from '@/contexts/LoadingContext'
 
 export default function PetDetailPage() {
@@ -117,10 +118,19 @@ export default function PetDetailPage() {
               <h1 className="text-2xl font-bold text-gray-900 mb-1">
                 {pet.name || '名前不明'}
               </h1>
-              <p className="text-gray-500 text-sm mb-6">
+              <p className="text-gray-500 text-sm mb-3">
                 {SPECIES_LABELS[pet.species]}
                 {pet.breed ? ` / ${pet.breed}` : ''}
               </p>
+              {/* 投稿者 */}
+              <div className="inline-flex items-center gap-2 px-3 py-2 rounded-xl mb-5"
+                   style={{ background: '#FFFAF0', border: '1px solid #FFE0A0' }}>
+                <UserProfileButton
+                  userId={pet.userId}
+                  displayName={pet.ownerDisplayName ?? '投稿者'}
+                  photoURL={pet.ownerPhotoURL}
+                />
+              </div>
 
               <dl className="space-y-3">
                 <InfoRow label="種別" value={TYPE_LABELS[pet.type]} />

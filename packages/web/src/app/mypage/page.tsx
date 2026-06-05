@@ -7,6 +7,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useAuth } from '@/contexts/AuthContext'
 import { fetchUserPets, deletePet } from '@/lib/firestore'
+import { fetchUserSightings } from '@/lib/sightings'
 import { uploadAvatarImage } from '@/lib/storage'
 import { getPointTransactions } from '@/lib/points'
 import { fetchUserRewardExchanges } from '@/lib/rewards'
@@ -14,7 +15,7 @@ import { fetchRanking, findUserRank, RANKING_TYPE_LABELS } from '@/lib/rankings'
 import { getTitleName, getBadgeDefinition } from '@/lib/titles'
 import PetCard from '@/components/PetCard'
 import AdminDashboard from '@/components/AdminDashboard'
-import type { Pet, PointTransaction, RewardExchange, RankingType } from '@pet-rescue/shared'
+import type { Pet, PointTransaction, RewardExchange, RankingType, Sighting } from '@pet-rescue/shared'
 import { TITLE_DEFINITIONS, BADGE_DEFINITIONS, TRANSACTION_TYPE_LABELS } from '@pet-rescue/shared'
 
 const ADMIN_EMAILS = (process.env.NEXT_PUBLIC_ADMIN_EMAILS ?? '').split(',').map((e) => e.trim()).filter(Boolean)
@@ -27,6 +28,7 @@ export default function MyPage() {
   const { startLoading, stopLoading } = useLoadingState()
   const isAdmin = user?.email ? ADMIN_EMAILS.includes(user.email) : false
   const [pets, setPets] = useState<Pet[]>([])
+  const [userSightings, setUserSightings] = useState<Sighting[]>([])
   const [petsLoading, setPetsLoading] = useState(true)
   const [loggingOut, setLoggingOut] = useState(false)
   const [transactions, setTransactions] = useState<PointTransaction[]>([])
@@ -69,12 +71,16 @@ export default function MyPage() {
     setDisplayName(displayNameVal)
     setSelectedTitleEdit(profile?.selectedTitle ?? null)
 
-    fetchUserPets(user.uid)
-      .then((fetched) => setPets(fetched.map((p) => ({
+    Promise.all([
+      fetchUserPets(user.uid),
+      fetchUserSightings(user.uid),
+    ]).then(([fetched, sightings]) => {
+      setPets(fetched.map((p) => ({
         ...p,
         ownerDisplayName: p.ownerDisplayName ?? displayNameVal,
-      }))))
-      .finally(() => setPetsLoading(false))
+      })))
+      setUserSightings(sightings)
+    }).finally(() => setPetsLoading(false))
 
     getPointTransactions(user.uid)
       .then(setTransactions)
@@ -517,7 +523,8 @@ export default function MyPage() {
             <div className="space-y-2">
               {TITLE_DEFINITIONS.map((title) => {
                 const earned = earnedTitles.includes(title.id)
-                const isSelected = profile?.selectedTitle === title.id
+                const isSelected = selectedTitleEdit === title.id
+                const isSaved = profile?.selectedTitle === title.id
                 return (
                   <div key={title.id}
                        className="flex items-center justify-between p-3 rounded-xl"
@@ -531,7 +538,11 @@ export default function MyPage() {
                         {title.name}
                       </p>
                       <p className="text-xs" style={{ color: '#B08050' }}>
-                        {earned ? '✓ 取得済み' : `必要: ${title.requiredPoints.toLocaleString()}pt`}
+                        {earned
+                          ? isSaved
+                            ? '🏅 現在設定中'
+                            : '✓ 取得済み'
+                          : `必要: ${title.requiredPoints.toLocaleString()}pt`}
                       </p>
                     </div>
                     {earned && (
@@ -541,10 +552,10 @@ export default function MyPage() {
                         style={{
                           background: isSelected ? '#FFD98A' : '#FFF3DC',
                           color: '#7A4500',
-                          border: '1px solid #FFD98A',
+                          border: `1.5px solid ${isSelected ? '#C46B00' : '#FFD98A'}`,
                         }}
                       >
-                        {isSelected ? '表示中' : '表示する'}
+                        {isSelected ? '✓ 表示中' : '表示する'}
                       </button>
                     )}
                   </div>
@@ -631,28 +642,75 @@ export default function MyPage() {
       {tab === 'posts' && (
         <div>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-bold" style={{ color: '#5A3A1A' }}>自分の投稿 ({pets.length}件)</h2>
+            <h2 className="font-bold" style={{ color: '#5A3A1A' }}>
+              自分の投稿 ({pets.length + userSightings.length}件)
+            </h2>
             <Link href="/posts/new" className="btn-primary text-sm">新規投稿</Link>
           </div>
           {petsLoading ? (
             <p className="text-center text-gray-400 py-8">読み込み中...</p>
-          ) : pets.length === 0 ? (
+          ) : pets.length === 0 && userSightings.length === 0 ? (
             <div className="text-center py-10">
               <div className="text-4xl mb-3">📋</div>
               <p className="text-sm mb-3" style={{ color: '#8B6340' }}>まだ投稿がありません</p>
               <Link href="/posts/new" className="btn-primary text-sm">最初の投稿をする</Link>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {pets.map((pet) => (
-                <div key={pet.id} className="relative">
-                  <PetCard pet={pet} showEditLink />
-                  <button onClick={() => handleDeletePet(pet.id)}
-                          className="absolute bottom-3 right-3 text-xs text-gray-300 hover:text-red-400">
-                    削除
-                  </button>
+            <div className="space-y-6">
+              {pets.length > 0 && (
+                <div>
+                  <p className="text-xs font-bold mb-2" style={{ color: '#B08050' }}>
+                    🔍 迷子・保護投稿 ({pets.length}件)
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {pets.map((pet) => (
+                      <div key={pet.id} className="relative">
+                        <PetCard pet={pet} showEditLink />
+                        <button onClick={() => handleDeletePet(pet.id)}
+                                className="absolute bottom-3 right-3 text-xs text-gray-300 hover:text-red-400">
+                          削除
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ))}
+              )}
+              {userSightings.length > 0 && (
+                <div>
+                  <p className="text-xs font-bold mb-2" style={{ color: '#B08050' }}>
+                    👁️ 目撃投稿 ({userSightings.length}件)
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {userSightings.map((s) => (
+                      <Link key={s.id} href={`/sightings/${s.id}`}
+                            className="block rounded-2xl bg-white p-4 hover:shadow-md transition-shadow"
+                            style={{ border: '1.5px solid #FFE0A0' }}>
+                        <div className="flex items-start gap-3">
+                          {s.photos.length > 0 ? (
+                            <Image src={s.photos[0]} alt="" width={60} height={60}
+                                   className="rounded-lg object-cover flex-shrink-0" />
+                          ) : (
+                            <div className="w-[60px] h-[60px] rounded-lg flex-shrink-0 flex items-center justify-center"
+                                 style={{ background: '#FFF3DC' }}>
+                              <span className="text-2xl">👁️</span>
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <span className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded-full mb-1"
+                                  style={{ background: '#E8F4FD', color: '#2563EB' }}>
+                              目撃情報
+                            </span>
+                            <p className="text-sm font-bold truncate" style={{ color: '#3D2400' }}>{s.title}</p>
+                            <p className="text-xs" style={{ color: '#B08050' }}>
+                              📍 {s.location.prefecture} {s.location.city}
+                            </p>
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -12,10 +12,12 @@ import {
   Image,
   Dimensions,
   Platform,
+  Alert,
 } from 'react-native'
 import { useRouter } from 'expo-router'
 import { fetchPets, fetchRecentSightings, fetchSightingsFiltered } from '../../src/lib/firestore'
 import PetCard from '../../src/components/PetCard'
+import { useAuth } from '../../src/contexts/AuthContext'
 import type { Pet, PetType, PetSpecies, PetStatus, Sighting } from '../../src/types'
 import { PREFECTURES, CITIES_BY_PREFECTURE, SPECIES_LABELS } from '../../src/types'
 import { format } from 'date-fns'
@@ -80,8 +82,21 @@ function buildParams(quick: QuickFilter, detail: DetailSearch) {
 }
 
 // ─── Sighting card (inline) ────────────────────────────────────────────────────
-function SightingItem({ item, onPress }: { item: Sighting; onPress: () => void }) {
+function SightingItem({ item, onPress, currentUserId }: { item: Sighting; onPress: () => void; currentUserId?: string }) {
+  const router = useRouter()
   const emoji = item.species === 'dog' ? '🐕' : item.species === 'cat' ? '🐈' : '👁️'
+  const posterInitial = (item.posterName && item.posterName !== '未登録ユーザー' ? item.posterName : 'U').charAt(0).toUpperCase()
+  const posterPhoto = item.posterPhotoURL ?? null
+
+  const handlePosterPress = () => {
+    if (!item.userId) return
+    if (item.userId === currentUserId) { router.push(`/users/${item.userId}`); return }
+    Alert.alert('プロフィール確認', 'プロフィールを確認しますか？', [
+      { text: 'キャンセル', style: 'cancel' },
+      { text: 'OK', onPress: () => router.push(`/users/${item.userId}`) },
+    ])
+  }
+
   return (
     <TouchableOpacity style={sCard.card} onPress={onPress} activeOpacity={0.8}>
       <View style={sCard.imageWrapper}>
@@ -105,6 +120,21 @@ function SightingItem({ item, onPress }: { item: Sighting; onPress: () => void }
           <Text style={sCard.species}>{SPECIES_LABELS[item.species ?? 'other']}</Text>
           <Text style={sCard.date}>{format(new Date(item.createdAt), 'M/d', { locale: ja })}</Text>
         </View>
+        {/* 投稿者行 */}
+        <TouchableOpacity
+          style={sCard.posterRow}
+          onPress={handlePosterPress}
+          activeOpacity={item.userId ? 0.7 : 1}
+        >
+          <View style={sCard.posterAvatar}>
+            {posterPhoto ? (
+              <Image source={{ uri: posterPhoto }} style={sCard.posterAvatarImage} />
+            ) : (
+              <Text style={sCard.posterInitial}>{posterInitial}</Text>
+            )}
+          </View>
+          <Text style={sCard.posterName} numberOfLines={1}>{item.posterName}</Text>
+        </TouchableOpacity>
       </View>
     </TouchableOpacity>
   )
@@ -140,11 +170,17 @@ const sCard = StyleSheet.create({
   footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 },
   species: { fontSize: 10, color: '#6b7280' },
   date: { fontSize: 10, color: '#9ca3af' },
+  posterRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 7, paddingTop: 6, borderTopWidth: 1, borderTopColor: '#f3f4f6' },
+  posterAvatar: { width: 18, height: 18, borderRadius: 9, backgroundColor: '#FFE0A0', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' },
+  posterAvatarImage: { width: 18, height: 18 },
+  posterInitial: { fontSize: 9, fontWeight: 'bold', color: '#7A4500' },
+  posterName: { fontSize: 10, color: '#7A4500', flex: 1 },
 })
 
 // ─── Home screen ───────────────────────────────────────────────────────────────
 export default function HomeScreen() {
   const router = useRouter()
+  const { user } = useAuth()
   const [pets, setPets] = useState<Pet[]>([])
   const [sightings, setSightings] = useState<Sighting[]>([])
   const [loading, setLoading] = useState(true)
@@ -509,7 +545,7 @@ export default function HomeScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C46B00" />
           }
           renderItem={({ item }) => (
-            <SightingItem item={item} onPress={() => router.push(`/sightings/${item.id}`)} />
+            <SightingItem item={item} onPress={() => router.push(`/sightings/${item.id}`)} currentUserId={user?.uid} />
           )}
         />
       ) : (
@@ -525,7 +561,7 @@ export default function HomeScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#C46B00" />
           }
           renderItem={({ item }) => (
-            <PetCard pet={item} onPress={() => router.push(`/pet/${item.id}`)} />
+            <PetCard pet={item} onPress={() => router.push(`/pet/${item.id}`)} currentUserId={user?.uid} />
           )}
         />
       )}

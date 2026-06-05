@@ -26,6 +26,7 @@ const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? ''
 interface Props {
   userId: string
   ownerDisplayName?: string
+  ownerPhotoURL?: string
   defaultType?: 'lost' | 'found'
   pet?: Pet
 }
@@ -75,7 +76,7 @@ function matchMessageStyle(msg: string): { bg: string; text: string; icon: strin
   return { bg: 'bg-blue-50 border border-blue-100', text: 'text-blue-700', icon: 'ℹ️' }
 }
 
-function FormInner({ userId, ownerDisplayName, defaultType = 'lost', pet }: Props) {
+function FormInner({ userId, ownerDisplayName, ownerPhotoURL, defaultType = 'lost', pet }: Props) {
   const router = useRouter()
   const { user } = useAuth()
   const { startLoading, stopLoading } = useLoadingState()
@@ -382,6 +383,7 @@ function FormInner({ userId, ownerDisplayName, defaultType = 'lost', pet }: Prop
           status: 'searching',
           userId,
           ownerDisplayName: ownerDisplayName ?? undefined,
+          ownerPhotoURL: ownerPhotoURL ?? undefined,
           contactEmail: form.contactEmail,
           contactPhone: form.contactPhone,
           searchRadiusKm: form.searchRadiusKm,

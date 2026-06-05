@@ -133,6 +133,7 @@ export default function NewSightingScreen() {
         userId: user?.uid,
         guestEmail: !user ? guestEmail.trim() : undefined,
         posterName: user?.displayName ?? guestEmail.trim() ?? '未登録ユーザー',
+        posterPhotoURL: user?.photoURL ?? undefined,
       })
 
       setSubmitted(true)

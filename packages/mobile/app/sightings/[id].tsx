@@ -9,7 +9,13 @@ import {
   Alert,
   Platform,
 } from 'react-native'
-import MapView, { Marker, Circle, PROVIDER_GOOGLE } from 'react-native-maps'
+const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? ''
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let MapView: any = null, Marker: any = null, Circle: any = null, PROVIDER_GOOGLE: any = undefined
+if (GOOGLE_MAPS_API_KEY) {
+  const maps = require('react-native-maps')
+  MapView = maps.default; Marker = maps.Marker; Circle = maps.Circle; PROVIDER_GOOGLE = maps.PROVIDER_GOOGLE
+}
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import {
   fetchSightingById,
@@ -216,12 +222,40 @@ export default function SightingDetailScreen() {
             label="場所"
             value={[sighting.location.prefecture, sighting.location.city, sighting.location.address].filter(Boolean).join(' ')}
           />
-          <InfoRow label="投稿者" value={sighting.posterName} />
           <InfoRow
             label="投稿日時"
             value={format(new Date(sighting.createdAt), 'yyyy年M月d日 H:mm', { locale: ja })}
           />
         </View>
+
+        {/* 投稿者プロフィール */}
+        <TouchableOpacity
+          style={styles.posterRow}
+          onPress={() => {
+            if (!sighting.userId) return
+            if (sighting.userId === user?.uid) { router.push(`/users/${sighting.userId}`); return }
+            Alert.alert('プロフィール確認', 'プロフィールを確認しますか？', [
+              { text: 'キャンセル', style: 'cancel' },
+              { text: 'OK', onPress: () => router.push(`/users/${sighting.userId}`) },
+            ])
+          }}
+          activeOpacity={sighting.userId ? 0.7 : 1}
+        >
+          <View style={styles.posterAvatar}>
+            {sighting.posterPhotoURL ? (
+              <Image source={{ uri: sighting.posterPhotoURL }} style={styles.posterAvatarImg} />
+            ) : (
+              <Text style={styles.posterInitial}>
+                {(sighting.posterName && sighting.posterName !== '未登録ユーザー' ? sighting.posterName : 'U').charAt(0).toUpperCase()}
+              </Text>
+            )}
+          </View>
+          <View style={styles.posterInfo}>
+            <Text style={styles.posterLabel}>投稿者</Text>
+            <Text style={styles.posterName}>{sighting.posterName}</Text>
+          </View>
+          {sighting.userId && <Text style={styles.posterArrow}>›</Text>}
+        </TouchableOpacity>
 
         {/* 説明 */}
         {sighting.description ? (
@@ -235,33 +269,42 @@ export default function SightingDetailScreen() {
         {hasLocation && (
           <View style={styles.mapSection}>
             <Text style={styles.mapLabel}>目撃場所（半径5km）</Text>
-            <View style={styles.mapContainer}>
-              <MapView
-                style={styles.map}
-                provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-                initialRegion={{
-                  latitude: sighting.location.lat!,
-                  longitude: sighting.location.lng!,
-                  latitudeDelta: 0.08,
-                  longitudeDelta: 0.08,
-                }}
-                scrollEnabled={false}
-                zoomEnabled={false}
-              >
-                <Marker coordinate={{ latitude: sighting.location.lat!, longitude: sighting.location.lng! }}>
-                  <View style={styles.mapMarker}>
-                    <Text style={styles.mapMarkerEmoji}>👁️</Text>
-                  </View>
-                </Marker>
-                <Circle
-                  center={{ latitude: sighting.location.lat!, longitude: sighting.location.lng! }}
-                  radius={5000}
-                  fillColor="rgba(255,201,107,0.15)"
-                  strokeColor="rgba(196,107,0,0.4)"
-                  strokeWidth={2}
-                />
-              </MapView>
-            </View>
+            {MapView ? (
+              <View style={styles.mapContainer}>
+                <MapView
+                  style={styles.map}
+                  provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+                  initialRegion={{
+                    latitude: sighting.location.lat!,
+                    longitude: sighting.location.lng!,
+                    latitudeDelta: 0.08,
+                    longitudeDelta: 0.08,
+                  }}
+                  scrollEnabled={false}
+                  zoomEnabled={false}
+                >
+                  <Marker coordinate={{ latitude: sighting.location.lat!, longitude: sighting.location.lng! }}>
+                    <View style={styles.mapMarker}>
+                      <Text style={styles.mapMarkerEmoji}>👁️</Text>
+                    </View>
+                  </Marker>
+                  <Circle
+                    center={{ latitude: sighting.location.lat!, longitude: sighting.location.lng! }}
+                    radius={5000}
+                    fillColor="rgba(255,201,107,0.15)"
+                    strokeColor="rgba(196,107,0,0.4)"
+                    strokeWidth={2}
+                  />
+                </MapView>
+              </View>
+            ) : (
+              <View style={styles.noMapBox}>
+                <Text style={styles.noMapBoxText}>
+                  📍 {sighting.location.prefecture} {sighting.location.city}
+                  {sighting.location.address ? `\n${sighting.location.address}` : ''}
+                </Text>
+              </View>
+            )}
           </View>
         )}
 
@@ -402,8 +445,19 @@ const styles = StyleSheet.create({
   descText: { fontSize: 14, color: '#3D2400', lineHeight: 21 },
 
   // Map
+  posterRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, paddingHorizontal: 14, marginBottom: 16, backgroundColor: '#FFFAF0', borderRadius: 14, borderWidth: 1.5, borderColor: '#FFE0A0' },
+  posterAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#FFE0A0', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' },
+  posterAvatarImg: { width: 36, height: 36 },
+  posterInitial: { fontSize: 15, fontWeight: 'bold', color: '#7A4500' },
+  posterInfo: { flex: 1, minWidth: 0 },
+  posterLabel: { fontSize: 11, color: '#B08050' },
+  posterName: { fontSize: 14, fontWeight: 'bold', color: '#3D2400' },
+  posterArrow: { fontSize: 20, color: '#C8A070', flexShrink: 0 },
+
   mapSection: { marginBottom: 16 },
   mapLabel: { fontSize: 13, fontWeight: 'bold', color: '#7A4500', marginBottom: 8 },
+  noMapBox: { backgroundColor: '#FFF9F0', borderRadius: 12, padding: 16, borderWidth: 1.5, borderColor: '#FFE0A0', alignItems: 'center' },
+  noMapBoxText: { fontSize: 14, color: '#5A3A1A', textAlign: 'center', lineHeight: 22 },
   mapContainer: { borderRadius: 14, overflow: 'hidden', height: 200, borderWidth: 1.5, borderColor: '#FFE0A0' },
   map: { flex: 1 },
   mapMarker: {

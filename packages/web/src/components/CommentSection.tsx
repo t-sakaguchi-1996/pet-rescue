@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 import { format } from 'date-fns'
 import { ja } from 'date-fns/locale'
 import { useAuth } from '@/contexts/AuthContext'
@@ -30,6 +31,7 @@ interface Props {
 export default function CommentSection({ petId, petOwnerId, petName }: Props) {
   const { user, profile } = useAuth()
   const { startLoading, stopLoading } = useLoadingState()
+  const router = useRouter()
   const [comments, setComments] = useState<Comment[]>([])
   const [replyingToId, setReplyingToId] = useState<string | null>(null)
   const [userProfiles, setUserProfiles] = useState<Map<string, UserProfile>>(new Map())
@@ -125,6 +127,13 @@ export default function CommentSection({ petId, petOwnerId, petName }: Props) {
           const replies = repliesFor(comment.id)
           const isFormHere = threadId === comment.id
 
+          const handleAvatarClick = (targetUserId?: string) => {
+            if (!targetUserId || targetUserId === user?.uid) return
+            if (window.confirm('プロフィールを確認しますか？')) {
+              router.push(`/users/${targetUserId}`)
+            }
+          }
+
           return (
             <div key={comment.id}>
               <CommentItem
@@ -137,6 +146,7 @@ export default function CommentSection({ petId, petOwnerId, petName }: Props) {
                 isReplyActive={replyingToId === comment.id}
                 onReply={() => toggleReply(comment.id)}
                 onSelectBestInfo={() => handleSelectBestInfo(comment)}
+                onAvatarClick={handleAvatarClick}
               />
 
               {(replies.length > 0 || isFormHere) && (
@@ -153,6 +163,7 @@ export default function CommentSection({ petId, petOwnerId, petName }: Props) {
                       isReplyActive={replyingToId === reply.id}
                       onReply={() => toggleReply(reply.id)}
                       onSelectBestInfo={() => handleSelectBestInfo(reply)}
+                      onAvatarClick={handleAvatarClick}
                     />
                   ))}
 
@@ -229,6 +240,7 @@ function CommentItem({
   onReply,
   isReplyActive,
   onSelectBestInfo,
+  onAvatarClick,
 }: {
   comment: Comment
   currentUserId?: string
@@ -239,6 +251,7 @@ function CommentItem({
   onReply: () => void
   isReplyActive: boolean
   onSelectBestInfo: () => void
+  onAvatarClick?: (userId?: string) => void
 }) {
   const { startLoading, stopLoading } = useLoadingState()
   const [deleting, setDeleting] = useState(false)
@@ -279,8 +292,12 @@ function CommentItem({
         <div className="absolute -inset-2 rounded-2xl pointer-events-none"
              style={{ background: 'rgba(255,201,107,0.15)', border: '1.5px solid #FFC96B' }} />
       )}
-      <div className="w-8 h-8 rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center text-sm font-bold relative z-10"
-           style={{ background: isGuest ? '#F0F0F0' : '#FFE0A0', color: '#7A4500' }}>
+      <div
+        className={`w-8 h-8 rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center text-sm font-bold relative z-10 ${!isOwn && !isGuest && comment.userId ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+        style={{ background: isGuest ? '#F0F0F0' : '#FFE0A0', color: '#7A4500' }}
+        onClick={() => !isOwn && !isGuest && onAvatarClick?.(comment.userId)}
+        title={!isOwn && !isGuest && comment.userId ? 'プロフィールを見る' : undefined}
+      >
         {photoURL ? (
           <Image src={photoURL} alt={comment.userDisplayName} width={32} height={32} className="object-cover w-full h-full" />
         ) : (

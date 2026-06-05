@@ -3,6 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useAuth } from '@/contexts/AuthContext'
 import type { Pet } from '@pet-rescue/shared'
 import { SPECIES_LABELS, STATUS_LABELS, TYPE_LABELS } from '@pet-rescue/shared'
 import { format } from 'date-fns'
@@ -16,6 +17,17 @@ interface Props {
 
 export default function PetCard({ pet, showEditLink, priority = false }: Props) {
   const router = useRouter()
+  const { user } = useAuth()
+  const ownerInitial = (pet.ownerDisplayName ?? 'U').charAt(0).toUpperCase()
+
+  const handleOwnerClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!pet.userId) return
+    if (pet.userId === user?.uid) { router.push(`/users/${pet.userId}`); return }
+    if (window.confirm('プロフィールを確認しますか？')) {
+      router.push(`/users/${pet.userId}`)
+    }
+  }
 
   const statusStyle =
     pet.status === 'searching'
@@ -84,12 +96,23 @@ export default function PetCard({ pet, showEditLink, priority = false }: Props) 
         </p>
 
         {/* オーナー情報 */}
-        <div className="flex items-center gap-1 mt-1.5">
-          <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
-                style={{ background: '#FFF0D0', color: '#8B5E1A' }}>
-            👤 {pet.ownerDisplayName ?? '投稿者'}
-          </span>
-          <span className="text-[10px] ml-auto" style={{ color: '#C8A070' }}>
+        <div className="flex items-center gap-1.5 mt-2 pt-2" style={{ borderTop: '1px solid #F5E8D0' }}>
+          <button
+            onClick={handleOwnerClick}
+            className="flex items-center gap-1.5 min-w-0 flex-1 hover:opacity-70 transition-opacity"
+          >
+            <div className="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-[9px] font-bold overflow-hidden"
+                 style={{ background: '#FFE0A0', color: '#7A4500' }}>
+              {pet.ownerPhotoURL ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={pet.ownerPhotoURL} alt={pet.ownerDisplayName ?? ''} className="w-full h-full object-cover" />
+              ) : ownerInitial}
+            </div>
+            <span className="text-[10px] truncate font-medium" style={{ color: '#7A4500' }}>
+              {pet.ownerDisplayName ?? '投稿者'}
+            </span>
+          </button>
+          <span className="text-[10px] flex-shrink-0" style={{ color: '#C8A070' }}>
             {format(new Date(pet.createdAt), 'M/d', { locale: ja })}
           </span>
         </div>

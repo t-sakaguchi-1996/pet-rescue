@@ -50,6 +50,7 @@ function toSighting(id: string, data: Record<string, unknown>): Sighting {
     guestEmail: data.guestEmail as string | undefined,
     temporaryId: data.temporaryId as string | undefined,
     posterName: (data.posterName as string) ?? '未登録ユーザー',
+    posterPhotoURL: data.posterPhotoURL as string | undefined,
     pointGranted: Boolean(data.pointGranted),
     emailVerified: Boolean(data.emailVerified),
     isBestInfo: Boolean(data.isBestInfo),

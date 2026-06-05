@@ -37,6 +37,10 @@ export default function RootLayout() {
           name="pet-edit"
           options={{ title: '投稿を編集', headerBackTitle: '戻る' }}
         />
+        <Stack.Screen
+          name="users/[id]"
+          options={{ title: 'プロフィール', headerBackTitle: '戻る' }}
+        />
       </Stack>
     </AuthProvider>
   )

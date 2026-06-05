@@ -138,6 +138,30 @@ export default function LocationMapPicker({
     longitudeDelta: pinLocation ? fitDelta : 0.05,
   }
 
+  if (!GOOGLE_MAPS_API_KEY) {
+    return (
+      <View>
+        <View style={styles.row}>
+          <Text style={styles.hint}>場所を都道府県・市区町村で入力してください</Text>
+          {draggable && (
+            <TouchableOpacity style={styles.locBtn} onPress={handleCurrentLocation} disabled={busy}>
+              <Text style={styles.locBtnText}>📍 現在地取得</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+        <View style={styles.noMapPlaceholder}>
+          <Text style={styles.noMapText}>📍</Text>
+          <Text style={styles.noMapLabel}>
+            {pinLocation
+              ? `✓ 座標取得済み (${pinLocation.lat.toFixed(4)}, ${pinLocation.lng.toFixed(4)})`
+              : '地図は現在利用できません\n都道府県・市区町村で場所を入力してください'}
+          </Text>
+          {busy && <LoadingIndicator label={busyMsg} />}
+        </View>
+      </View>
+    )
+  }
+
   return (
     <View>
       <View style={styles.row}>
@@ -234,4 +258,11 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   overlayText: { fontSize: 12, color: '#7A4500', fontWeight: '600' },
+  noMapPlaceholder: {
+    height: 120, borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb',
+    backgroundColor: '#f9fafb', alignItems: 'center', justifyContent: 'center',
+    padding: 16, gap: 8,
+  },
+  noMapText: { fontSize: 32 },
+  noMapLabel: { fontSize: 12, color: '#6b7280', textAlign: 'center', lineHeight: 18 },
 })

@@ -71,6 +71,14 @@ export default function ProfileScreen() {
   const [savingTitle, setSavingTitle] = useState(false)
   const [activeTab, setActiveTab] = useState<ProfileTab>('overview')
   const [notifEnabled, setNotifEnabled] = useState(false)
+  const [notifSettings, setNotifSettings] = useState<Record<string, boolean>>({
+    comment: true,
+    sighting_nearby: true,
+    found_nearby: true,
+    best_info_selected: true,
+    points_granted: true,
+    discovery_bonus: true,
+  })
 
   useEffect(() => {
     if (!user) return
@@ -87,6 +95,12 @@ export default function ProfileScreen() {
       setTransactions(txs)
       setExchanges(exs)
       setSelectedTitleEdit(p?.selectedTitle ?? null)
+      if (p && (p as unknown as Record<string, unknown>).notificationSettings) {
+        setNotifSettings((prev) => ({
+          ...prev,
+          ...((p as unknown as Record<string, unknown>).notificationSettings as Record<string, boolean>),
+        }))
+      }
 
       Promise.all([
         fetchRanking('total_points', user.uid),
@@ -103,7 +117,14 @@ export default function ProfileScreen() {
     if (!user) return
     const enabled = await requestNotificationPermission(user.uid)
     setNotifEnabled(enabled)
-    Alert.alert('通知設定', enabled ? '近くで迷子ペットが投稿された際に通知します' : '通知が許可されませんでした')
+    Alert.alert('通知設定', enabled ? 'プッシュ通知を有効にしました' : '通知が許可されませんでした')
+  }
+
+  const handleToggleNotifSetting = async (key: string, value: boolean) => {
+    if (!user) return
+    const updated = { ...notifSettings, [key]: value }
+    setNotifSettings(updated)
+    await updateUserSettings(user.uid, { notificationSettings: updated }).catch(() => {})
   }
 
   const handleLogout = async () => {
@@ -389,13 +410,18 @@ export default function ProfileScreen() {
           <Text style={styles.sectionTitle}>🎖️ 取得済み称号</Text>
           {TITLE_DEFINITIONS.map((title) => {
             const earned = earnedTitles.includes(title.id)
-            const isSelected = profile?.selectedTitle === title.id
+            const isSelected = selectedTitleEdit === title.id
+            const isSaved = profile?.selectedTitle === title.id
             return (
               <View key={title.id} style={[styles.titleCard, isSelected && styles.titleCardSelected, !earned && styles.titleCardLocked]}>
                 <View style={styles.titleCardInfo}>
                   <Text style={[styles.titleName, !earned && styles.titleNameLocked]}>{title.name}</Text>
                   <Text style={styles.titlePoints}>
-                    {earned ? '✓ 取得済み' : `必要: ${title.requiredPoints.toLocaleString()}pt`}
+                    {earned
+                      ? isSaved
+                        ? '🏅 現在設定中'
+                        : '✓ 取得済み'
+                      : `必要: ${title.requiredPoints.toLocaleString()}pt`}
                   </Text>
                 </View>
                 {earned && (
@@ -404,7 +430,7 @@ export default function ProfileScreen() {
                     onPress={() => setSelectedTitleEdit(isSelected ? null : title.id)}
                   >
                     <Text style={styles.titleSelectBtnText}>
-                      {isSelected ? '表示中' : '表示する'}
+                      {isSelected ? '✓ 表示中' : '表示する'}
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -506,7 +532,7 @@ export default function ProfileScreen() {
             <View style={styles.petGrid}>
               {pets.map((item) => (
                 <View key={item.id} style={styles.petCardWrapper}>
-                  <PetCard pet={item} onPress={() => router.push(`/pet/${item.id}`)} />
+                  <PetCard pet={item} onPress={() => router.push(`/pet/${item.id}`)} currentUserId={user?.uid} />
                   <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDeletePet(item.id)}>
                     <Text style={styles.deleteBtnText}>削除</Text>
                   </TouchableOpacity>
@@ -543,10 +569,28 @@ export default function ProfileScreen() {
             <Text style={styles.settingCardTitle}>🔔 通知設定</Text>
             <TouchableOpacity style={styles.settingBtn} onPress={handleEnableNotifications}>
               <Text style={styles.settingBtnText}>
-                {notifEnabled ? '🔔 通知オン' : '通知を有効にする'}
+                {notifEnabled ? '🔔 プッシュ通知：オン' : '📵 プッシュ通知を有効にする'}
               </Text>
               <Text style={styles.settingBtnArrow}>›</Text>
             </TouchableOpacity>
+            {([
+              { key: 'comment', label: 'コメント・返信' },
+              { key: 'sighting_nearby', label: '近くの目撃情報' },
+              { key: 'found_nearby', label: '近くの保護情報' },
+              { key: 'best_info_selected', label: '最有力情報に選ばれた' },
+              { key: 'points_granted', label: 'ポイント付与' },
+              { key: 'discovery_bonus', label: '発見貢献ボーナス' },
+            ] as { key: string; label: string }[]).map((item) => (
+              <View key={item.key} style={styles.notifRow}>
+                <Text style={styles.notifLabel}>{item.label}</Text>
+                <Switch
+                  value={notifSettings[item.key] !== false}
+                  onValueChange={(v) => handleToggleNotifSetting(item.key, v)}
+                  trackColor={{ false: '#DDD', true: '#C46B00' }}
+                  thumbColor="#fff"
+                />
+              </View>
+            ))}
           </View>
 
           {/* 目撃情報投稿 */}
@@ -714,6 +758,8 @@ const styles = StyleSheet.create({
   settingCardDesc: { fontSize: 12, color: '#8B6340', marginBottom: 10 },
   settingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   settingRowLabel: { fontSize: 14, fontWeight: 'bold', color: '#374151' },
+  notifRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#f3f4f6' },
+  notifLabel: { fontSize: 13, color: '#374151', flex: 1 },
   settingBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 10, borderTopWidth: 1, borderTopColor: '#f3f4f6' },
   settingBtnText: { fontSize: 14, color: '#374151' },
   settingBtnArrow: { fontSize: 20, color: '#9ca3af' },

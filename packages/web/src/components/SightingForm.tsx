@@ -152,6 +152,7 @@ function SightingFormInner({ onSuccess, defaultSpecies }: Props) {
         posterName: user
           ? (profile?.displayName ?? user.displayName ?? user.email ?? '匿名')
           : '未登録ユーザー',
+        posterPhotoURL: user ? (profile?.photoURL ?? user.photoURL ?? undefined) : undefined,
       })
 
       if (user) {

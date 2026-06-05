@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
 import {
   doc, getDoc, getDocs, collection, query, where, orderBy,
-  updateDoc, Timestamp,
+  updateDoc, deleteDoc, writeBatch, Timestamp,
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { TRANSACTION_TYPE_LABELS } from '@pet-rescue/shared'
@@ -112,11 +112,77 @@ export default function AdminUserDetailPage({ params }: { params: Promise<{ uid:
   }
 
   const handleReset = async () => {
-    if (!window.confirm('このユーザーのポイント・実績・称号・バッジをリセットします。元に戻せません。続行しますか？')) return
-    const resetFields = { points: 0, totalPointsEarned: 0, sightingCount: 0, protectedPostCount: 0, bestInfoCount: 0, discoveryCount: 0, titles: [], badges: [], selectedTitle: null }
-    await updateDoc(doc(db, 'users', uid), resetFields)
-    setUserData((prev) => prev ? { ...prev, ...resetFields } : null)
-    alert('リセットしました')
+    if (!window.confirm(
+      'このユーザーのデータをすべてリセットします。\n\n' +
+      '・ポイント・実績・称号・バッジ（ランキングスコア含む）\n' +
+      '・ポイント履歴（期間別ランキング）\n' +
+      '・迷子・保護投稿（ペット）\n' +
+      '・目撃情報\n' +
+      '・通知\n\n' +
+      'この操作は元に戻せません。続行しますか？'
+    )) return
+
+    try {
+      const CHUNK = 400
+
+      // ─── ペット投稿とコメントサブコレクションの削除 ───
+      const petsSnap = await getDocs(query(collection(db, 'pets'), where('userId', '==', uid)))
+      for (const petDoc of petsSnap.docs) {
+        const commentsSnap = await getDocs(collection(db, 'pets', petDoc.id, 'comments'))
+        for (let i = 0; i < commentsSnap.docs.length; i += CHUNK) {
+          const batch = writeBatch(db)
+          commentsSnap.docs.slice(i, i + CHUNK).forEach((c) => batch.delete(c.ref))
+          await batch.commit()
+        }
+        await deleteDoc(petDoc.ref)
+      }
+
+      // ─── 目撃情報の削除 ───
+      const sightingsSnap = await getDocs(query(collection(db, 'sightings'), where('userId', '==', uid)))
+      for (let i = 0; i < sightingsSnap.docs.length; i += CHUNK) {
+        const batch = writeBatch(db)
+        sightingsSnap.docs.slice(i, i + CHUNK).forEach((s) => batch.delete(s.ref))
+        await batch.commit()
+      }
+
+      // ─── ポイント履歴の削除（期間別ランキングに使用） ───
+      const txSnap = await getDocs(query(collection(db, 'point_transactions'), where('userId', '==', uid)))
+      for (let i = 0; i < txSnap.docs.length; i += CHUNK) {
+        const batch = writeBatch(db)
+        txSnap.docs.slice(i, i + CHUNK).forEach((t) => batch.delete(t.ref))
+        await batch.commit()
+      }
+
+      // ─── 通知の削除 ───
+      const notifSnap = await getDocs(query(collection(db, 'notifications'), where('userId', '==', uid)))
+      for (let i = 0; i < notifSnap.docs.length; i += CHUNK) {
+        const batch = writeBatch(db)
+        notifSnap.docs.slice(i, i + CHUNK).forEach((n) => batch.delete(n.ref))
+        await batch.commit()
+      }
+
+      // ─── ユーザードキュメントのリセット ───
+      const resetFields = {
+        points: 0, totalPointsEarned: 0,
+        sightingCount: 0, protectedPostCount: 0, bestInfoCount: 0, discoveryCount: 0,
+        titles: [], badges: [], selectedTitle: null,
+      }
+      await updateDoc(doc(db, 'users', uid), resetFields)
+      setUserData((prev) => prev ? { ...prev, ...resetFields } : null)
+      setPets([])
+      setSightings([])
+      setTransactions([])
+
+      alert(
+        `リセット完了\n` +
+        `・ペット投稿: ${petsSnap.docs.length}件削除\n` +
+        `・目撃情報: ${sightingsSnap.docs.length}件削除\n` +
+        `・ポイント履歴: ${txSnap.docs.length}件削除\n` +
+        `・通知: ${notifSnap.docs.length}件削除`
+      )
+    } catch (err) {
+      alert('リセット中にエラーが発生しました: ' + (err as Error).message)
+    }
   }
 
   if (loading || !user || !isAdmin) return null
@@ -178,8 +244,8 @@ export default function AdminUserDetailPage({ params }: { params: Promise<{ uid:
             </button>
             <button onClick={handleReset}
                     className="text-sm px-3 py-1.5 rounded-xl font-bold"
-                    style={{ background: '#FFF3DC', color: '#C46B00', border: '1px solid #FFD98A' }}>
-              ポイントリセット
+                    style={{ background: '#FFE8E8', color: '#CC3333', border: '1px solid #FFCCCC' }}>
+              🗑️ データをリセット
             </button>
           </div>
         </div>
