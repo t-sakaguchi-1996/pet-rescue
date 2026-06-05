@@ -1,7 +1,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { fetchPets } from '@/lib/firestore'
 import { fetchSightings } from '@/lib/sightings'
@@ -35,6 +35,18 @@ function parseFilter(raw: string | null): MapFilter {
 }
 
 export default function MapPage() {
+  return (
+    <Suspense fallback={
+      <div className="h-[calc(100vh-64px)] flex items-center justify-center bg-gray-50">
+        <p className="text-gray-400 text-sm">読み込み中...</p>
+      </div>
+    }>
+      <MapPageContent />
+    </Suspense>
+  )
+}
+
+function MapPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { startLoading, stopLoading } = useLoadingState()
